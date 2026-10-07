@@ -15276,6 +15276,101 @@ export type Database = {
           },
         ]
       }
+      purchase_quotation_items: {
+        Row: {
+          company_id: string
+          created_at: string
+          description: string
+          id: string
+          product_id: string | null
+          quantity: number
+          quotation_id: string
+          unit_price: number | null
+        }
+        Insert: {
+          company_id?: string
+          created_at?: string
+          description: string
+          id?: string
+          product_id?: string | null
+          quantity: number
+          quotation_id: string
+          unit_price?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          quotation_id?: string
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_quotation_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_quotation_items_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_quotations: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          notes: string | null
+          number: string
+          status: string
+          supplier_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          number: string
+          status?: string
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          number?: string
+          status?: string
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_quotations_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       putaway_tasks: {
         Row: {
           actual_location_code: string | null
