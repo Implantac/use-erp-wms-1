@@ -16,5 +16,6 @@ Legenda: **Pronto** = funciona com dados reais e regras no banco · **Parcial** 
 | Fiscal: NF-e, NFC-e, CT-e, MDF-e, NFS-e | Depende de terceiros | Exige proxy/provedor SEFAZ e certificado A1; sem eles, transmissão indisponível |
 | Entrada de NF-e por XML | Parcial | Leitura e conferência prontas; lançamento automático bloqueado até validação transacional |
 | PIX, boleto, TEF | Depende de terceiros | Sem provedor nenhuma cobrança é criada |
+| Loja pública / checkout | Indisponível para finalização | Catálogo e carrinho podem ser visualizados; criação de pedidos e cobrança bloqueada até integração real de pagamento, frete e validação de itens no servidor |
 | IA (assistentes, insights) | Depende de terceiros | Requer `LOVABLE_API_KEY` ou adaptação para outro provedor |
 | E-mails transacionais | Depende de terceiros | Requer `RESEND_API_KEY` |

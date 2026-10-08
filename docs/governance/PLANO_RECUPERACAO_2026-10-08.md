@@ -7,6 +7,8 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 - [x] Substituir números, alertas e gráfico fixos do dashboard financeiro por dados consultados e mensagens de erro.
 - [x] Informar quando limites de consulta tornam os totais incompletos; não apresentar EBITDA sem cálculo verificável.
 - [x] Bloquear ação de criação de boleto: o endpoint financeiro atual não implementa `generate_boleto`.
+- [x] Bloquear checkout público sem provedor: removidos PIX inventado, cartão marcado como pago sem gateway, boleto prometido e produto demonstrativo inserido automaticamente. Não coletar dados de cartão/cliente nessa tela enquanto indisponível. Testes garantem ausência de gravação para os três meios de pagamento.
+- [ ] Implementar checkout transacional com provedor real, itens verificados no servidor, frete calculado e webhook autenticado antes de reativar a finalização.
 - [x] Remover score, certificação e selos de segurança fixos da tela de auditoria; indicar controles como não verificados até existir evidência real. Teste de regressão adicionado.
 - [ ] Revisar os demais dashboards/rotas por constantes apresentadas como dados reais e adicionar testes de regressão.
 - [x] EFD-Reinf: sem certificado não cria protocolo/transmissão simulada; XML apenas assinado não retorna sucesso de envio; HTTP sem protocolo não confirma autorização. Adicionados testes do cliente contra resposta legada simulada.

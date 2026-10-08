@@ -172,7 +172,7 @@ export default function StorefrontProduct() {
                 {formatBRL(price)}
               </div>
               <p className="text-xs text-muted-foreground">
-                Em até 12x no cartão ou à vista no PIX
+                Formas de pagamento indisponíveis até a ativação do checkout
               </p>
             </div>
 
@@ -229,7 +229,7 @@ export default function StorefrontProduct() {
               <Card>
                 <CardContent className="p-3 flex items-center gap-2 text-xs">
                   <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                  <span>Pagamento 100% seguro</span>
+                  <span>Checkout temporariamente indisponível</span>
                 </CardContent>
               </Card>
             </div>
