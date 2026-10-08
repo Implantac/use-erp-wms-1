@@ -57,3 +57,7 @@ O inventário adicional encontrou um gatilho que inseria percentuais fiscais est
 ### 08/10/2026 — Permissões da interface sem concessão universal
 
 O carregamento de sessão e o mapeamento de usuário atribuíam `permissions: ['all']` a qualquer perfil, inclusive viewer. Agora não criam permissões universais; guards que dependem de permissão explícita falham fechados até existir concessão escopada e verificada. `OperationalScopeGuard` não renderiza rota contextual protegida enquanto a identidade/contexto estão pendentes. Hooks de contexto foram ajustados para evitar referências obsoletas no carregamento e no memo de políticas. Testes cobrem ausência de permissão universal em viewer e exigência de permissão explícita. **Isso só protege a interface:** RLS/RPC/Edge ainda requerem testes e autorização server-side em banco A/B; permissões granulares por cliente não foram implementadas.
+
+### 08/10/2026 — Demanda preditiva sem confiança fabricada
+
+`PredictiveIntelligenceService` devolvia confiança 0,85 fixa, demanda baseada em poucas linhas com média/dias hipotéticos e posições DOCK/PICKING fictícias; a tela 360° usava o resultado para sugerir compra, cobertura e EOQ. O serviço agora falha sem modelo validado, o hook descarta previsão anterior ao mudar SKU e mostra indisponibilidade sem valores de reposição. Teste cobre ambos os métodos. **Previsão real, indicadores de acurácia, histórico completo e otimização de posições continuam não implementados/homologados.**

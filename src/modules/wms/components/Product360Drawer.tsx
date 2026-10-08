@@ -28,7 +28,7 @@ export function Product360Drawer({ open, onOpenChange, productId, productName }:
   const { costs, loading: loadingCosts } = useProductCosts();
   const [period, setPeriod] = useState<number>(30);
   const [seasonality, setSeasonality] = useState<'none' | 'high' | 'low'>('none');
-  const { demand, loading: loadingDemand } = usePredictiveIntelligence(productId, { days: period, seasonality });
+  const { demand, loading: loadingDemand, error: demandError } = usePredictiveIntelligence(productId, { days: period, seasonality });
 
   const product = useMemo(() => 
     items.find(i => i.id === productId || i.productCode === productId),
@@ -137,6 +137,8 @@ export function Product360Drawer({ open, onOpenChange, productId, productName }:
                     </CardContent>
                   </Card>
                 )}
+                {loadingDemand && <p role="status" className="text-xs text-muted-foreground">Verificando disponibilidade de projeção...</p>}
+                {demandError && <p role="note" className="text-xs text-muted-foreground">{demandError} Nenhuma sugestão de compra ou reposição foi calculada.</p>}
                 {demand && (
                   <Card className="border-accent/20 bg-accent/5">
                     <CardContent className="p-4">
@@ -167,7 +169,7 @@ export function Product360Drawer({ open, onOpenChange, productId, productName }:
                           <label className="text-[9px] text-muted-foreground uppercase flex items-center gap-1">
                             <Wind className="h-2 w-2" /> Sazonalidade
                           </label>
-                          <Select value={seasonality} onValueChange={(v: any) => setSeasonality(v)}>
+                          <Select value={seasonality} onValueChange={(v) => { if (v === 'none' || v === 'high' || v === 'low') setSeasonality(v); }}>
                             <SelectTrigger className="h-7 text-[10px] bg-background/50 border-accent/20">
                               <SelectValue placeholder="Sazonalidade" />
                             </SelectTrigger>
@@ -215,6 +217,7 @@ export function Product360Drawer({ open, onOpenChange, productId, productName }:
               </TabsContent>
 
               <TabsContent value="logistics" className="space-y-4 mt-4">
+                {demandError && <p role="note" className="text-xs text-muted-foreground">{demandError} Reposição preditiva e EOQ não disponíveis.</p>}
                 {demand && (
                   <div className="space-y-4">
                     <div className="p-4 border border-accent/20 bg-accent/5 rounded-lg space-y-4">
