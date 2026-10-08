@@ -172,7 +172,11 @@ export default function StorefrontOrders() {
                             </SelectTrigger>
                             <SelectContent>
                               {ORDER_STATUS.map((s) => (
-                                <SelectItem key={s.value} value={s.value}>
+                                <SelectItem
+                                  key={s.value}
+                                  value={s.value}
+                                  disabled={order.payment_status !== "paid" && ["confirmed", "preparing", "shipped", "delivered"].includes(s.value)}
+                                >
                                   {s.label}
                                 </SelectItem>
                               ))}

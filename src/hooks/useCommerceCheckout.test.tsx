@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useCreateStorefrontOrder } from './useCommerceCheckout';
+import { useCreateStorefrontOrder, useUpdateOrderStatus } from './useCommerceCheckout';
 import { supabase } from '@/integrations/supabase/client';
 
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: vi.fn() } }));
@@ -22,5 +22,27 @@ describe('checkout público sem provedor', () => {
       payment_method, items: [{ product_name: 'Produto', quantity: 1, unit_price: 10 }],
     }))).rejects.toThrow('Checkout indisponível');
     expect(supabase.from).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('transições administrativas da loja', () => {
+  it('impede marcar pagamento como pago sem confirmação do provedor', async () => {
+    vi.mocked(supabase.from).mockClear();
+    const { result } = renderHook(() => useUpdateOrderStatus(), { wrapper });
+    await expect(act(async () => result.current.mutateAsync({ id: 'order', payment_status: 'paid' })))
+      .rejects.toThrow('Não é permitido confirmar pagamento manualmente');
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
+
+  it('impede avançar pedido não pago para preparação', async () => {
+    const update = vi.fn();
+    const single = vi.fn().mockResolvedValue({ data: { payment_status: 'pending' }, error: null });
+    const eq = vi.fn().mockReturnValue({ single });
+    vi.mocked(supabase.from).mockReturnValue({ select: () => ({ eq }), update } as never);
+    const { result } = renderHook(() => useUpdateOrderStatus(), { wrapper });
+    await expect(act(async () => result.current.mutateAsync({ id: 'order', order_status: 'preparing' })))
+      .rejects.toThrow('Pedido sem pagamento confirmado');
+    expect(update).not.toHaveBeenCalled();
   });
 });

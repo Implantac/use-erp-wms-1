@@ -8,7 +8,8 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 - [x] Informar quando limites de consulta tornam os totais incompletos; não apresentar EBITDA sem cálculo verificável.
 - [x] Bloquear ação de criação de boleto: o endpoint financeiro atual não implementa `generate_boleto`.
 - [x] Bloquear checkout público sem provedor: removidos PIX inventado, cartão marcado como pago sem gateway, boleto prometido e produto demonstrativo inserido automaticamente. Não coletar dados de cartão/cliente nessa tela enquanto indisponível. Testes garantem ausência de gravação para os três meios de pagamento.
-- [ ] Implementar checkout transacional com provedor real, itens verificados no servidor, frete calculado e webhook autenticado antes de reativar a finalização.
+- [x] Proteger administração e banco contra confirmação manual de pagamento: hook bloqueia `paid`, UI não oferece avanço de pedido não pago, migration `20261008170000_block_unverified_storefront_checkout.sql` rejeita criação pública e mudança de pagamento por `anon`/`authenticated` até haver provedor. **A migration precisa ser aplicada no banco implantado; proteção de banco ainda não verificada.**
+- [ ] Implementar checkout transacional com provedor real, itens verificados no servidor, frete calculado e webhook autenticado antes de reativar a finalização. Remover/rever a guarda do banco apenas depois da homologação.
 - [x] Remover score, certificação e selos de segurança fixos da tela de auditoria; indicar controles como não verificados até existir evidência real. Teste de regressão adicionado.
 - [ ] Revisar os demais dashboards/rotas por constantes apresentadas como dados reais e adicionar testes de regressão.
 - [x] EFD-Reinf: sem certificado não cria protocolo/transmissão simulada; XML apenas assinado não retorna sucesso de envio; HTTP sem protocolo não confirma autorização. Adicionados testes do cliente contra resposta legada simulada.

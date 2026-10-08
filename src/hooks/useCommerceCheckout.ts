@@ -134,12 +134,24 @@ export function useUpdateOrderStatus() {
       payment_status?: StorefrontOrder["payment_status"];
       order_status?: StorefrontOrder["order_status"];
     }) => {
-      const patch: Record<string, unknown> = {};
-      if (payment_status) {
-        patch.payment_status = payment_status;
-        if (payment_status === "paid") patch.paid_at = new Date().toISOString();
+      if (payment_status === "paid") {
+        throw new Error("Não é permitido confirmar pagamento manualmente. Aguarde confirmação autenticada do provedor.");
       }
+      if (order_status && ["confirmed", "preparing", "shipped", "delivered"].includes(order_status)) {
+        const { data: order, error: readError } = await supabase
+          .from("storefront_orders")
+          .select("payment_status")
+          .eq("id", id)
+          .single();
+        if (readError) throw readError;
+        if (order?.payment_status !== "paid") {
+          throw new Error("Pedido sem pagamento confirmado não pode avançar para preparação ou entrega.");
+        }
+      }
+      const patch: Record<string, unknown> = {};
+      if (payment_status) patch.payment_status = payment_status;
       if (order_status) patch.order_status = order_status;
+      if (Object.keys(patch).length === 0) throw new Error("Nenhuma alteração informada.");
       const { error } = await supabase
         .from("storefront_orders")
         .update(patch as never)
