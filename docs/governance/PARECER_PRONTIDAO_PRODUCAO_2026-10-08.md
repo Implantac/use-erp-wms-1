@@ -50,3 +50,4 @@ O inventário adicional encontrou um gatilho que inseria percentuais fiscais est
 - Painel IoT mostra apenas máquinas cadastradas e indisponibilidade de sensores; não inventa leituras, conectividade, histórico ou alertas preditivos. Integração IoT real segue pendente.
 - Gráfico de demanda não inventa série temporal a partir de uma previsão agregada. A origem e a calibração da previsão agregada ainda exigem validação.
 - Mapa de lojas exibe apenas contagens dos saldos retornados na consulta, com aviso de limite de 2.000 registros e sem métricas falsas de saúde, giro ou acuracidade. Não é indicador completo da rede.
+- Painel OEE agora consulta apenas registros persistidos filtrados pela empresa ativa e mostra erro de consulta, em vez de inventar tendência e seis perdas. Os valores são exibidos sem assumir unidade ou metodologia ainda não homologadas; cobertura limitada a 100 registros.
