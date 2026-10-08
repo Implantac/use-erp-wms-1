@@ -61,12 +61,13 @@ export function useCreateNFeState() {
           if (!currentCompany?.tax_regime) throw new Error('Regime tributário da empresa não configurado.');
           if (!/^[1-7][0-9]{3}$/.test(it.cfop)) throw new Error('CFOP do item inválido ou ausente.');
           const calc = calculateTaxes(
-          { price: it.unitPrice, quantity: it.quantity, ncm: it.ncm },
+          { price: it.unitPrice, quantity: it.quantity, ncm: it.ncm, cfop: it.cfop },
           originUF,
           clientUF,
           taxRulesQuery.data || [],
-          currentCompany?.tax_regime || '',
+          currentCompany.tax_regime,
           'hybrid',
+          new Date().toISOString().slice(0, 10),
         );
           return {
             ...it,
