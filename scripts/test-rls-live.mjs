@@ -16,6 +16,23 @@ if (missing.length) {
 }
 
 const env = process.env;
+if (env.RLS_TEST_ANON_KEY.startsWith('sb_secret_')) {
+  console.error('RLS LIVE BLOQUEADO: chave secreta não é chave pública de cliente.');
+  process.exit(2);
+}
+// Legacy anon JWTs embed their role. Reject privileged credentials before making any request.
+if (env.RLS_TEST_ANON_KEY.split('.').length === 3) {
+  let role;
+  try { role = JSON.parse(Buffer.from(env.RLS_TEST_ANON_KEY.split('.')[1], 'base64url').toString('utf8')).role; }
+  catch { console.error('RLS LIVE BLOQUEADO: JWT da chave pública inválido.'); process.exit(2); }
+  if (role !== 'anon') {
+    console.error('RLS LIVE BLOQUEADO: chave JWT sem papel anon; nunca use service_role.');
+    process.exit(2);
+  }
+} else if (!env.RLS_TEST_ANON_KEY.startsWith('sb_publishable_')) {
+  console.error('RLS LIVE BLOQUEADO: chave pública Supabase não reconhecida.');
+  process.exit(2);
+}
 const tenant = prefix => ({
   email: env[`RLS_${prefix}_EMAIL`], password: env[`RLS_${prefix}_PASSWORD`],
   companyId: env[`RLS_${prefix}_COMPANY_ID`],

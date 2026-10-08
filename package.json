@@ -12,6 +12,7 @@
     "typecheck": "tsgo --noEmit",
     "test": "vitest run",
     "test:rls:live": "node scripts/test-rls-live.mjs",
+    "test:rls:guard": "node --test scripts/test-rls-live.test.mjs",
     "preview": "vite preview",
     "seed:replenishment": "python3 scripts/seed-replenishment.py",
     "e2e": "playwright test --project=chromium",
