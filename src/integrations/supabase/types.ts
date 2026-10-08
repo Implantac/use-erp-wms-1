@@ -15333,6 +15333,7 @@ export type Database = {
           id: string
           notes: string | null
           number: string
+          purchase_order_id: string | null
           status: string
           supplier_id: string | null
           updated_at: string
@@ -15345,6 +15346,7 @@ export type Database = {
           id?: string
           notes?: string | null
           number: string
+          purchase_order_id?: string | null
           status?: string
           supplier_id?: string | null
           updated_at?: string
@@ -15357,11 +15359,19 @@ export type Database = {
           id?: string
           notes?: string | null
           number?: string
+          purchase_order_id?: string | null
           status?: string
           supplier_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_quotations_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_quotations_supplier_id_fkey"
             columns: ["supplier_id"]
@@ -24226,6 +24236,10 @@ export type Database = {
           _clear_date?: string
         }
         Returns: Json
+      }
+      convert_quotation_to_purchase_order: {
+        Args: { _quotation_id: string }
+        Returns: string
       }
       current_billing_period: { Args: never; Returns: string }
       cx_ensure_default_weights: {
