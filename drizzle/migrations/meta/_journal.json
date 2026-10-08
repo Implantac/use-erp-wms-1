@@ -8,6 +8,13 @@
       "when": 1791457780456,
       "tag": "0000_quotation_to_purchase_order",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791458085213,
+      "tag": "0001_quotation_terms",
+      "breakpoints": true
     }
   ]
 }

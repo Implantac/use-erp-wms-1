@@ -15329,10 +15329,12 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          delivery_days: number | null
           due_date: string | null
           id: string
           notes: string | null
           number: string
+          payment_condition: string | null
           purchase_order_id: string | null
           status: string
           supplier_id: string | null
@@ -15342,10 +15344,12 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          delivery_days?: number | null
           due_date?: string | null
           id?: string
           notes?: string | null
           number: string
+          payment_condition?: string | null
           purchase_order_id?: string | null
           status?: string
           supplier_id?: string | null
@@ -15355,10 +15359,12 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          delivery_days?: number | null
           due_date?: string | null
           id?: string
           notes?: string | null
           number?: string
+          payment_condition?: string | null
           purchase_order_id?: string | null
           status?: string
           supplier_id?: string | null
