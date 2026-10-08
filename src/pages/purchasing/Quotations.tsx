@@ -37,7 +37,7 @@ const EDITABLE: Status[] = ['draft', 'sent', 'answered'];
 
 interface Item { id?: string; product_id: string | null; description: string; quantity: number; unit_price: number | null }
 interface Quotation {
-  id: string; number: string; supplier_id: string | null; status: Status; due_date: string | null; notes: string | null; created_at: string;
+  id: string; number: string; supplier_id: string | null; status: Status; due_date: string | null; notes: string | null; created_at: string; delivery_days?: number | null; payment_condition?: string | null;
   supplier?: { name: string } | null; items?: Item[]; purchase_order_id?: string | null;
 }
 
@@ -57,7 +57,7 @@ export default function QuotationsPage() {
     enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase.from('purchase_quotations')
-        .select('id, number, supplier_id, status, due_date, notes, created_at, purchase_order_id, supplier:suppliers(name), items:purchase_quotation_items(id, product_id, description, quantity, unit_price)')
+        .select('id, number, supplier_id, status, due_date, notes, created_at, purchase_order_id, delivery_days, payment_condition, supplier:suppliers(name), items:purchase_quotation_items(id, product_id, description, quantity, unit_price)')
         .eq('company_id', companyId!).order('created_at', { ascending: false }).limit(300);
       if (error) throw error;
       return (data ?? []) as unknown as Quotation[];
@@ -186,6 +186,8 @@ function QuotationDialog({ companyId, quotation, onClose }: { companyId: string;
   const [supplierId, setSupplierId] = useState(quotation?.supplier_id ?? '');
   const [dueDate, setDueDate] = useState(quotation?.due_date ?? '');
   const [notes, setNotes] = useState(quotation?.notes ?? '');
+  const [deliveryDays, setDeliveryDays] = useState(quotation?.delivery_days != null ? String(quotation.delivery_days) : '');
+  const [paymentCondition, setPaymentCondition] = useState(quotation?.payment_condition ?? '');
   const [items, setItems] = useState<Item[]>(quotation?.items?.length ? quotation.items : [{ product_id: null, description: '', quantity: 1, unit_price: null }]);
 
   const suppliers = useQuery({
@@ -211,7 +213,8 @@ function QuotationDialog({ companyId, quotation, onClose }: { companyId: string;
       if (clean.length === 0) throw new Error('Inclua pelo menos um item.');
       if (clean.some((i) => !(i.quantity > 0) || (i.unit_price !== null && i.unit_price < 0))) throw new Error('Quantidades devem ser maiores que zero e preços não podem ser negativos.');
       let id = quotation?.id;
-      const header = { supplier_id: supplierId || null, due_date: dueDate || null, notes: notes.trim() || null };
+      const header = { supplier_id: supplierId || null, due_date: dueDate || null, notes: notes.trim() || null, delivery_days: deliveryDays === '' ? null : Number(deliveryDays), payment_condition: paymentCondition.trim() || null };
+      if (header.delivery_days !== null && !(Number.isInteger(header.delivery_days) && header.delivery_days >= 0)) throw new Error('Prazo de entrega deve ser um número inteiro de dias.');
       if (id) {
         const { error } = await supabase.from('purchase_quotations').update(header).eq('id', id).eq('company_id', companyId);
         if (error) throw error;
@@ -243,6 +246,8 @@ function QuotationDialog({ companyId, quotation, onClose }: { companyId: string;
             <SelectContent>{(suppliers.data ?? []).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
           </Select>
           <Input type="date" aria-label="Prazo de resposta" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={readOnly} />
+          <Input type="number" min={0} step={1} placeholder="Prazo de entrega (dias)" aria-label="Prazo de entrega em dias" value={deliveryDays} onChange={(e) => setDeliveryDays(e.target.value)} disabled={readOnly} />
+          <Input placeholder="Condição de pagamento (ex.: 30/60 dias)" aria-label="Condição de pagamento" value={paymentCondition} onChange={(e) => setPaymentCondition(e.target.value)} disabled={readOnly} />
         </div>
         <div className="space-y-2">
           <div className="hidden grid-cols-[1.2fr_1.5fr_90px_120px_36px] gap-2 text-xs font-medium text-muted-foreground sm:grid">
