@@ -48,3 +48,7 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 
 ## Evidência deste lote
 `npx vitest run --maxWorkers=2`: 115 testes aprovados (18 arquivos) na análise anterior. `npm run lint:ci`: 35 avisos, gate falha. `npm run typecheck`: executável `tsgo` ausente. Build local encerrado por limite do ambiente (137), não interpretado como falha de código. Nenhum E2E conectado ao Supabase nem homologação de terceiros foi realizado. Atualizar estes resultados após cada fase.
+
+## Incremento posterior — escopo de alertas e pátio
+
+Encontradas chaves de cache sem usuário/empresa em divergências financeiras e pátio, além de `assign_notification` SECURITY DEFINER que verificava papel global, mas não a empresa do alerta. O cliente agora usa chaves com usuário + empresa, desabilita consultas sem identidade, filtra consultas/mutações pelo `company_id` e rejeita atualização sem linha afetada. A migração `20261008200000_scope_notification_assignment.sql` restringe a atribuição ao admin da empresa do alerta e valida que o responsável pertence à mesma empresa. **Não foi aplicada em Supabase**: verificar migração em homologação com usuário A da empresa A, usuário B da empresa B, UUID de alerta B com admin A (deve falhar), responsável B para alerta A (deve falhar), e cenário legítimo A→A (deve passar). Testar também troca de empresa/sessão com cache carregado. Testes unitários existentes e tipagem não substituem esses cenários de banco.

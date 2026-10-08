@@ -19,7 +19,7 @@ import { AssignDialog } from './divergence-dashboard/AssignDialog';
 
 export default function DivergenceDashboard() {
   const qc = useQueryClient();
-  const { user, role: userRole } = useActiveTenant();
+  const { user, role: userRole, activeCompanyId } = useActiveTenant();
   const isAdmin = userRole === 'admin' || userRole === 'admin_matriz';
   const [filter, setFilter] = useState<FilterStatus>('open');
 
@@ -28,11 +28,13 @@ export default function DivergenceDashboard() {
   const [assignDueAt, setAssignDueAt] = useState<string>('');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['divergence_notifications'],
+    queryKey: ['divergence_notifications', user?.id, activeCompanyId],
+    enabled: Boolean(user?.id && activeCompanyId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
+        .eq('company_id', activeCompanyId!)
         .in('title', ['Divergência faturamento × estoque', 'Divergência bancária por canal'])
         .order('created_at', { ascending: false })
         .limit(200);
@@ -43,10 +45,10 @@ export default function DivergenceDashboard() {
   });
 
   const { data: companyUsers } = useQuery({
-    queryKey: ['divergence_company_users'],
-    enabled: isAdmin,
+    queryKey: ['divergence_company_users', user?.id, activeCompanyId],
+    enabled: isAdmin && Boolean(user?.id && activeCompanyId),
     queryFn: async () => {
-      const { data, error } = await supabase.from('profiles').select('id,name').limit(200);
+      const { data, error } = await supabase.from('profiles').select('id,name').eq('company_id', activeCompanyId!).limit(200);
       if (error) throw error;
       return (data ?? []) as CompanyUser[];
     },
@@ -75,13 +77,21 @@ export default function DivergenceDashboard() {
     }
   }, [notifs, filter, user?.id]);
 
+  const notificationKey = ['divergence_notifications', user?.id, activeCompanyId];
+  const requireCompany = () => {
+    if (!activeCompanyId) throw new Error('Empresa ativa não identificada.');
+    return activeCompanyId;
+  };
+
   const markRead = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await supabase.from('notifications').update({ read: true }).in('id', ids);
+      if (ids.length === 0) return;
+      const { data: updated, error } = await supabase.from('notifications').update({ read: true }).eq('company_id', requireCompany()).in('id', ids).select('id');
       if (error) throw error;
+      if (updated?.length !== ids.length) throw new Error('Nem todos os alertas pertencem à empresa ativa.');
     },
     onSuccess: (_d, ids) => {
-      qc.invalidateQueries({ queryKey: ['divergence_notifications'] });
+      qc.invalidateQueries({ queryKey: notificationKey });
       toastSuccess(ids.length > 1 ? `${ids.length} alertas resolvidos` : 'Alerta resolvido');
     },
     onError: handleMutationError,
@@ -89,11 +99,12 @@ export default function DivergenceDashboard() {
 
   const reopen = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('notifications').update({ read: false }).eq('id', id);
+      const { data: updated, error } = await supabase.from('notifications').update({ read: false }).eq('company_id', requireCompany()).eq('id', id).select('id');
       if (error) throw error;
+      if (updated?.length !== 1) throw new Error('Alerta não pertence à empresa ativa.');
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['divergence_notifications'] });
+      qc.invalidateQueries({ queryKey: notificationKey });
       toastSuccess('Alerta reaberto');
     },
     onError: handleMutationError,
@@ -101,6 +112,7 @@ export default function DivergenceDashboard() {
 
   const assign = useMutation({
     mutationFn: async (input: { id: string; assigned_to: string | null; due_at: string | null }) => {
+      requireCompany();
       const { error } = await supabase.rpc('assign_notification', {
         _notification_id: input.id,
         _assigned_to: input.assigned_to,
@@ -109,7 +121,7 @@ export default function DivergenceDashboard() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['divergence_notifications'] });
+      qc.invalidateQueries({ queryKey: notificationKey });
       toastSuccess('Responsável atribuído');
       setAssignTarget(null);
     },
