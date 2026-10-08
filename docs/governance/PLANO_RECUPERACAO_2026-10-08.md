@@ -20,7 +20,7 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 - [ ] Homologar EFD-Reinf ponta a ponta com certificado real e validar semanticamente o XML de resposta oficial (protocolo isolado não prova autorização). Revisar históricos legados SIM e formatos de subject ICP-Brasil usados por clientes reais.
 
 ## P1 — Gates reproduzíveis e integridade
-- [ ] Corrigir comando `typecheck`: `tsgo` não consta das dependências instaladas; medir memória adequada para a base.
+- [x] Fixar `@typescript/native-preview` nas dependências de desenvolvimento e no `bun.lock`: `npm run typecheck` executa `tsgo --noEmit` localmente. TypeScript clássico `tsc -b --noEmit` ainda excedeu heap neste ambiente; aferir memória e comportamento em CI.
 - [ ] Zerar os avisos reportáveis em `npm run lint:ci`.
 - [ ] Executar `npm run build` em runner com memória suficiente e registrar artefato, tempo e consumo.
 - [ ] Prover Supabase de homologação, migrations aplicadas, seeds determinísticas e duas identidades de tenants distintos. Não usar dados de produção.
