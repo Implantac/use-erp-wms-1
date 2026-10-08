@@ -42,8 +42,8 @@ export function useYardData() {
     },
   });
 
-  const vehicles = vehiclesQ.data || [];
-  const appts = apptsQ.data || [];
+  const vehicles = useMemo(() => vehiclesQ.data || [], [vehiclesQ.data]);
+  const appts = useMemo(() => apptsQ.data || [], [apptsQ.data]);
   const docks = docksQ.data || [];
 
   const kpis = useMemo(() => {

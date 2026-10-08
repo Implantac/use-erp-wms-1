@@ -21,7 +21,7 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 
 ## P1 — Gates reproduzíveis e integridade
 - [x] Fixar `@typescript/native-preview` nas dependências de desenvolvimento e no `bun.lock`: `npm run typecheck` executa `tsgo --noEmit` localmente. TypeScript clássico `tsc -b --noEmit` ainda excedeu heap neste ambiente; aferir memória e comportamento em CI.
-- [ ] Zerar os avisos reportáveis em `npm run lint:ci`.
+- [ ] Zerar os avisos reportáveis em `npm run lint:ci`. Incremento: 27 avisos restantes após correção de dependências de hooks em interface adaptativa, cadeia de suprimentos, divergências e pátio. A troca de filtros da cadeia de suprimentos agora atualiza a consulta sem closure obsoleta; gate global ainda falha.
 - [ ] Executar `npm run build` em runner com memória suficiente e registrar artefato, tempo e consumo.
 - [ ] Prover Supabase de homologação, migrations aplicadas, seeds determinísticas e duas identidades de tenants distintos. Não usar dados de produção.
 - [x] Escopar consultas de contas bancárias e títulos financeiros por `company_id`, desabilitar sem empresa e separar chaves do cache por tenant (testes unitários de troca de empresa).

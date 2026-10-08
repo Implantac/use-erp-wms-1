@@ -52,7 +52,7 @@ export default function DivergenceDashboard() {
     },
   });
 
-  const notifs = data ?? [];
+  const notifs = useMemo(() => data ?? [], [data]);
   const userNameById = useMemo(() => {
     const m = new Map<string, string>();
     (companyUsers ?? []).forEach((u) => m.set(u.id, u.name ?? '—'));

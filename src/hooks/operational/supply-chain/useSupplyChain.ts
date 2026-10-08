@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useEnterprise } from '@/core/auth/EnterpriseContext';
 import { supplyChainService, SupplyChainMovement, MovementStatus } from '@/services/operational/supply-chain/supplyChainService';
 import { supabase } from "@/integrations/supabase/client";
@@ -10,17 +10,12 @@ export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
   const [isDataLoading, setIsDataLoading] = useState(false);
 
   const branchId = currentBranch?.id;
-  const statusFilter = useMemo(() => filters?.status, [JSON.stringify(filters?.status)]);
-  const lastFetchRef = useRef<number>(0);
+  const statusKey = filters?.status?.join('|') ?? '';
+  const statusFilter = useMemo(() => statusKey ? statusKey.split('|') as MovementStatus[] : undefined, [statusKey]);
 
   const fetchMovements = useCallback(async () => {
     if (!branchId || isEnterpriseLoading) return;
     
-    // Throttling fetches to prevent rapid re-renders
-    const now = Date.now();
-    if (now - lastFetchRef.current < 1000) return;
-    lastFetchRef.current = now;
-
     setIsDataLoading(true);
     try {
       const data = await supplyChainService.getMovements({
@@ -46,7 +41,7 @@ export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [branchId, isEnterpriseLoading]); // removed fetchMovements from deps to prevent sync loops
+  }, [branchId, isEnterpriseLoading, fetchMovements]);
 
   useEffect(() => {
     if (isEnterpriseLoading || !branchId) return;
@@ -79,7 +74,7 @@ export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
       if (debounce) clearTimeout(debounce);
       supabase.removeChannel(channel);
     };
-  }, [branchId, isEnterpriseLoading]); // removed fetchMovements from deps
+  }, [branchId, isEnterpriseLoading, fetchMovements]);
 
   const updateStatus = async (id: string, status: MovementStatus) => {
     try {
@@ -95,7 +90,7 @@ export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
   const getMovementLedger = async (movementId: string) => {
     try {
       const { data, error } = await supabase
-        .from('supply_chain_ledger' as any)
+        .from('supply_chain_ledger' as never)
         .select('*')
         .eq('movement_id', movementId)
         .order('created_at', { ascending: false });

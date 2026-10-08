@@ -19,7 +19,7 @@ export const useAdaptiveInterface = () => {
       default:
         return baseModules;
     }
-  }, [config?.segment]); // Stable dependency
+  }, [config]);
 
   return {
     visibleModules,
