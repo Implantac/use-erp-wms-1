@@ -1,21 +1,24 @@
-# Situação das funcionalidades — v1.0.0
+# Situação das funcionalidades — avaliação pré-produção (08/10/2026)
 
-Legenda: **Pronto** = funciona com dados reais e regras no banco · **Parcial** = funciona, com limitação documentada · **Depende de terceiros** = falha com segurança até configurar o provedor.
+**Este arquivo não é certificado de prontidão.** `Não comprovado` = há implementação, mas falta prova de banco/E2E em ambiente representativo. `Bloqueado` = ação final desabilitada ou rejeitada por segurança. Consulte `docs/governance/PARECER_PRONTIDAO_PRODUCAO_2026-10-08.md`, `docs/governance/ENSAIO_RLS_A_B.md` e o relatório de auditoria atualizado antes de firmar escopo comercial.
 
-| Área | Situação | Observações |
+| Área | Estado verificável | Evidência faltante ou limite |
 |---|---|---|
-| Multiempresa, unidades e papéis (RLS/RBAC) | Pronto | Isolamento por empresa; papéis admin/manager/operator/viewer |
-| Cadastros (produtos, clientes, fornecedores) | Pronto | |
-| Vendas / pedidos (O2C) | Pronto | Pedidos ficam pendentes até transição explícita |
-| Compras: cotações e pedidos | Pronto | Conversão automática de cotação aprovada em pedido: pendente |
-| Estoque, kardex e transferências entre unidades | Pronto | Saldos via movimentos e gatilhos |
-| WMS (recebimento, picking, packing) | Parcial | Reservas concorrentes por posição pendentes |
-| Produção / PCP | Pronto | Conclusão da OP dá entrada no acabado e baixa materiais pela ficha |
-| Financeiro (pagar/receber, fluxo, conciliação OFX/CSV) | Pronto | |
-| Governança e auditoria | Pronto | Eventos reais por empresa |
-| Fiscal: NF-e, NFC-e, CT-e, MDF-e, NFS-e | Não homologado para IBS/CBS | NF-e criada/exportada a partir de dados de tela foi bloqueada: faltam CST/cClassTrib, leiaute/XSD vigente, integração, assinatura e autorização; ver `docs/fiscal/RTC_IBS_CBS_AUDITORIA_2026-10-08.md`. Outros modelos e regimes exigem validação específica. |
-| Entrada de NF-e por XML | Parcial | Leitura e conferência prontas; lançamento automático bloqueado até validação transacional |
-| PIX, boleto, TEF | Depende de terceiros | Sem provedor nenhuma cobrança é criada |
-| Loja pública / checkout | Indisponível para finalização | Catálogo e carrinho podem ser visualizados; criação de pedidos e cobrança bloqueada até integração real de pagamento, frete e validação de itens no servidor |
-| IA (assistentes, insights) | Depende de terceiros | Requer `LOVABLE_API_KEY` ou adaptação para outro provedor |
-| E-mails transacionais | Depende de terceiros | Requer `RESEND_API_KEY` |
+| Multiempresa, unidades e RLS/RBAC | **Não comprovado** | Runner A/B existe, mas não foi executado em banco; testar leitura/escrita, Storage, Edge, administradores e histórico de suporte |
+| Produtos, clientes, fornecedores | **Não comprovado** | CRUD/validação/paginação e isolamentos A/B por tabela e refresh |
+| Vendas e pedidos O2C | **Não comprovado ponta a ponta** | `tests/e2e/sales-golden-path.spec.ts` está `fixme`; fiscal bloqueado |
+| Compras P2P | **Não comprovado ponta a ponta** | `tests/e2e/purchase-golden-path.spec.ts` está `fixme` |
+| Estoque, kardex e transferências | **Não comprovado; avanço WMS bloqueado** | Migration de guarda de status deve ser aplicada/testada; concorrência, rollback, estoque e permissões não homologados |
+| WMS (recebimento, picking, packing) | **Não comprovado** | Transições diretas de status bloqueadas; fluxo real ainda precisa de RPC autorizada e efeitos atômicos |
+| Inventário em loja | **Bloqueado** | Tela só mostra prévia; não grava contagem nem ajuste |
+| Produção / PCP | **Não comprovado ponta a ponta** | `tests/e2e/production-golden-path.spec.ts` está `fixme`; IoT não mede sensores reais |
+| Financeiro (pagar/receber, OFX/CSV) | **Não comprovado ponta a ponta** | Conciliação, concorrência, idempotência e RLS em banco a testar |
+| Governança e auditoria | **Não comprovado** | Scanner não implementado; trilha e retenção exigem evidências |
+| Fiscal: todos os DF-e usados por cada cliente | **Não homologado** | NF-e Edge responde 503; regime/modelo/UF, certificado, XSD, assinatura, transporte e retorno oficial por operação ainda exigem validação fiscal |
+| Entrada de NF-e por XML | **Parcial / lançamento bloqueado** | Leitura não prova entrada transacional em estoque e financeiro |
+| PIX, boleto, TEF | **Bloqueado sem provedor** | Não prometer cobrança sem PSP/banco e webhook autenticado |
+| Loja pública / checkout | **Finalização bloqueada** | Itens, frete, preço server-side, PSP, webhook e conciliação a implementar/testar |
+| IA e e-mails transacionais | **Dependem de integração** | Segurança, indisponibilidade e idempotência do provedor não comprovadas |
+| IoT e logística inteligente | **Sem medição real** | Dashboard avisa ausência de sensores; serviços legados não fabricam rastreamento |
+
+**Decisão:** não oferecer o conjunto como ERP/WMS pronto para produção. Escopo reduzido só após provas específicas da jornada vendida, RLS, backup/restore, CI verde, suporte e homologações necessárias.
