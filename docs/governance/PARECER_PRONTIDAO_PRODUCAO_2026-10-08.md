@@ -33,3 +33,7 @@
 **Agora:** somente demonstração/ambiente controlado e módulos específicos após verificação individual; manter NF-e e cobrança não homologadas bloqueadas. **Não** comercializar a plataforma como pronta para todos os regimes, documentos e fluxos.
 
 **Para um piloto real restrito:** (1) escolher módulos e operações do cliente, (2) aplicar migrações em homologação e comprovar isolamento A/B e rollback, (3) obter build/CI verde, (4) executar golden paths com dados anonimizados e aprovação do responsável fiscal, (5) homologar provedores e autorizadores necessários, (6) revisar segurança, backup/restauração, auditoria e monitoramento, (7) liberação gradual por cliente com plano de rollback. Critérios não cumpridos continuam como bloqueadores, não como pendências cosméticas.
+
+### Adendo — provisionamento de novos clientes
+
+O inventário adicional encontrou um gatilho que inseria percentuais fiscais estimados em cada nova empresa, placeholders de endereço no onboarding, migração legada de empresa genérica e concessão condicional de acesso/assinatura de suporte, e um `setup --migrate` que repetia todos os SQLs. Há correções locais versionadas para bloquear o replay, exigir campos do cliente e remover o gatilho de novos cadastros. **Sem aplicar/testar a migration em banco, o provisionamento em ambiente implantado permanece não comprovado.** Contas/regras legadas existentes exigem auditoria específica, não exclusão cega.

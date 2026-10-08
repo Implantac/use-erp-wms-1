@@ -23,12 +23,12 @@ const onboardingSchema = z.object({
   cnpj: z.string().trim().regex(cnpjRegex, 'CNPJ inválido (use formato 00.000.000/0000-00)'),
   segment: z.enum(['confeccao', 'industria', 'distribuicao', 'varejo', 'servicos', 'outro']),
   phone: z.string().trim().regex(phoneRegex, 'Telefone inválido').max(20).optional().or(z.literal('')),
-  address_street: z.string().trim().max(150).optional().or(z.literal('')),
-  address_number: z.string().trim().max(20).optional().or(z.literal('')),
-  address_neighborhood: z.string().trim().max(80).optional().or(z.literal('')),
-  address_city: z.string().trim().max(80).optional().or(z.literal('')),
-  address_state: z.string().trim().regex(ufRegex, 'UF deve ter 2 letras maiúsculas').default('SP'),
-  address_zip: z.string().trim().regex(cepRegex, 'CEP inválido').optional().or(z.literal('')),
+  address_street: z.string().trim().min(2, 'Informe o logradouro real').max(150),
+  address_number: z.string().trim().min(1, 'Informe o número ou S/N, se aplicável').max(20),
+  address_neighborhood: z.string().trim().min(2, 'Informe o bairro real').max(80),
+  address_city: z.string().trim().min(2, 'Informe a cidade real').max(80),
+  address_state: z.string().trim().regex(ufRegex, 'UF deve ter 2 letras maiúsculas'),
+  address_zip: z.string().trim().regex(cepRegex, 'Informe um CEP válido'),
 });
 
 const SEGMENTS = [
@@ -55,7 +55,7 @@ export default function Onboarding() {
     address_number: '',
     address_neighborhood: '',
     address_city: '',
-    address_state: 'SP',
+    address_state: '',
     address_zip: '',
   });
 
@@ -96,12 +96,12 @@ export default function Onboarding() {
         _company_name: form.company_name,
         _cnpj: form.cnpj,
         _segment: form.segment,
-        _address_street: form.address_street || '-',
-        _address_number: form.address_number || 'S/N',
-        _address_neighborhood: form.address_neighborhood || '-',
-        _address_city: form.address_city || '-',
-        _address_state: form.address_state || 'SP',
-        _address_zip: form.address_zip || '00000-000',
+        _address_street: form.address_street,
+        _address_number: form.address_number,
+        _address_neighborhood: form.address_neighborhood,
+        _address_city: form.address_city,
+        _address_state: form.address_state,
+        _address_zip: form.address_zip,
         _phone: form.phone || null,
         _email: user?.email || null,
       });
@@ -137,7 +137,7 @@ export default function Onboarding() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight">Bem-vindo! Vamos configurar sua empresa</h1>
           <p className="mt-2 text-muted-foreground">
-            Em menos de 1 minuto seu ERP estará pronto. Você ganha <strong>14 dias grátis</strong> no plano Starter.
+            Cadastre dados reais da empresa. Configuração fiscal e homologação são etapas separadas. Você ganha <strong>14 dias grátis</strong> no plano Starter.
           </p>
         </div>
 
@@ -194,54 +194,60 @@ export default function Onboarding() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address_zip">CEP</Label>
+                  <Label htmlFor="address_zip">CEP *</Label>
                   <Input
                     id="address_zip"
                     value={form.address_zip}
                     onChange={(e) => update('address_zip')(e.target.value)}
                     placeholder="00000-000"
+                  required
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="address_street">Endereço</Label>
+                  <Label htmlFor="address_street">Endereço *</Label>
                   <Input
                     id="address_street"
                     value={form.address_street}
                     onChange={(e) => update('address_street')(e.target.value)}
                     placeholder="Rua / Avenida"
+                  required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address_number">Número</Label>
+                  <Label htmlFor="address_number">Número *</Label>
                   <Input
                     id="address_number"
                     value={form.address_number}
                     onChange={(e) => update('address_number')(e.target.value)}
+                  required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address_neighborhood">Bairro</Label>
+                  <Label htmlFor="address_neighborhood">Bairro *</Label>
                   <Input
                     id="address_neighborhood"
                     value={form.address_neighborhood}
                     onChange={(e) => update('address_neighborhood')(e.target.value)}
+                  required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address_city">Cidade</Label>
+                  <Label htmlFor="address_city">Cidade *</Label>
                   <Input
                     id="address_city"
                     value={form.address_city}
                     onChange={(e) => update('address_city')(e.target.value)}
+                  required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address_state">UF</Label>
+                  <Label htmlFor="address_state">UF *</Label>
                   <Input
                     id="address_state"
                     value={form.address_state}
                     maxLength={2}
                     onChange={(e) => update('address_state')(e.target.value.toUpperCase())}
+                  required
                   />
                 </div>
               </div>

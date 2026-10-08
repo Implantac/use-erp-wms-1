@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 // USE ERP — verificação e preparação do ambiente.
 // Uso: npm run setup            (verifica tudo)
-//      npm run setup -- --migrate  (também aplica as migrations via psql + DATABASE_URL)
+// Migrações devem ser aplicadas por pipeline com histórico de versões;
+// --migrate foi desabilitado (reexecutava todos os SQLs sem controle).
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+if (process.argv.includes('--migrate')) {
+  console.error('Migração bloqueada: este comando reexecutava todo o histórico SQL sem rastreamento. Use um ambiente de homologação e pipeline de migrations versionadas (Supabase CLI), com backup e revisão antes de produção.');
+  process.exit(2);
+}
 
 const ok = (m) => console.log(`  ✔ ${m}`);
 const warn = (m) => console.log(`  ⚠ ${m}`);
@@ -50,23 +53,7 @@ if (env.VITE_SUPABASE_URL && env.VITE_SUPABASE_PUBLISHABLE_KEY) {
 const dir = 'supabase/migrations';
 const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
 ok(`${files.length} migrations encontradas`);
-if (process.argv.includes('--migrate')) {
-  if (!env.DATABASE_URL) fail('DATABASE_URL não definida — necessária para --migrate');
-  else {
-    try { execFileSync('psql', ['--version'], { stdio: 'ignore' }); } catch { fail('psql não encontrado — instale o cliente PostgreSQL ou use "supabase db push"'); }
-    if (!failed) {
-      for (const f of files) {
-        process.stdout.write(`    aplicando ${f}... `);
-        try {
-          execFileSync('psql', [env.DATABASE_URL, '-v', 'ON_ERROR_STOP=1', '-q', '-f', join(dir, f)], { stdio: ['ignore', 'ignore', 'pipe'] });
-          console.log('ok');
-        } catch (e) { console.log('erro'); fail(`${f}: ${String(e.stderr || e.message).split('\n')[0]}`); break; }
-      }
-    }
-  }
-} else {
-  warn('Migrations não aplicadas nesta execução. Use "npm run setup -- --migrate" ou "supabase db push" (ver docs/INSTALL.md)');
-}
+warn('Migrations não são aplicadas por setup. Use pipeline versionada no Supabase de homologação e valide antes da produção.');
 
-console.log(failed ? '\nSetup com pendências. Corrija os itens ✖ acima.\n' : '\nAmbiente pronto. Rode "npm run dev".\n');
+console.log(failed ? '\nSetup com pendências. Corrija os itens ✖ acima.\n' : '\nVerificação básica concluída. Migrations, segurança e integrações ainda exigem homologação.\n');
 process.exit(failed ? 1 : 0);
