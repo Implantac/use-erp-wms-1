@@ -24612,6 +24612,7 @@ export type Database = {
           skipped: number
         }[]
       }
+      in_user_branch_scope: { Args: { _branch_id: string }; Returns: boolean }
       increment_nps_bank_usage: {
         Args: { p_ids: string[] }
         Returns: undefined
