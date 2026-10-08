@@ -2,7 +2,6 @@ import { Info, Sparkles } from 'lucide-react';
 import { Input } from '@/ui/base/input';
 import { Label } from '@/ui/base/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
-import { cfopOptions } from '@/config/fiscal';
 
 interface Props {
   operationType: string;
@@ -44,18 +43,11 @@ export function StepInfo({ operationType, setOperationType, naturezaOp, setNatur
           </div>
           <div className="bg-muted/50 p-5 rounded-xl border border-dashed border-primary/20 space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs">Sugestão de CFOP Padrão</Label>
-              <Select value={defaultCfop} onValueChange={setDefaultCfop}>
-                <SelectTrigger className="bg-background h-10"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {cfopOptions.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.value} - {c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs">CFOP para novos itens (opcional)</Label>
+              <Input value={defaultCfop} maxLength={4} inputMode="numeric" pattern="[1-7][0-9]{3}" placeholder="Informe o CFOP após análise fiscal" onChange={(e) => setDefaultCfop(e.target.value.replace(/\D/g, '').slice(0, 4))} />
             </div>
             <p className="text-[11px] text-muted-foreground italic">
-              * O sistema ajustará o CFOP automaticamente conforme a UF do destinatário na próxima etapa.
+              * O CFOP deve ser selecionado por operação e item; UF isolada não determina o código. Confirme com o responsável fiscal.
             </p>
           </div>
         </div>

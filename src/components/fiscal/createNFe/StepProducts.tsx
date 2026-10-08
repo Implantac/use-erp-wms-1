@@ -1,9 +1,7 @@
 import { Package, Trash2 } from 'lucide-react';
 import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
-import { cfopOptions } from '@/config/fiscal';
 import { formatBRL } from '@/lib/formatters';
 import { toSafeNumber } from '@/lib/numericValidation';
 import { SmartSelect, SmartSelectOption } from '../SmartSelect';
@@ -60,14 +58,7 @@ export function StepProducts({ items, productOptions, onAddProduct, onUpdateItem
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Select value={item.cfop} onValueChange={(v) => onUpdateItem(idx, 'cfop', v)}>
-                      <SelectTrigger className="h-9 font-mono text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {cfopOptions.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>{o.value}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Input value={item.cfop} maxLength={4} inputMode="numeric" pattern="[1-7][0-9]{3}" placeholder="CFOP" aria-label={`CFOP do item ${idx + 1}`} onChange={(e) => onUpdateItem(idx, 'cfop', e.target.value.replace(/\D/g, '').slice(0, 4))} className="h-9 font-mono text-xs" />
                   </TableCell>
                   <TableCell>
                     <Input

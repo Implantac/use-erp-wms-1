@@ -30,7 +30,7 @@ export function useCreateNFeState() {
 
   const [operationType, setOperationType] = useState('saida');
   const [naturezaOp, setNaturezaOp] = useState('Venda de mercadoria');
-  const [defaultCfop, setDefaultCfop] = useState('5102');
+  const [defaultCfop, setDefaultCfop] = useState('');
 
   const [items, setItems] = useState<NFeItemForm[]>([]);
 
@@ -53,26 +53,19 @@ export function useCreateNFeState() {
   }, [searchTerm]);
 
   useEffect(() => {
-    if (!clientUF) return;
-    if (!originUF) return;
-    const sameState = clientUF === originUF;
-    const newCfop = operationType === 'saida' ? (sameState ? '5102' : '6102') : '1102';
-    setDefaultCfop(newCfop);
-    setItems((prev) => prev.map((i) => ({ ...i, cfop: newCfop })));
-  }, [clientUF, operationType, originUF]);
-
-  useEffect(() => {
     const calcAll = () => {
       let calculationError: string | null = null;
       const updated = items.map((it) => {
         if (!it.cfop) return it;
         try {
+          if (!currentCompany?.tax_regime) throw new Error('Regime tributário da empresa não configurado.');
+          if (!/^[1-7][0-9]{3}$/.test(it.cfop)) throw new Error('CFOP do item inválido ou ausente.');
           const calc = calculateTaxes(
           { price: it.unitPrice, quantity: it.quantity, ncm: it.ncm },
           originUF,
           clientUF,
           taxRulesQuery.data || [],
-          currentCompany?.tax_regime || 'simples_nacional',
+          currentCompany?.tax_regime || '',
           'hybrid',
         );
           return {
@@ -164,10 +157,11 @@ export function useCreateNFeState() {
     if (clientDocument && clientDocument.replace(/\D/g, '').length < 11) steps[1].errors.push('O documento do destinatário (CPF/CNPJ) parece estar incompleto.');
     if (!clientUF) steps[1].errors.push('UF do destinatário não identificada. Verifique o cadastro.');
     if (!originUF) steps[0].errors.push('UF da empresa emissora não configurada.');
+    if (!currentCompany?.tax_regime) steps[0].errors.push('Regime tributário da empresa não configurado.');
 
     if (items.length === 0) steps[2].errors.push('A nota precisa conter pelo menos um item para ser emitida.');
     items.forEach((item, idx) => {
-      if (!item.cfop) steps[2].errors.push(`Item ${idx + 1} (${item.productName}): O código CFOP é obrigatório.`);
+      if (!/^[1-7][0-9]{3}$/.test(item.cfop)) steps[2].errors.push(`Item ${idx + 1} (${item.productName}): informe um CFOP de quatro dígitos válido quanto ao formato; a classificação fiscal deve ser conferida.`);
       if (!item.ncm) steps[2].warnings.push(`Item ${idx + 1}: NCM não informado. Isso pode causar rejeição pela SEFAZ.`);
       if (item.quantity <= 0) steps[2].errors.push(`Item ${idx + 1}: A quantidade deve ser maior que zero.`);
       if (item.unitPrice <= 0) steps[2].errors.push(`Item ${idx + 1}: O valor unitário não pode ser zero.`);
@@ -182,7 +176,7 @@ export function useCreateNFeState() {
     if (installments < 1) steps[5].errors.push('O número de parcelas deve ser pelo menos 1.');
 
     return steps;
-  }, [naturezaOp, clientId, clientDocument, clientUF, items, paymentMethod, totalIcms, totalIpi, totalPis, totalCofins, subtotal, installments, taxCalculationError, taxRulesQuery.isError, originUF]);
+  }, [naturezaOp, clientId, clientDocument, clientUF, items, paymentMethod, totalIcms, totalIpi, totalPis, totalCofins, subtotal, installments, taxCalculationError, taxRulesQuery.isError, originUF, currentCompany?.tax_regime]);
 
   const allIssues = useMemo(() => {
     const errors: { step: number; message: string }[] = [];
