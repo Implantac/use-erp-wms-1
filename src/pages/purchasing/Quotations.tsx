@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
 import { FileSearch, Plus, Search, Trash2, Loader2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { compareQuotations } from '@/lib/purchasing/compareQuotations';
 import { formatBRL, formatDate } from '@/lib/formatters';
 
 const supabase = typedClient as unknown as SupabaseClient;
@@ -283,19 +284,8 @@ function QuotationDialog({ companyId, quotation, onClose }: { companyId: string;
   );
 }
 
-type Offer = { quotation: Quotation; price: number };
 function CompareDialog({ quotations, onClose }: { quotations: Quotation[]; onClose: () => void }) {
-  const rows = useMemo(() => {
-    const map = new Map<string, { label: string; offers: Offer[] }>();
-    for (const q of quotations) for (const it of q.items ?? []) {
-      if (it.unit_price === null) continue;
-      const key = it.product_id ?? it.description.trim().toLowerCase();
-      const row = map.get(key) ?? { label: it.description, offers: [] };
-      row.offers.push({ quotation: q, price: it.unit_price });
-      map.set(key, row);
-    }
-    return [...map.values()].map((r) => ({ ...r, best: Math.min(...r.offers.map((o) => o.price)) }));
-  }, [quotations]);
+  const rows = useMemo(() => compareQuotations(quotations), [quotations]);
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-4xl">
@@ -308,7 +298,7 @@ function CompareDialog({ quotations, onClose }: { quotations: Quotation[]; onClo
             <Table>
               <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Fornecedor</TableHead><TableHead>Cotação</TableHead><TableHead className="text-right">Entrega</TableHead><TableHead>Pagamento</TableHead><TableHead className="text-right">Preço unit.</TableHead></TableRow></TableHeader>
               <TableBody>
-                {rows.flatMap((r) => [...r.offers].sort((a, b) => a.price - b.price).map((o, i) => (
+                {rows.flatMap((r) => r.offers.map((o, i) => (
                   <TableRow key={`${r.label}-${o.quotation.id}-${i}`}>
                     <TableCell className="font-medium">{i === 0 ? r.label : ''}</TableCell>
                     <TableCell>{o.quotation.supplier?.name ?? 'Não definido'}</TableCell>
