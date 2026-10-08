@@ -1,13 +1,9 @@
 import { useState } from 'react';
 import { Button } from "@/ui/base/button";
-import { Check, ClipboardList, AlertCircle, Package, Search } from 'lucide-react';
+import { ClipboardList, AlertCircle, Package, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/ui/base/dialog";
 import { Input } from "@/ui/base/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/base/select";
-import { useEnterprise } from '@/core/auth/EnterpriseContext';
-import { useProducts } from '@/hooks/inventory/useProducts';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { useProducts, type DbProduct } from '@/hooks/inventory/useProducts';
 import { Badge } from '@/ui/base/badge';
 import { ScrollArea } from '@/ui/base/scroll-area';
 
@@ -17,20 +13,18 @@ interface InventoryDialogProps {
 }
 
 export function InventoryDialog({ isOpen, onClose }: InventoryDialogProps) {
-  const { currentBranch } = useEnterprise();
   const { data: products } = useProducts();
   const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
   
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<(DbProduct & { counted_qty: number })[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredProducts = products?.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (p as any).sku?.toLowerCase().includes(searchTerm.toLowerCase())
+    p.code?.toLowerCase().includes(searchTerm.toLowerCase())
   ).slice(0, 10);
 
-  const addItem = (product: any) => {
+  const addItem = (product: DbProduct) => {
     if (items.find(i => i.id === product.id)) return;
     setItems([...items, { ...product, counted_qty: 0 }]);
   };
@@ -43,20 +37,6 @@ export function InventoryDialog({ isOpen, onClose }: InventoryDialogProps) {
     setItems(items.map(i => i.id === id ? { ...i, counted_qty: qty } : i));
   };
 
-  const handleSubmit = async () => {
-    setLoading(true);
-    try {
-      // Aqui integraria com o backend real para criar a tarefa de inventário
-      // Por enquanto, simulamos o sucesso
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success("Inventário registrado com sucesso");
-      onClose();
-    } catch (error) {
-      toast.error("Erro ao registrar inventário");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -90,7 +70,7 @@ export function InventoryDialog({ isOpen, onClose }: InventoryDialogProps) {
                   >
                     <div>
                       <p className="text-sm font-bold">{p.name}</p>
-                      <p className="text-[10px] text-muted-foreground font-mono">{(p as any).sku || 'SEM SKU'}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono">{p.code || 'SEM SKU'}</p>
                     </div>
                     <Badge variant="outline">Adicionar</Badge>
                   </button>
@@ -110,7 +90,7 @@ export function InventoryDialog({ isOpen, onClose }: InventoryDialogProps) {
                     <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
                     <div>
                       <p className="text-sm font-bold">{item.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{(item as any).sku || 'SEM SKU'}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.code || 'SEM SKU'}</p>
                     </div>
                       <div className="flex items-center gap-3">
                         <Input 
@@ -135,7 +115,7 @@ export function InventoryDialog({ isOpen, onClose }: InventoryDialogProps) {
                <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
                <div className="text-sm">
                  <p className="font-bold text-amber-700 uppercase text-xs">Atenção</p>
-                 <p className="text-amber-600 font-medium">Você está prestes a consolidar a contagem de {items.length} itens. Divergências detectadas gerarão ajustes automáticos no Ledger Logístico.</p>
+                 <p className="text-amber-600 font-medium">Prévia de {items.length} itens. O registro e os ajustes de estoque não estão disponíveis nesta tela; nenhuma alteração será salva.</p>
                </div>
              </div>
              
@@ -164,13 +144,12 @@ export function InventoryDialog({ isOpen, onClose }: InventoryDialogProps) {
             </>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => setStep(1)} disabled={loading}>Voltar</Button>
+              <Button variant="ghost" onClick={() => setStep(1)}>Voltar</Button>
               <Button 
                 className="bg-emerald-600 hover:bg-emerald-700 font-black uppercase tracking-widest text-[10px]" 
-                onClick={handleSubmit}
-                disabled={loading}
+                disabled
               >
-                {loading ? "Processando..." : "FINALIZAR INVENTÁRIO"}
+                REGISTRO INDISPONÍVEL
               </Button>
             </>
           )}
