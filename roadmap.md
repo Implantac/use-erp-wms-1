@@ -54,5 +54,6 @@
 - [ ] Teste de instalação limpa em projeto novo (bloqueio: requer projeto/servidor separado do comprador).
 - [ ] Testes ponta a ponta dos 6 fluxos principais com dados de demonstração isolados.
 - [x] Converter cotação aprovada em pedido de compra (uma única vez, por gestores).
+- [x] Cotação com prazo de entrega, condição de pagamento e comparação de preços entre fornecedores (regra testada).
 - [ ] Revisar os 42 avisos de funções privilegiadas do banco.
 - [ ] Licença final revisada por advogado (bloqueio: dados e termos do licenciante).
