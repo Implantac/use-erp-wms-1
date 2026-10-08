@@ -30,9 +30,10 @@ const STATUS_OPTIONS = [
 interface OrderLite { id: string; order_number: string; }
 interface Props { storefrontId: string; orders: OrderLite[]; projectRef?: string; }
 
-export function PaymentEventsPanel({ storefrontId, orders, projectRef = "arcuhqdiydlvekanychw" }: Props) {
+export function PaymentEventsPanel({ storefrontId, orders, projectRef }: Props) {
   const { data: events = [], isLoading } = usePaymentEventsForStorefront(storefrontId);
-  const webhookUrl = `https://${projectRef}.supabase.co/functions/v1/psp-webhook`;
+  const baseUrl = projectRef ? `https://${projectRef}.supabase.co` : String(import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/$/, "");
+  const webhookUrl = `${baseUrl}/functions/v1/psp-webhook`;
 
   const [providers, setProviders] = useState<string[]>([]);
   const [statusBefore, setStatusBefore] = useState<string[]>([]);
