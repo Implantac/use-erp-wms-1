@@ -57,7 +57,7 @@ export default function QuotationsPage() {
     enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase.from('purchase_quotations')
-        .select('id, number, supplier_id, status, due_date, notes, created_at, supplier:suppliers(name), items:purchase_quotation_items(id, product_id, description, quantity, unit_price)')
+        .select('id, number, supplier_id, status, due_date, notes, created_at, purchase_order_id, supplier:suppliers(name), items:purchase_quotation_items(id, product_id, description, quantity, unit_price)')
         .eq('company_id', companyId!).order('created_at', { ascending: false }).limit(300);
       if (error) throw error;
       return (data ?? []) as unknown as Quotation[];
