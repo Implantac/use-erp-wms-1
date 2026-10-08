@@ -7,6 +7,7 @@ import { signReinfXml } from "../_shared/reinf-sign.ts";
 import { buildReinfLoteXml } from "../_shared/reinf-lote-xml.ts";
 import { tenantReinfCertificateSecrets } from "../_shared/reinf-tenant-cert.ts";
 import { validateReinfCertificate } from "../_shared/reinf-certificate-policy.ts";
+import { normalizeValidReinfCnpj } from "../_shared/reinf-cnpj.ts";
 
 type EventType = "R-2010" | "R-2020" | "R-4020" | "R-2099" | "R-4099";
 
@@ -137,7 +138,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!company?.cnpj || !/^\d{14}$/.test(company.cnpj.replace(/\D/g, ""))) {
+    if (!company?.cnpj || !normalizeValidReinfCnpj(company.cnpj)) {
       return new Response(JSON.stringify({ ok: false, error: "invalid_company_cnpj", message: "CNPJ da empresa ausente ou inválido; nenhum lote foi transmitido." }), {
         status: 422, headers: { ...cors, "Content-Type": "application/json" },
       });

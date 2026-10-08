@@ -13,7 +13,7 @@ describe('política de certificado EFD-Reinf', () => {
     expect(validateReinfCertificate(certificate, '11.222.333/0001-81', now)).toBe('valid');
   });
   it('rejeita certificado de outro tenant', () => {
-    expect(validateReinfCertificate(certificate, '12.345.678/0001-90', now)).toBe('certificate_company_mismatch');
+    expect(validateReinfCertificate(certificate, '11.444.777/0001-61', now)).toBe('certificate_company_mismatch');
   });
   it('rejeita certificado expirado ou ainda não vigente', () => {
     expect(validateReinfCertificate({ ...certificate, not_after: '2026-01-01' }, '11222333000181', now)).toBe('certificate_not_valid');

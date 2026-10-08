@@ -1,3 +1,5 @@
+import { normalizeValidReinfCnpj } from './reinf-cnpj.ts';
+
 export interface ReinfCertificateIdentity {
   subject: string;
   not_before: string;
@@ -10,8 +12,8 @@ export function validateReinfCertificate(
   companyCnpj: string,
   now: Date = new Date(),
 ): 'valid' | 'invalid_company_cnpj' | 'certificate_company_mismatch' | 'certificate_not_valid' {
-  const cnpj = companyCnpj.replace(/\D/g, '');
-  if (!/^\d{14}$/.test(cnpj)) return 'invalid_company_cnpj';
+  const cnpj = normalizeValidReinfCnpj(companyCnpj);
+  if (!cnpj) return 'invalid_company_cnpj';
   // ICP-Brasil A1 certificates commonly carry the holder CNPJ in the CN.
   // If an issuer uses a different subject format, require explicit validation
   // instead of silently accepting an unverified certificate.
