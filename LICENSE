@@ -1,0 +1,15 @@
+USE ERP — LICENÇA COMERCIAL DE CÓDIGO-FONTE (MODELO)
+Versão 1.0.0
+
+ATENÇÃO: este é um modelo. Revise com seu advogado e preencha os campos entre colchetes antes de vender.
+
+Licenciante: [RAZÃO SOCIAL / CNPJ]
+Licenciado: o comprador identificado na nota fiscal ou contrato de compra.
+
+1. CONCESSÃO. Mediante pagamento, o Licenciante concede ao Licenciado licença [perpétua/por prazo], não exclusiva e intransferível para usar, modificar e implantar este código-fonte em [número] instalação(ões) / para uso próprio ou de seus clientes finais, conforme contratado.
+2. RESTRIÇÕES. É vedado revender, sublicenciar ou redistribuir o código-fonte, no todo ou em parte, como produto concorrente, salvo autorização escrita.
+3. PROPRIEDADE. Os direitos autorais permanecem com o Licenciante. Modificações feitas pelo Licenciado pertencem ao Licenciado.
+4. TERCEIROS. Bibliotecas de código aberto incluídas mantêm suas próprias licenças (ver package.json). Serviços externos (Supabase, provedores fiscais, de pagamento e de IA) são contratados diretamente pelo Licenciado.
+5. GARANTIA. O software é fornecido "no estado em que se encontra". Integrações fiscais e de pagamento dependem de homologação do Licenciado junto aos órgãos e provedores.
+6. RESPONSABILIDADE. A responsabilidade do Licenciante limita-se ao valor pago pela licença.
+7. FORO. [Cidade/UF].
