@@ -36,6 +36,13 @@
       "when": 1791459205709,
       "tag": "0004_branch_scope_restrictive_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791459424749,
+      "tag": "0005_channel_scope_restrictive_policies",
+      "breakpoints": true
     }
   ]
 }

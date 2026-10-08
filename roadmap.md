@@ -47,7 +47,7 @@
 - [x] Substituir indicadores e eventos simulados da governança por consultas reais por empresa e período, com falhas explícitas e exportação apenas de registros consultados.
 - [ ] Ativar fixtures e testes E2E completos de O2C, P2P, PCP e PDV no pipeline.
 - [x] Isolamento por unidade (perfil com unidade fixa) em 20 tabelas e correção de 3 funções privilegiadas sem checagem de empresa.
-- [ ] Isolamento por canal de venda (VAREJO_PDV/ATACADO_INDUSTRIA).
+- [x] Isolamento por canal de venda (canal fixo opcional no perfil) em 10 tabelas.
 
 ## Release comercial USE ERP v1.0.0
 - [x] Pacote de instalação: .env.example, setup, Docker, Nginx, reapontamento de agendamentos.

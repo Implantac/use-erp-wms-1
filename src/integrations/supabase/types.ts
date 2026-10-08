@@ -15032,6 +15032,9 @@ export type Database = {
           anonymized_at: string | null
           avatar_url: string | null
           branch_id: string | null
+          canal_operacional:
+            | Database["public"]["Enums"]["canal_operacional"]
+            | null
           company_id: string | null
           created_at: string
           default_branch_id: string | null
@@ -15047,6 +15050,9 @@ export type Database = {
           anonymized_at?: string | null
           avatar_url?: string | null
           branch_id?: string | null
+          canal_operacional?:
+            | Database["public"]["Enums"]["canal_operacional"]
+            | null
           company_id?: string | null
           created_at?: string
           default_branch_id?: string | null
@@ -15062,6 +15068,9 @@ export type Database = {
           anonymized_at?: string | null
           avatar_url?: string | null
           branch_id?: string | null
+          canal_operacional?:
+            | Database["public"]["Enums"]["canal_operacional"]
+            | null
           company_id?: string | null
           created_at?: string
           default_branch_id?: string | null
@@ -24613,6 +24622,10 @@ export type Database = {
         }[]
       }
       in_user_branch_scope: { Args: { _branch_id: string }; Returns: boolean }
+      in_user_channel_scope: {
+        Args: { _canal: Database["public"]["Enums"]["canal_operacional"] }
+        Returns: boolean
+      }
       increment_nps_bank_usage: {
         Args: { p_ids: string[] }
         Returns: undefined
