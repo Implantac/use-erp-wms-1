@@ -41,3 +41,7 @@ A migração `20261008210000_clean_tenant_fiscal_bootstrap.sql` remove o gatilho
 **Risco legado de implantação:** há migrations históricas que criaram uma empresa genérica para backfill e concederam plano/role de suporte a um usuário específico, se presente. Não instalar em produção sem inventário dos usuários, papéis, empresas e assinaturas desse histórico. O novo fluxo não reproduz o gatilho fiscal, mas a migração ainda não foi executada em um Supabase de homologação. O RPC valida 14 dígitos numéricos no CNPJ, **não** comprova situação cadastral nem todos os dígitos verificadores; validar antes de ativar emissão.
 
 O `npm run setup -- --migrate` foi desativado porque reexecutava **todo** o histórico de migrations via `psql` sem controle de versão. Não rodar migrations de produção diretamente com esse script; usar pipeline versionada, backup e ensaio em homologação. `npm run setup` verifica apenas ambiente básico e não declara o cliente pronto para uso real.
+
+## Transporte SEFAZ sem fallback sintético
+
+O transporte compartilhado `_shared/sefaz-transport.ts` não devolve mais XML de autorização fictício quando falta proxy mTLS; falha explicitamente. Também rejeita HTTP não-2xx do proxy. Testes locais cobrem ausência de proxy e HTTP 503; **não** comprovam autorização oficial, assinatura, XSD, identidade do proxy nem eventos em ambiente SEFAZ. NF-e permanece bloqueada até homologação.

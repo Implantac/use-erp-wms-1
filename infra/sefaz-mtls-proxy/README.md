@@ -52,7 +52,7 @@ Após deploy, cadastre os secrets no backend Lovable Cloud:
 - `SEFAZ_MTLS_PROXY_URL` → `https://<app>.fly.dev/soap`
 - `SEFAZ_MTLS_PROXY_TOKEN` → mesmo valor de `PROXY_TOKEN`
 
-A partir daí `supabase/functions/_shared/sefaz-transport.ts` deixa o modo simulado e passa a chamar a SEFAZ real de homologação.
+Sem `SEFAZ_MTLS_PROXY_URL`, `supabase/functions/_shared/sefaz-transport.ts` falha sem resposta fiscal; não há modo simulado operacional. Mesmo com proxy, emissão e eventos exigem homologação do leiaute, assinatura, resposta oficial e ambiente antes de serem liberados.
 
 ## Deploy alternativo (Render / Railway / VPS)
 

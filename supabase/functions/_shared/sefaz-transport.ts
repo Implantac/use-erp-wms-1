@@ -10,10 +10,8 @@
 //    cert_password }` e devolve `{ status, body }`. Nenhum PFX permanece no
 //    edge — o proxy trata handshake e devolve o XML de resposta.
 //
-// 2. **Modo simulado** (default em homologação sem proxy): não envia à SEFAZ,
-//    apenas devolve um envelope XML de status 100 (autorizado) para permitir
-//    testes end-to-end do fluxo interno. Marca `nfe.contingency = true` e
-//    grava um aviso claro em `error_details`.
+// Sem proxy mTLS autenticado, falhar sem fabricar qualquer resposta fiscal.
+// Simulações devem ficar em fixtures de teste isoladas, nunca no transporte.
 
 export interface SoapRequestOptions {
   endpoint: string;
@@ -60,28 +58,12 @@ export async function callSefaz(opts: SoapRequestOptions): Promise<SoapResponse>
         cert_password: opts.certPassword,
       }),
     });
+    if (!res.ok) throw new Error(`Proxy mTLS SEFAZ indisponível (HTTP ${res.status}). Nenhuma autorização confirmada.`);
     const body = await res.text();
     return { status: res.status, body };
   }
 
-  // Sem proxy — modo simulado. Nunca chame TLS direto do edge (falhará por falta de mTLS).
-  console.warn("[sefaz-transport] SEFAZ_MTLS_PROXY_URL não configurado — retornando resposta simulada.");
-  return {
-    status: 200,
-    simulated: true,
-    body:
-      `<?xml version="1.0" encoding="UTF-8"?>` +
-      `<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"><soap:Body>` +
-      `<retEnviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">` +
-      `<tpAmb>2</tpAmb><verAplic>SIMULADO</verAplic><cStat>100</cStat>` +
-      `<xMotivo>Autorizado o uso da NF-e (SIMULACAO)</xMotivo>` +
-      `<cUF>00</cUF><dhRecbto>${new Date().toISOString()}</dhRecbto>` +
-      `<protNFe><infProt><tpAmb>2</tpAmb><verAplic>SIMULADO</verAplic>` +
-      `<chNFe>00000000000000000000000000000000000000000000</chNFe>` +
-      `<dhRecbto>${new Date().toISOString()}</dhRecbto><nProt>${Date.now()}</nProt>` +
-      `<digVal>SIMULADO</digVal><cStat>100</cStat><xMotivo>Autorizado o uso da NF-e</xMotivo></infProt></protNFe>` +
-      `</retEnviNFe></soap:Body></soap:Envelope>`,
-  };
+  throw new Error('Transporte SEFAZ indisponível: configure proxy mTLS homologado. Nenhum protocolo foi recebido.');
 }
 
 /** Extrai o par (cStat, xMotivo) do XML de resposta. */
