@@ -51,6 +51,7 @@ export default function QuotationsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | Status>('all');
   const [editing, setEditing] = useState<Quotation | null>(null);
   const [open, setOpen] = useState(false);
+  const [comparing, setComparing] = useState(false);
 
   const list = useQuery({
     queryKey: ['purchase_quotations', companyId],
@@ -101,7 +102,7 @@ export default function QuotationsPage() {
       <PageHeader
         title="Cotações de compra"
         description="Peça preços a fornecedores, compare e aprove antes de gerar o pedido."
-        actions={<Button onClick={() => { setEditing(null); setOpen(true); }} disabled={!companyId}><Plus className="h-4 w-4" />Nova cotação</Button>}
+        actions={<div className="flex gap-2"><Button variant="outline" onClick={() => setComparing(true)} disabled={!list.data?.length}>Comparar fornecedores</Button><Button onClick={() => { setEditing(null); setOpen(true); }} disabled={!companyId}><Plus className="h-4 w-4" />Nova cotação</Button></div>}
       />
 
       <Card>
@@ -175,6 +176,7 @@ export default function QuotationsPage() {
         </CardContent>
       </Card>
 
+      {comparing && <CompareDialog quotations={(list.data ?? []).filter((q) => q.status === 'answered' || q.status === 'approved')} onClose={() => setComparing(false)} />}
       {open && companyId && <QuotationDialog companyId={companyId} quotation={editing} onClose={() => setOpen(false)} />}
     </PageContainer>
   );
@@ -276,6 +278,51 @@ function QuotationDialog({ companyId, quotation, onClose }: { companyId: string;
           <Button variant="ghost" onClick={onClose}>Fechar</Button>
           {!readOnly && <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Salvar</Button>}
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type Offer = { quotation: Quotation; price: number };
+function CompareDialog({ quotations, onClose }: { quotations: Quotation[]; onClose: () => void }) {
+  const rows = useMemo(() => {
+    const map = new Map<string, { label: string; offers: Offer[] }>();
+    for (const q of quotations) for (const it of q.items ?? []) {
+      if (it.unit_price === null) continue;
+      const key = it.product_id ?? it.description.trim().toLowerCase();
+      const row = map.get(key) ?? { label: it.description, offers: [] };
+      row.offers.push({ quotation: q, price: it.unit_price });
+      map.set(key, row);
+    }
+    return [...map.values()].map((r) => ({ ...r, best: Math.min(...r.offers.map((o) => o.price)) }));
+  }, [quotations]);
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader><DialogTitle>Comparar fornecedores</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">Considera cotações respondidas ou aprovadas. O menor preço de cada item aparece destacado.</p>
+        {rows.length === 0 ? (
+          <EmptyState icon={FileSearch} title="Nada para comparar" description="Marque cotações como respondidas, com preços nos itens, para compará-las." />
+        ) : (
+          <div className="max-h-[60vh] overflow-auto">
+            <Table>
+              <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Fornecedor</TableHead><TableHead>Cotação</TableHead><TableHead className="text-right">Entrega</TableHead><TableHead>Pagamento</TableHead><TableHead className="text-right">Preço unit.</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {rows.flatMap((r) => [...r.offers].sort((a, b) => a.price - b.price).map((o, i) => (
+                  <TableRow key={`${r.label}-${o.quotation.id}-${i}`}>
+                    <TableCell className="font-medium">{i === 0 ? r.label : ''}</TableCell>
+                    <TableCell>{o.quotation.supplier?.name ?? 'Não definido'}</TableCell>
+                    <TableCell className="text-muted-foreground">{o.quotation.number}</TableCell>
+                    <TableCell className="text-right tabular-nums">{o.quotation.delivery_days != null ? `${o.quotation.delivery_days} dias` : '—'}</TableCell>
+                    <TableCell>{o.quotation.payment_condition ?? '—'}</TableCell>
+                    <TableCell className="text-right tabular-nums">{o.price === r.best ? <Badge>{formatBRL(o.price)} · menor</Badge> : formatBRL(o.price)}</TableCell>
+                  </TableRow>
+                )))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        <DialogFooter><Button variant="ghost" onClick={onClose}>Fechar</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
