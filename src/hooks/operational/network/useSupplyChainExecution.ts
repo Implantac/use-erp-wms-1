@@ -3,14 +3,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEnterprise } from "@/core/auth/EnterpriseContext";
 import { useAppStore } from "@/stores/useAppStore";
 import { transferWorkflow, TransferStatus, ItemQuantity } from "@/services/operational/inventory/transferWorkflow";
-import { useInventoryOrchestrator } from "@/core/orchestration/InventoryOrchestrator";
 import { toast } from "sonner";
 
 export function useSupplyChainExecution() {
   const { currentBranch } = useEnterprise();
   const { user } = useAppStore();
   const queryClient = useQueryClient();
-  const { logToLedger } = useInventoryOrchestrator();
   const branchId = currentBranch?.id;
 
   const tasksQuery = useQuery({
@@ -83,14 +81,8 @@ export function useSupplyChainExecution() {
         correlationId
       });
 
-      // Audit Log via Orchestrator (SSOT)
-      await logToLedger({
-        movementId: transferId,
-        newStatus: toStatus,
-        correlationId,
-        metadata: { quantity, notes, source: 'useSupplyChainExecution' }
-      });
-
+      // This legacy flow does not write a second, non-atomic ledger entry in
+      // the browser. The workflow's own server-side audit must be verified.
       return result;
     },
     onSuccess: () => {

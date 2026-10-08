@@ -10,10 +10,6 @@ import { Loader2 } from 'lucide-react';
 import { ConfirmDialogProvider } from '@/shared/components/ConfirmDialog';
 import { useLowMarginAlertsRealtime } from '@/hooks/commercial/useLowMarginAlertsRealtime';
 import { WorkflowSwitcher } from '@/modules/core/components/WorkflowSwitcher';
-import { useInventoryOrchestrator } from '@/core/orchestration/InventoryOrchestrator';
-import { useFinancialOrchestrator } from '@/core/orchestration/FinancialOrchestrator';
-import { useFiscalOrchestrator } from '@/core/orchestration/FiscalOrchestrator';
-import { useStoreOrchestrator } from '@/core/orchestration/StoreOrchestrator';
 
 import { withRenderMonitor } from '@/core/debug/RenderDepthMonitor';
 
@@ -63,36 +59,12 @@ const OrchestratorInternal = React.memo(({ companyId }: { companyId: string }) =
   return (
     <React.Fragment>
       <LowMarginAlertsWrapper companyId={companyId} />
-      <InventoryOrchestratorWrapper companyId={companyId} />
-      <FinancialOrchestratorWrapper companyId={companyId} />
-      <FiscalOrchestratorWrapper companyId={companyId} />
-      <StoreOrchestratorWrapper companyId={companyId} />
     </React.Fragment>
   );
 });
 
 const LowMarginAlertsWrapper = React.memo(({ companyId }: { companyId: string }) => {
   useLowMarginAlertsRealtime(companyId);
-  return null;
-});
-
-const InventoryOrchestratorWrapper = React.memo(({ companyId }: { companyId: string }) => {
-  useInventoryOrchestrator(companyId);
-  return null;
-});
-
-const FinancialOrchestratorWrapper = React.memo(({ companyId }: { companyId: string }) => {
-  useFinancialOrchestrator(companyId);
-  return null;
-});
-
-const FiscalOrchestratorWrapper = React.memo(({ companyId }: { companyId: string }) => {
-  useFiscalOrchestrator();
-  return null;
-});
-
-const StoreOrchestratorWrapper = React.memo(({ companyId }: { companyId: string }) => {
-  useStoreOrchestrator(companyId);
   return null;
 });
 

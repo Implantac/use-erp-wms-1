@@ -192,41 +192,14 @@ export const storeService = {
     return Math.min(100, Math.max(0, accuracy));
   },
 
-  async registerLoss(data: {
+  async registerLoss(_data: {
     branch_id: string;
     product_id: string;
     quantity: number;
     reason: string;
     notes?: string;
-  }) {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) throw new Error("Usuário não autenticado");
-
-    const companyId = await this.getCompanyId(data.branch_id);
-
-    const { error: ledgerError } = await (supabase as any)
-      .from('supply_chain_ledger')
-      .insert({
-        company_id: companyId,
-        branch_id: data.branch_id,
-        product_id: data.product_id,
-        quantity: -Math.abs(data.quantity),
-        movement_type: 'adjustment',
-        origin_type: 'loss',
-        status: 'completed',
-        notes: `Perda registrada: ${data.reason}. ${data.notes || ''}`,
-        created_by: userData.user.id
-      });
-
-    if (ledgerError) throw ledgerError;
-
-    const { error: stockError } = await (supabase as any).rpc('adjust_stock', {
-      p_branch_id: data.branch_id,
-      p_product_id: data.product_id,
-      p_quantity: -Math.abs(data.quantity)
-    });
-
-    return { success: !stockError };
+  }): Promise<never> {
+    throw new Error('Registro de perda indisponível: ledger e saldo exigem transação e autorização no servidor.');
   },
 
   async getCompanyId(branchId: string): Promise<string> {

@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { transferWorkflow, TransferStatus } from "./transferWorkflow";
+import type { TransferStatus } from "./transferWorkflow";
 
 /** Acima deste total de unidades a transferência exige aprovação de gestor. */
 export const AUTO_APPROVAL_LIMIT_UNITS = 100;
@@ -96,67 +96,7 @@ export const transferService = {
     })).filter((row: any) => row.available > 0);
   },
 
-  async createTransfer(input: NewTransferInput) {
-    const { companyId, originUnitId, destinationUnitId, items, userId, reason, priority } = input;
-
-    if (!originUnitId || !destinationUnitId) throw new Error('Informe origem e destino.');
-    if (originUnitId === destinationUnitId) throw new Error('Origem e destino devem ser diferentes.');
-    const validItems = items.filter((i) => i.productId && i.quantity > 0);
-    if (validItems.length === 0) throw new Error('Adicione ao menos um produto com quantidade.');
-
-    // Validação de saldo disponível na origem
-    const balances = await this.getAvailableBalances(originUnitId);
-    for (const item of validItems) {
-      const balance = balances.find((b: any) => b.productId === item.productId);
-      if (!balance || balance.available < item.quantity) {
-        throw new Error(
-          `Saldo insuficiente na origem para ${balance?.name || 'o produto selecionado'} (disponível: ${balance?.available || 0}).`
-        );
-      }
-    }
-
-    const correlationId = crypto.randomUUID();
-    const totalUnits = validItems.reduce((sum, i) => sum + i.quantity, 0);
-
-    const { data: order, error } = await (supabase as any)
-      .from('stock_transfer_orders')
-      .insert({
-        company_id: companyId,
-        origin_unit_id: originUnitId,
-        destination_unit_id: destinationUnitId,
-        current_status: 'SUGERIDA',
-        correlation_id: correlationId,
-        requested_by: userId,
-        notes: [priority ? `Prioridade: ${priority}` : null, reason].filter(Boolean).join(' — ') || null,
-      })
-      .select()
-      .single();
-    if (error) throw error;
-
-    const { error: itemsError } = await (supabase as any)
-      .from('stock_transfer_items')
-      .insert(validItems.map((i) => ({
-        transfer_id: order.id,
-        product_id: i.productId,
-        requested_qty: i.quantity,
-      })));
-
-    if (itemsError) {
-      await (supabase as any).from('stock_transfer_orders').delete().eq('id', order.id);
-      throw itemsError;
-    }
-
-    const autoApproved = totalUnits <= AUTO_APPROVAL_LIMIT_UNITS;
-    if (autoApproved) {
-      await transferWorkflow.transition({
-        transferId: order.id,
-        toStatus: 'APROVADA',
-        userId,
-        correlationId,
-        notes: 'Aprovação automática (dentro do limite).',
-      });
-    }
-
-    return { order, autoApproved, totalUnits, correlationId };
+  async createTransfer(_input: NewTransferInput): Promise<never> {
+    throw new Error('Criação de transferência indisponível: pedido e itens precisam ser gravados em transação atômica no servidor.');
   },
 };
