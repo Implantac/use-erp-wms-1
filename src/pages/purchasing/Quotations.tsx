@@ -38,7 +38,7 @@ const EDITABLE: Status[] = ['draft', 'sent', 'answered'];
 interface Item { id?: string; product_id: string | null; description: string; quantity: number; unit_price: number | null }
 interface Quotation {
   id: string; number: string; supplier_id: string | null; status: Status; due_date: string | null; notes: string | null; created_at: string;
-  supplier?: { name: string } | null; items?: Item[];
+  supplier?: { name: string } | null; items?: Item[]; purchase_order_id?: string | null;
 }
 
 const total = (items: Item[] = []) => items.reduce((s, i) => s + i.quantity * (i.unit_price ?? 0), 0);
