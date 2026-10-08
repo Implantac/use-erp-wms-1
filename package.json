@@ -1,7 +1,7 @@
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,7 +17,8 @@
     "e2e:cmdk": "playwright test .lovable/e2e/cmdk.spec.ts --project=chromium",
     "e2e:critical": "playwright test --config=e2e/playwright.config.ts",
     "baseline": "node scripts/generate-baseline.mjs",
-    "regression": "node scripts/regression-suite.mjs"
+    "regression": "node scripts/regression-suite.mjs",
+    "setup": "node scripts/setup.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -47,3 +47,12 @@
 - [x] Substituir indicadores e eventos simulados da governança por consultas reais por empresa e período, com falhas explícitas e exportação apenas de registros consultados.
 - [ ] Ativar fixtures e testes E2E completos de O2C, P2P, PCP e PDV no pipeline.
 - [ ] Concluir isolamento por filial/canal e revisar funções privilegiadas apontadas pelo linter.
+
+## Release comercial USE ERP v1.0.0
+- [x] Pacote de instalação: .env.example, setup, Docker, Nginx, reapontamento de agendamentos.
+- [x] Documentação: README, instalação, variáveis, VPS, backup, situação das funcionalidades, changelog, modelo de licença.
+- [ ] Teste de instalação limpa em projeto novo (bloqueio: requer projeto/servidor separado do comprador).
+- [ ] Testes ponta a ponta dos 6 fluxos principais com dados de demonstração isolados.
+- [ ] Converter cotação aprovada em pedido de compra.
+- [ ] Revisar os 42 avisos de funções privilegiadas do banco.
+- [ ] Licença final revisada por advogado (bloqueio: dados e termos do licenciante).

@@ -1,0 +1,13 @@
+# USE ERP — frontend em container. Banco, autenticação e funções rodam no seu projeto Supabase.
+# Uso: docker compose --env-file .env up -d --build
+services:
+  web:
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+    ports:
+      - "8080:80"
+    restart: unless-stopped
