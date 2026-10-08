@@ -1,5 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
-
 export interface SecurityMetric {
   title: string;
   status: 'secure' | 'warning' | 'critical';
@@ -7,43 +5,19 @@ export interface SecurityMetric {
   lastChecked: string;
 }
 
+// Informações de auditoria só podem ser publicadas a partir de verificações efetivamente executadas.
 export const complianceService = {
   async getSecurityMetrics(): Promise<SecurityMetric[]> {
-    // Audit UEEF SEC-LEVEL 3
-    const metrics: SecurityMetric[] = [
-      { 
-        title: 'Isolamento de Tenant (RLS)', 
-        status: 'secure', 
-        description: '100% das tabelas de negócio possuem RLS ativo.',
-        lastChecked: new Date().toISOString()
+    return [
+      {
+        title: 'Segurança e isolamento de tenant',
+        status: 'warning',
+        description: 'Não verificado neste ambiente. Execute auditoria de RLS, Vault, ledger e LGPD com evidências.',
+        lastChecked: 'Não verificado',
       },
-      { 
-        title: 'Criptografia Vault', 
-        status: 'secure', 
-        description: 'Certificados A1 e Chaves PSP protegidos em Vault isolado.',
-        lastChecked: new Date().toISOString()
-      },
-      { 
-        title: 'Immutable Ledger (Fase 3)', 
-        status: 'secure', 
-        description: 'supply_chain_ledger ativo e monitorando tr_supply_chain_ledger.',
-        lastChecked: new Date().toISOString()
-      },
-      { 
-        title: 'LGPD Compliance', 
-        status: 'warning', 
-        description: 'Necessário revisar política de retenção de logs de 365 dias.',
-        lastChecked: new Date().toISOString()
-      }
     ];
-
-    return metrics;
   },
-
-  async runSecurityScan() {
-    console.log("Iniciando Scan de Segurança UEEF SEC-LEVEL 3...");
-    // Simulate scan delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    return { score: 99, status: 'certified' };
-  }
+  async runSecurityScan(): Promise<never> {
+    throw new Error('Scanner de segurança não implementado: nenhuma certificação foi emitida.');
+  },
 };

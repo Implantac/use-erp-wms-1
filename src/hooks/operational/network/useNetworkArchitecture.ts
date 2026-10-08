@@ -63,25 +63,14 @@ export const useSupplyChainStats = () => {
   return useQuery({
     queryKey: ['supply_chain_stats', companyId],
     queryFn: async () => {
-      const { data: movements } = await supabase
+      const { count, error } = await supabase
         .from('supply_chain_movements')
-        .select('status')
+        .select('id', { count: 'exact', head: true })
         .eq('company_id', companyId)
-        .limit(2000);
-
-      const inTransit = movements?.filter((m: any) => m.status === 'in_transit' || m.status === 'shipped').length || 0;
-      
-      const { count: lowStock } = await supabase
-        .from('stock_balances')
-        .select('*', { count: 'exact', head: true })
-        .eq('company_id', companyId)
-        .lt('quantity', 10); // Simple threshold for mock
-
-      return {
-        inTransit,
-        lowStock: lowStock || 0,
-        accuracy: 94
-      };
+        .in('status', ['in_transit', 'shipped']);
+      if (error) throw error;
+      if (count === null) throw new Error('Contagem de movimentações indisponível');
+      return { inTransit: count };
     },
     enabled: !!companyId
   });

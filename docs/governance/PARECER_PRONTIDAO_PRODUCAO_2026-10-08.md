@@ -37,3 +37,10 @@
 ### Adendo — provisionamento de novos clientes
 
 O inventário adicional encontrou um gatilho que inseria percentuais fiscais estimados em cada nova empresa, placeholders de endereço no onboarding, migração legada de empresa genérica e concessão condicional de acesso/assinatura de suporte, e um `setup --migrate` que repetia todos os SQLs. Há correções locais versionadas para bloquear o replay, exigir campos do cliente e remover o gatilho de novos cadastros. **Sem aplicar/testar a migration em banco, o provisionamento em ambiente implantado permanece não comprovado.** Contas/regras legadas existentes exigem auditoria específica, não exclusão cega.
+
+### 08/10/2026 — Contenção de falsos sucessos (não constitui GO)
+- Sem proxy mTLS, transporte SEFAZ falha sem protocolo; HTTP de erro do proxy é rejeitado. Não há homologação fiscal comprovada.
+- Finalização de inventário foi bloqueada: prévia não persiste nem ajusta estoque. A funcionalidade precisa de backend transacional e testes antes da liberação.
+- Controle visual de seed não anuncia execução inexistente; seed é procedimento manual exclusivo de testes.
+- Torre de controle não mostra percentuais, terminais, alertas ou auditorias inventados; a única contagem exibida vem de consulta por empresa com erro explícito. A consulta de transferências permanece limitada a 1000 registros, portanto não representa cobertura completa.
+- Compliance não emite score/certificação fictícios. Verificação RLS, Vault, LGPD e ledger exige auditoria independente.
