@@ -44,3 +44,9 @@ O inventário adicional encontrou um gatilho que inseria percentuais fiscais est
 - Controle visual de seed não anuncia execução inexistente; seed é procedimento manual exclusivo de testes.
 - Torre de controle não mostra percentuais, terminais, alertas ou auditorias inventados; a única contagem exibida vem de consulta por empresa com erro explícito. A consulta de transferências permanece limitada a 1000 registros, portanto não representa cobertura completa.
 - Compliance não emite score/certificação fictícios. Verificação RLS, Vault, LGPD e ledger exige auditoria independente.
+
+### 08/10/2026 — Contenção adicional de dados fabricados (ainda NO-GO)
+- Serviço legado de sourcing, manifestos e rastreamento sem integração agora falha explicitamente; não cria identificação ou eventos fictícios. Existe serviço de última milha distinto que requer revisão própria.
+- Painel IoT mostra apenas máquinas cadastradas e indisponibilidade de sensores; não inventa leituras, conectividade, histórico ou alertas preditivos. Integração IoT real segue pendente.
+- Gráfico de demanda não inventa série temporal a partir de uma previsão agregada. A origem e a calibração da previsão agregada ainda exigem validação.
+- Mapa de lojas exibe apenas contagens dos saldos retornados na consulta, com aviso de limite de 2.000 registros e sem métricas falsas de saúde, giro ou acuracidade. Não é indicador completo da rede.
