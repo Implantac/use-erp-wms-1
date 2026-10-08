@@ -21,7 +21,7 @@ BEGIN
   INSERT INTO public.purchase_orders (company_id, number, supplier_id, supplier_name, status, subtotal, total, notes, buyer_id, payment_condition, expected_delivery)
   VALUES (q.company_id, 'PC-' || q.number, q.supplier_id, coalesce(_sname, 'Fornecedor'), 'pending', _sub, _sub,
           'Gerado da cotação ' || q.number, auth.uid(), q.payment_condition,
-          CASE WHEN q.delivery_days IS NULL THEN NULL ELSE (current_date + q.delivery_days)::text END)
+          CASE WHEN q.delivery_days IS NULL THEN NULL ELSE (current_date + q.delivery_days)::timestamptz END)
   RETURNING id INTO _po;
 
   INSERT INTO public.purchase_order_items (company_id, purchase_order_id, product_id, product_code, product_name, quantity, unit_price, total, unit)
