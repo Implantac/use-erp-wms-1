@@ -41,35 +41,28 @@ export const supplyChainService = {
   },
 
   async createRequest(request: Database['public']['Tables']['supply_chain_movements']['Insert'] & { items: Database['public']['Tables']['supply_chain_items']['Insert'][] }) {
-    const { data: movement, error: mError } = await supabase
-      .from('supply_chain_movements')
-      .insert({
-        origin_id: request.origin_id,
-        origin_type: request.origin_type,
-        destination_id: request.destination_id,
-        destination_type: request.destination_type,
-        company_id: request.company_id,
-        status: 'requested',
-        priority: request.priority || 'normal',
-        items_count: request.items.length
-      })
-      .select()
-      .single();
-
-    if (mError) throw mError;
-
-    const itemsToInsert = request.items.map(item => ({
-      ...item,
-      movement_id: movement.id
-    }));
-
-    const { error: iError } = await supabase
-      .from('supply_chain_items')
-      .insert(itemsToInsert);
-
-    if (iError) throw iError;
-
-    return movement;
+    const companyId = getActiveCompanyId();
+    if (!companyId || request.company_id !== companyId) throw new Error('Empresa ativa não confere com a solicitação.');
+    if (!request.items.length || request.items.some(item => !item.product_id || !Number.isFinite(item.requested_qty) || item.requested_qty <= 0)) {
+      throw new Error('Solicitação sem itens válidos.');
+    }
+    // One server-side transaction: no orphaned movement when an item fails.
+    // The RPC independently checks tenant, branches, products and quantities.
+    const { data, error } = await supabase.rpc('create_supply_chain_request' as never, {
+      _origin_id: request.origin_id,
+      _origin_type: request.origin_type,
+      _destination_id: request.destination_id,
+      _destination_type: request.destination_type,
+      _priority: request.priority ?? 'normal',
+      _items: request.items.map(item => ({
+        product_id: item.product_id,
+        requested_qty: item.requested_qty,
+        unit_price: item.unit_price ?? null,
+      })),
+    } as never);
+    if (error) throw error;
+    if (!data) throw new Error('Banco não confirmou a solicitação de movimentação.');
+    return data as unknown as SupplyChainMovement;
   },
 
   async updateStatus(id: string, status: MovementStatus) {
