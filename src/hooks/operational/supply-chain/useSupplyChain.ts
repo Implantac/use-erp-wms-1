@@ -1,20 +1,25 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { getActiveCompanyId, getActiveBranchId } from '@/core/stores/useEnterpriseStore';
 import { useEnterprise } from '@/core/auth/EnterpriseContext';
 import { supplyChainService, SupplyChainMovement, MovementStatus } from '@/services/operational/supply-chain/supplyChainService';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from 'sonner';
 
 export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
-  const { currentBranch, isLoading: isEnterpriseLoading } = useEnterprise();
+  const { currentBranch, currentCompany, isLoading: isEnterpriseLoading } = useEnterprise();
   const [movements, setMovements] = useState<SupplyChainMovement[]>([]);
+  const [loadedScope, setLoadedScope] = useState('');
   const [isDataLoading, setIsDataLoading] = useState(false);
 
   const branchId = currentBranch?.id;
   const statusKey = filters?.status?.join('|') ?? '';
   const statusFilter = useMemo(() => statusKey ? statusKey.split('|') as MovementStatus[] : undefined, [statusKey]);
+  const scopeKey = `${currentCompany?.id ?? ''}:${branchId ?? ''}:${statusKey}`;
+  const latestScope = useRef(scopeKey);
+  latestScope.current = scopeKey;
 
   const fetchMovements = useCallback(async () => {
-    if (!branchId || isEnterpriseLoading) return;
+    if (!branchId || !currentCompany?.id || isEnterpriseLoading) return;
     
     setIsDataLoading(true);
     try {
@@ -22,17 +27,19 @@ export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
         unit_id: branchId,
         status: statusFilter
       });
-      setMovements(prev => {
-        if (JSON.stringify(prev) === JSON.stringify(data)) return prev;
-        return data;
-      });
+      if (latestScope.current !== scopeKey || getActiveCompanyId() !== currentCompany.id || getActiveBranchId() !== branchId) return;
+      setMovements(data);
+      setLoadedScope(scopeKey);
     } catch (error) {
-      console.error('Error in useSupplyChain:', error);
-      toast.error('Erro ao carregar movimentações');
+      if (latestScope.current === scopeKey && getActiveCompanyId() === currentCompany.id && getActiveBranchId() === branchId) {
+        setLoadedScope('');
+        console.error('Error in useSupplyChain:', error);
+        toast.error('Erro ao carregar movimentações');
+      }
     } finally {
       setIsDataLoading(false);
     }
-  }, [branchId, statusFilter, isEnterpriseLoading]);
+  }, [branchId, currentCompany?.id, scopeKey, statusFilter, isEnterpriseLoading]);
 
   useEffect(() => {
     if (!isEnterpriseLoading && branchId) {
@@ -88,29 +95,20 @@ export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
   };
 
   const getMovementLedger = async (movementId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('supply_chain_ledger' as never)
-        .select('*')
-        .eq('movement_id', movementId)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
-          console.warn('supply_chain_ledger table not found, skipping history');
-          return [];
-        }
-        throw error;
-      }
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching ledger:', error);
-      return [];
-    }
+    const companyId = getActiveCompanyId();
+    if (!companyId) throw new Error('Empresa ativa não identificada para consultar o histórico.');
+    const { data, error } = await supabase
+      .from('supply_chain_ledger')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('movement_id', movementId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data ?? [];
   };
 
   return {
-    movements,
+    movements: loadedScope === scopeKey && getActiveCompanyId() === currentCompany?.id ? movements : [],
     isLoading: isEnterpriseLoading || isDataLoading,
     refresh: fetchMovements,
     updateStatus,

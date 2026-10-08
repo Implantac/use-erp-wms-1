@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { LIST_LIMIT } from "@/lib/queryLimits";
+import { getActiveCompanyId } from '@/core/stores/useEnterpriseStore';
 
 export type MovementStatus = Database['public']['Tables']['supply_chain_movements']['Row']['status'];
 export type SupplyChainMovement = Database['public']['Tables']['supply_chain_movements']['Row'];
@@ -12,9 +13,12 @@ export const supplyChainService = {
     role?: 'origin' | 'destination' | 'both';
     status?: MovementStatus[];
   }): Promise<SupplyChainMovement[]> {
+    const companyId = getActiveCompanyId();
+    if (!companyId) throw new Error('Empresa ativa não identificada para a cadeia de suprimentos.');
     let query = supabase
       .from('supply_chain_movements')
-      .select('*');
+      .select('*')
+      .eq('company_id', companyId);
 
     if (filters.unit_id) {
       if (filters.role === 'origin') {
@@ -32,12 +36,8 @@ export const supplyChainService = {
 
     const { data, error } = await query.order('created_at', { ascending: false }).limit(LIST_LIMIT);
     
-    if (error) {
-      console.error('Error fetching movements:', error);
-      return [];
-    }
-    
-    return data || [];
+    if (error) throw error;
+    return data ?? [];
   },
 
   async createRequest(request: Database['public']['Tables']['supply_chain_movements']['Insert'] & { items: Database['public']['Tables']['supply_chain_items']['Insert'][] }) {
@@ -73,9 +73,12 @@ export const supplyChainService = {
   },
 
   async updateStatus(id: string, status: MovementStatus) {
+    const companyId = getActiveCompanyId();
+    if (!companyId) throw new Error('Empresa ativa não identificada para atualizar movimentação.');
     const { data, error } = await supabase
       .from('supply_chain_movements')
       .update({ status })
+      .eq('company_id', companyId)
       .eq('id', id)
       .select()
       .single();

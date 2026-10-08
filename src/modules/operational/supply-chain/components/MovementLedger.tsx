@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSupplyChain } from "@/hooks/operational/supply-chain/useSupplyChain";
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 import { 
   History, 
   User, 
@@ -20,11 +21,12 @@ interface MovementLedgerProps {
 
 export function MovementLedger({ movementId }: MovementLedgerProps) {
   const { getMovementLedger } = useSupplyChain();
-  
-  const { data: ledger, isLoading } = useQuery({
-    queryKey: ['movement_ledger', movementId],
+  const { activeCompanyId, user } = useActiveTenant();
+
+  const { data: ledger, isLoading, error } = useQuery({
+    queryKey: ['movement_ledger', user?.id, activeCompanyId, movementId],
     queryFn: () => getMovementLedger(movementId),
-    enabled: !!movementId
+    enabled: Boolean(user?.id && activeCompanyId && movementId),
   });
 
   if (isLoading) {
@@ -35,6 +37,10 @@ export function MovementLedger({ movementId }: MovementLedgerProps) {
         ))}
       </div>
     );
+  }
+
+  if (!activeCompanyId || !user?.id || error) {
+    return <div role="alert" className="p-4 text-sm text-destructive">Histórico indisponível: empresa não identificada ou falha ao consultar o banco.</div>;
   }
 
   if (!ledger || ledger.length === 0) {
@@ -54,7 +60,7 @@ export function MovementLedger({ movementId }: MovementLedgerProps) {
           <h4 className="text-[10px] font-black uppercase tracking-widest text-primary">Rastreabilidade Imutável (Ledger)</h4>
         </div>
         
-        {ledger.map((entry: any, idx: number) => (
+        {ledger.map((entry) => (
           <div key={entry.id} className="relative pl-6 pb-4 border-l-2 border-primary/20 last:border-0 last:pb-0">
             {/* Timeline Dot */}
             <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-background border-2 border-primary flex items-center justify-center">
