@@ -105,7 +105,7 @@ export function ReinfCertificateStatus() {
 
         {status?.configured && status.valid === false && (
           <div className="text-xs text-destructive leading-relaxed">
-            Certificado presente mas não pôde ser lido — verifique o arquivo PFX e a senha configurados.
+            Certificado indisponível para transmissão: verifique PFX, senha, validade e se o titular corresponde ao CNPJ da empresa.
           </div>
         )}
 

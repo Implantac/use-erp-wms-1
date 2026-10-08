@@ -3,6 +3,8 @@
 import { buildCorsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
 import { requireAuth } from "../_shared/require-auth.ts";
 import { inspectCertificate } from "../_shared/reinf-sign.ts";
+import { validateReinfCertificate } from "../_shared/reinf-certificate-policy.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { tenantReinfCertificateSecrets } from "../_shared/reinf-tenant-cert.ts";
 
 Deno.serve(async (req) => {
@@ -38,13 +40,19 @@ Deno.serve(async (req) => {
 
     try {
       const info = inspectCertificate(certB64, certPass || "");
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { data: company, error: companyError } = await admin.from("companies").select("cnpj").eq("id", auth.companyId).maybeSingle();
+      if (companyError || !company?.cnpj) throw new Error("company_cnpj_unavailable");
+      const policy = validateReinfCertificate(info, company.cnpj);
       const now = Date.now();
       const expiryMs = new Date(info.not_after).getTime();
       const daysToExpire = Math.floor((expiryMs - now) / (1000 * 60 * 60 * 24));
       return new Response(JSON.stringify({
         configured: true,
+        valid: policy === "valid",
+        error: policy === "valid" ? undefined : policy,
         ws_endpoint_configured: wsEndpoint,
-        mode: wsEndpoint ? "live" : "signed_only",
+        mode: policy === "valid" ? (wsEndpoint ? "live" : "signed_only") : "unavailable",
         subject: info.subject,
         issuer: info.issuer,
         not_before: info.not_before,
@@ -56,7 +64,7 @@ Deno.serve(async (req) => {
       console.error("[reinf-cert-status] inspect_failed", (err as Error).message);
       return new Response(JSON.stringify({
         configured: true, valid: false,
-        error: "cert_or_password_invalid",
+        error: "certificate_or_company_validation_failed",
         ws_endpoint_configured: wsEndpoint,
       }), { status: 200, headers: { ...cors, "Content-Type": "application/json" } });
     }

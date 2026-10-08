@@ -6,6 +6,7 @@ import { requireAuth } from "../_shared/require-auth.ts";
 import { signReinfXml } from "../_shared/reinf-sign.ts";
 import { buildReinfLoteXml } from "../_shared/reinf-lote-xml.ts";
 import { tenantReinfCertificateSecrets } from "../_shared/reinf-tenant-cert.ts";
+import { validateReinfCertificate } from "../_shared/reinf-certificate-policy.ts";
 
 type EventType = "R-2010" | "R-2020" | "R-4020" | "R-2099" | "R-4099";
 
@@ -153,6 +154,12 @@ Deno.serve(async (req) => {
         signedXml = signed.signedXml;
         certSubject = signed.cert.subject;
         certExpiry = signed.cert.not_after;
+        const certificatePolicy = validateReinfCertificate(signed.cert, company.cnpj);
+        if (certificatePolicy !== "valid") {
+          return new Response(JSON.stringify({ ok: false, error: certificatePolicy, message: "Certificado A1 não corresponde ao CNPJ da empresa ou está fora da validade. Nenhum lote foi transmitido." }), {
+            status: 422, headers: { ...cors, "Content-Type": "application/json" },
+          });
+        }
       } catch (sigErr) {
         console.error("[reinf-transmit] sign_failed", (sigErr as Error).message);
         const { data: row } = await admin.from("reinf_transmissions").insert({

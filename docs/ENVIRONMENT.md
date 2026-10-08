@@ -30,7 +30,7 @@ O sistema tem duas camadas de configuração:
 | `PSP_WEBHOOK_SECRET`, `PIX_WEBHOOK_SECRET` | Opcional | PIX/PSP | Validação de webhooks do provedor de pagamento |
 | `PIX_SIMULATION_ENABLED` | **Manter vazio em produção** | PIX | Somente homologação |
 | `SEFAZ_MTLS_PROXY_URL`, `SEFAZ_MTLS_PROXY_TOKEN`, `SEFAZ_WEBHOOK_SECRET` | Para emissão fiscal | NF-e/eventos | Proxy mTLS em `infra/sefaz-mtls-proxy` |
-| `REINF_WS_ENDPOINT`, `REINF_CERT_A1_B64_<COMPANY_UUID_SEM_HIFENS>`, `REINF_CERT_A1_PASS_<COMPANY_UUID_SEM_HIFENS>` | Para EFD-Reinf | `reinf-transmit`, `reinf-cert-status` | Certificado A1 e senha exclusivos por empresa; sufixo UUID em maiúsculas, sem hífens. Segredos globais não são aceitos. Antes de implantar, migre cada empresa para segredos próprios. |
+| `REINF_WS_ENDPOINT`, `REINF_CERT_A1_B64_<COMPANY_UUID_SEM_HIFENS>`, `REINF_CERT_A1_PASS_<COMPANY_UUID_SEM_HIFENS>` | Para EFD-Reinf | `reinf-transmit`, `reinf-cert-status` | Certificado A1 e senha exclusivos por empresa; sufixo UUID em maiúsculas, sem hífens. Segredos globais não são aceitos. Antes de implantar, migre cada empresa para segredos próprios. O subject do A1 deve conter o CNPJ da empresa e a validade deve estar vigente; outros formatos falham fechados até homologação. |
 | `RFID_WEBHOOK_SECRET`, `RFID_WEBHOOK_API_KEY` | Opcional | `rfid-webhook` | Leitores RFID |
 | `BRAIN_WEBHOOK_URL` | Opcional | IA executiva | Notificações externas |
 
