@@ -38,7 +38,7 @@ const EDITABLE: Status[] = ['draft', 'sent', 'answered'];
 interface Item { id?: string; product_id: string | null; description: string; quantity: number; unit_price: number | null }
 interface Quotation {
   id: string; number: string; supplier_id: string | null; status: Status; due_date: string | null; notes: string | null; created_at: string;
-  supplier?: { name: string } | null; items?: Item[];
+  supplier?: { name: string } | null; items?: Item[]; purchase_order_id?: string | null;
 }
 
 const total = (items: Item[] = []) => items.reduce((s, i) => s + i.quantity * (i.unit_price ?? 0), 0);
@@ -57,7 +57,7 @@ export default function QuotationsPage() {
     enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase.from('purchase_quotations')
-        .select('id, number, supplier_id, status, due_date, notes, created_at, supplier:suppliers(name), items:purchase_quotation_items(id, product_id, description, quantity, unit_price)')
+        .select('id, number, supplier_id, status, due_date, notes, created_at, purchase_order_id, supplier:suppliers(name), items:purchase_quotation_items(id, product_id, description, quantity, unit_price)')
         .eq('company_id', companyId!).order('created_at', { ascending: false }).limit(300);
       if (error) throw error;
       return (data ?? []) as unknown as Quotation[];
@@ -75,6 +75,15 @@ export default function QuotationsPage() {
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['purchase_quotations'] }); toast.success('Situação atualizada'); },
     onError: () => toast.error('Não foi possível atualizar a situação.'),
+  });
+
+  const toOrder = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc('convert_quotation_to_purchase_order', { _quotation_id: id });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['purchase_quotations'] }); qc.invalidateQueries({ queryKey: ['purchase_orders'] }); toast.success('Pedido de compra gerado'); },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const remove = useMutation({
@@ -147,6 +156,9 @@ export default function QuotationsPage() {
                               {s === 'sent' ? 'Enviar' : s === 'answered' ? 'Marcar respondida' : s === 'approved' ? 'Aprovar' : s === 'rejected' ? 'Recusar' : 'Cancelar'}
                             </Button>
                           ))}
+                          {q.status === 'approved' && (q.purchase_order_id
+                            ? <Badge variant="outline">Pedido gerado</Badge>
+                            : <Button size="sm" disabled={toOrder.isPending} onClick={() => toOrder.mutate(q.id)}>Gerar pedido</Button>)}
                           {(q.status === 'draft' || q.status === 'cancelled') && (
                             <Button size="icon" variant="ghost" aria-label={`Excluir ${q.number}`} onClick={() => { if (confirm(`Excluir a cotação ${q.number}?`)) remove.mutate(q.id); }}>
                               <Trash2 className="h-4 w-4" />
