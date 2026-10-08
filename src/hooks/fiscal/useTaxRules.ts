@@ -120,14 +120,23 @@ export async function calculateItemTaxes(args: {
   quantity: number;
   unit_price: number;
   discount?: number;
+  uf_origin: string;
+  uf_destination: string;
 }): Promise<TaxCalculation> {
+  if (!args.ncm || !args.cfop || !args.uf_origin || !args.uf_destination) {
+    throw new Error('NCM, CFOP e UFs são obrigatórios para a prévia fiscal.');
+  }
   const { data, error } = await supabase.rpc('calculate_nfe_item_taxes', {
-    _ncm: args.ncm ?? null,
-    _cfop: args.cfop ?? null,
+    _ncm: args.ncm,
+    _cfop: args.cfop,
     _quantity: args.quantity,
     _unit_price: args.unit_price,
     _discount: args.discount ?? 0,
+    _uf_origin: args.uf_origin,
+    _uf_destination: args.uf_destination,
   });
   if (error) throw error;
-  return data as unknown as TaxCalculation;
+  const result = data as unknown as TaxCalculation | null;
+  if (!result?.rule_id) throw new Error('Nenhuma regra fiscal validada para a operação.');
+  return result;
 }

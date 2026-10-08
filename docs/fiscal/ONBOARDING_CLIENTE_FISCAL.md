@@ -21,3 +21,9 @@ A migração `20261008190000_fiscal_client_onboarding.sql` cria `fiscal_client_s
 - Conectar o catálogo cCredPres, a cobertura por cliente e o responsável fiscal aos fluxos de configuração, observabilidade e liberação; nenhuma tabela nova habilita emissão.
 - Testar migrações em banco temporário e aplicar ao banco remoto; não realizados aqui. O endpoint NF-e permanece bloqueado até homologação.
 - Revisar portfólio de modelos efetivamente necessário a cada cliente; não presumir que todos os modelos compartilham CFOP ou cálculo.
+
+## Revisão incremental do RPC legado (08/10/2026)
+
+Migração `20261008193000_harden_legacy_tax_rpc.sql`: a prévia `calculate_nfe_item_taxes` passa a exigir empresa autenticada, configuração fiscal por cliente, NCM/CFOP/UF e regra exata da empresa e regime, rejeitando ausência de regra em vez de retornar impostos zerados. O gatilho `trg_nfe_items_auto_calc` redundante é removido; `recalc_nfe_item_taxes_v2` deixa de engolir erros e passa UF explicitamente. Isso **pode bloquear a gravação de itens NF-e** até que os cadastros estejam completos, como medida de segurança fiscal. O hook cliente também rejeita resposta sem `rule_id`.
+
+**Atenção à implantação:** a migração não foi executada em banco de testes nem produção. Antes do deploy, validar os regimes efetivamente armazenados em `tax_rules.tax_regime` versus `fiscal_client_setup.tax_regime`, impactos em triggers e dados legados, executar testes transacionais em cópia anonimizada e prever rollback. As fórmulas legadas de ST, DIFAL, IBS/CBS e regimes especiais **continuam sem homologação**; uma regra encontrada não atesta cálculo correto nem autoriza emissão.
