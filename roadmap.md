@@ -46,7 +46,8 @@
 - [x] CRUD completo de cotações de compra com modelo próprio, itens, fluxo de situação e permissões por empresa.
 - [x] Substituir indicadores e eventos simulados da governança por consultas reais por empresa e período, com falhas explícitas e exportação apenas de registros consultados.
 - [ ] Ativar fixtures e testes E2E completos de O2C, P2P, PCP e PDV no pipeline.
-- [ ] Concluir isolamento por filial/canal e revisar funções privilegiadas apontadas pelo linter.
+- [x] Isolamento por unidade (perfil com unidade fixa) em 20 tabelas e correção de 3 funções privilegiadas sem checagem de empresa.
+- [ ] Isolamento por canal de venda (VAREJO_PDV/ATACADO_INDUSTRIA).
 
 ## Release comercial USE ERP v1.0.0
 - [x] Pacote de instalação: .env.example, setup, Docker, Nginx, reapontamento de agendamentos.
