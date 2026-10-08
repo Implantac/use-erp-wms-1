@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
 import { requireAuth } from "../_shared/require-auth.ts";
 import { signReinfXml } from "../_shared/reinf-sign.ts";
+import { buildReinfLoteXml } from "../_shared/reinf-lote-xml.ts";
 
 type EventType = "R-2010" | "R-2020" | "R-4020" | "R-2099" | "R-4099";
 
@@ -64,15 +65,8 @@ function buildEventXml(e: any): string {
   }
 }
 
-function buildLoteXml(events: any[]): string {
-  const items = events.map(buildEventXml).join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<Reinf xmlns="http://www.reinf.esocial.gov.br/schemas/envioLoteEventos/v1_05_01">
-  <envioLoteEventos>
-    <ideContribuinte><tpInsc>1</tpInsc><nrInsc>_TENANT_</nrInsc></ideContribuinte>
-    <eventos>${items}</eventos>
-  </envioLoteEventos>
-</Reinf>`;
+function buildLoteXml(events: any[], cnpj: string): string {
+  return buildReinfLoteXml(events.map(buildEventXml).join("\n"), cnpj);
 }
 
 Deno.serve(async (req) => {
@@ -129,9 +123,8 @@ Deno.serve(async (req) => {
     const compKey = auth.companyId.replace(/-/g, "").toUpperCase();
     const certB64 = Deno.env.get(`REINF_CERT_A1_B64_${compKey}`) || Deno.env.get("REINF_CERT_A1_B64");
     const { data: company } = await admin
-      .from("companies").select("id").eq("id", auth.companyId).maybeSingle();
+      .from("companies").select("cnpj").eq("id", auth.companyId).maybeSingle();
     const certRow = false; // reserva para armazenamento futuro em Vault
-    void company;
     const hasCert = Boolean(certB64 || certRow);
     const env: "simulated" | "sandbox" = hasCert ? "sandbox" : "simulated";
 
@@ -145,7 +138,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const xml = buildLoteXml(evs);
+    if (!company?.cnpj || !/^\d{14}$/.test(company.cnpj.replace(/\D/g, ""))) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_company_cnpj", message: "CNPJ da empresa ausente ou inválido; nenhum lote foi transmitido." }), {
+        status: 422, headers: { ...cors, "Content-Type": "application/json" },
+      });
+    }
+    const xml = buildLoteXml(evs, company.cnpj);
 
     // Sandbox mode — cert detectado: assina XMLDSig e (opcionalmente) POST SOAP.
     if (env === "sandbox") {
@@ -202,20 +200,23 @@ Deno.serve(async (req) => {
         const respText = await resp.text();
         const protocol = respText.match(/<nrProtocolo>([^<]+)<\/nrProtocolo>/)?.[1] ?? null;
         // HTTP 2xx alone does not prove acceptance by the fiscal authority.
-        const accepted = resp.ok && Boolean(protocol);
-        const status: "accepted" | "rejected" = accepted ? "accepted" : "rejected";
+        const received = resp.ok && Boolean(protocol);
+        // The receipt protocol proves transport only, not fiscal authorization.
+        const status: "sent" | "rejected" = received ? "sent" : "rejected";
         const { data: row } = await admin.from("reinf_transmissions").insert({
           company_id: auth.companyId, period_id: periodId,
           event_type: "LOTE", env, status, protocol,
           payload_xml: signedXml, response_xml: respText.slice(0, 32000),
           events_count: evs.length, transmitted_at: new Date().toISOString(),
-          error: accepted ? null : `Resposta não confirma autorização (HTTP ${resp.status}).`,
+          error: received ? null : `Resposta sem protocolo de recebimento (HTTP ${resp.status}).`,
           created_by: auth.userId,
         }).select().single();
         return new Response(JSON.stringify({
-          ok: accepted, env, protocol, http_status: resp.status,
+          ok: received, env, protocol, status,
+          message: received ? "Lote enviado; processamento fiscal ainda não confirmado." : "Resposta sem protocolo de recebimento.",
+          http_status: resp.status,
           cert: { subject: certSubject, not_after: certExpiry }, transmission: row,
-        }), { status: accepted ? 200 : 502, headers: { ...cors, "Content-Type": "application/json" } });
+        }), { status: received ? 200 : 502, headers: { ...cors, "Content-Type": "application/json" } });
       } catch (netErr) {
         console.error("[reinf-transmit] soap_failed", (netErr as Error).message);
         const { data: row } = await admin.from("reinf_transmissions").insert({

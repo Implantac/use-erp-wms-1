@@ -13,7 +13,8 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 - [x] Remover score, certificação e selos de segurança fixos da tela de auditoria; indicar controles como não verificados até existir evidência real. Teste de regressão adicionado.
 - [ ] Revisar os demais dashboards/rotas por constantes apresentadas como dados reais e adicionar testes de regressão.
 - [x] EFD-Reinf: sem certificado não cria protocolo/transmissão simulada; XML apenas assinado não retorna sucesso de envio; HTTP sem protocolo não confirma autorização. Adicionados testes do cliente contra resposta legada simulada.
-- [ ] Homologar EFD-Reinf ponta a ponta com certificado real e validar semanticamente o XML de resposta oficial (protocolo isolado não prova autorização). Revisar históricos legados SIM existentes.
+- [x] Substituir `_TENANT_` no lote EFD-Reinf pelo CNPJ da empresa, rejeitando CNPJ ausente ou com formato incorreto. Tratar protocolo de recebimento como `sent`, não como `accepted`; avisar na UI que autorização ainda está pendente.
+- [ ] Homologar EFD-Reinf ponta a ponta com certificado real e validar semanticamente o XML de resposta oficial (protocolo isolado não prova autorização). Revisar históricos legados SIM existentes e vínculo do certificado A1 ao CNPJ do tenant.
 
 ## P1 — Gates reproduzíveis e integridade
 - [ ] Corrigir comando `typecheck`: `tsgo` não consta das dependências instaladas; medir memória adequada para a base.

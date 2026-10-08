@@ -18,8 +18,8 @@ describe('useReinfTransmit', () => {
     expect(toast.warning).toHaveBeenCalled();
   });
 
-  it('informa sucesso somente com confirmação e protocolo não simulado', async () => {
-    vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: { ok: true, env: 'sandbox', protocol: '123', events_count: 1 }, error: null } as never);
+  it('informa envio apenas com protocolo de recebimento e status sent', async () => {
+    vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: { ok: true, env: 'sandbox', status: 'sent', protocol: '123', events_count: 1 }, error: null } as never);
     const { result } = renderHook(() => useReinfTransmit());
     await act(async () => { await result.current.transmit('period-id', 1); });
     expect(toast.success).toHaveBeenCalledOnce();

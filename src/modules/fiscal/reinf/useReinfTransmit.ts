@@ -21,9 +21,9 @@ export function useReinfTransmit() {
         body: { period_id: periodId },
       });
       if (error) throw error;
-      if (data?.ok && data?.env !== 'simulated' && data?.protocol) {
-        toast.success('Transmissão enviada', {
-          description: `Protocolo ${data.protocol} • ${data.events_count} evento(s)`,
+      if (data?.ok && data?.status === 'sent' && data?.protocol) {
+        toast.success('Lote enviado; processamento fiscal pendente', {
+          description: `Protocolo de recebimento ${data.protocol} • ${data.events_count} evento(s). Não é autorização fiscal.`,
         });
       } else {
         toast.warning('Transmissão bloqueada', {
