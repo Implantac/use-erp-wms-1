@@ -77,6 +77,15 @@ export default function QuotationsPage() {
     onError: () => toast.error('Não foi possível atualizar a situação.'),
   });
 
+  const toOrder = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc('convert_quotation_to_purchase_order', { _quotation_id: id });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['purchase_quotations'] }); qc.invalidateQueries({ queryKey: ['purchase_orders'] }); toast.success('Pedido de compra gerado'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const remove = useMutation({
     mutationFn: async (id: string) => {
       const { error, count } = await supabase.from('purchase_quotations').delete({ count: 'exact' }).eq('id', id).eq('company_id', companyId!);
@@ -147,6 +156,9 @@ export default function QuotationsPage() {
                               {s === 'sent' ? 'Enviar' : s === 'answered' ? 'Marcar respondida' : s === 'approved' ? 'Aprovar' : s === 'rejected' ? 'Recusar' : 'Cancelar'}
                             </Button>
                           ))}
+                          {q.status === 'approved' && (q.purchase_order_id
+                            ? <Badge variant="outline">Pedido gerado</Badge>
+                            : <Button size="sm" disabled={toOrder.isPending} onClick={() => toOrder.mutate(q.id)}>Gerar pedido</Button>)}
                           {(q.status === 'draft' || q.status === 'cancelled') && (
                             <Button size="icon" variant="ghost" aria-label={`Excluir ${q.number}`} onClick={() => { if (confirm(`Excluir a cotação ${q.number}?`)) remove.mutate(q.id); }}>
                               <Trash2 className="h-4 w-4" />
