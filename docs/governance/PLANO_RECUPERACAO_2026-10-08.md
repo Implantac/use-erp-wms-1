@@ -16,7 +16,8 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 - [ ] Zerar os avisos reportáveis em `npm run lint:ci`.
 - [ ] Executar `npm run build` em runner com memória suficiente e registrar artefato, tempo e consumo.
 - [ ] Prover Supabase de homologação, migrations aplicadas, seeds determinísticas e duas identidades de tenants distintos. Não usar dados de produção.
-- [ ] Testar isolamento RLS, políticas de unidade/canal, concorrência WMS e transações financeiras/fiscais contra o banco.
+- [x] Escopar consultas de contas bancárias e títulos financeiros por `company_id`, desabilitar sem empresa e separar chaves do cache por tenant (testes unitários de troca de empresa).
+- [ ] Testar isolamento RLS, políticas de unidade/canal, concorrência WMS e transações financeiras/fiscais contra o banco. Os testes de cache não substituem a verificação real de RLS.
 
 ## P2 — Golden paths (bloqueantes para aprovação operacional)
 - [ ] O2C: pedido → aprovação → reserva → expedição → fiscal real/homologação → contas a receber.

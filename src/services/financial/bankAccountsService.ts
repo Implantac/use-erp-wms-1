@@ -2,10 +2,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { BankAccountRow } from '@/hooks/financial/useBankAccounts';
 
 export const bankAccountsService = {
-  async getAll() {
+  async getAll(companyId: string) {
     const { data, error } = await supabase
       .from('bank_accounts')
       .select('*')
+      .eq('company_id', companyId)
       .order('name')
       .limit(100);
     if (error) throw error;

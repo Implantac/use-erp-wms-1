@@ -1,3 +1,4 @@
+import { useEnterpriseStore } from '@/core/stores/useEnterpriseStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { bankAccountsService } from '@/services/financial/bankAccountsService';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/shared/useSupabaseQuery';
@@ -18,7 +19,8 @@ export interface BankAccountRow {
 }
 
 export function useBankAccounts() {
-  return useSupabaseQuery(['bank_accounts'], () => bankAccountsService.getAll());
+  const companyId = useEnterpriseStore(s => s.activeCompanyId);
+  return useSupabaseQuery(['bank_accounts', companyId], () => bankAccountsService.getAll(companyId!), { enabled: Boolean(companyId) });
 }
 
 export function useCreateBankAccount() {

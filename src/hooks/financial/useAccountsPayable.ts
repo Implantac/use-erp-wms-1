@@ -1,3 +1,4 @@
+import { useEnterpriseStore } from '@/core/stores/useEnterpriseStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { financialService } from '@/services/financial/financialService';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/shared/useSupabaseQuery';
@@ -5,7 +6,8 @@ import { toastSuccess, toastError } from '@/lib/toastHelpers';
 import { AccountPayable } from '@/types/financial';
 
 export function useAccountsPayable() {
-  return useSupabaseQuery(['accounts_payable'], () => financialService.getPayables());
+  const companyId = useEnterpriseStore(s => s.activeCompanyId);
+  return useSupabaseQuery(['accounts_payable', companyId], () => financialService.getPayables(companyId!), { enabled: Boolean(companyId) });
 }
 
 export function useCreateAccountPayable() {

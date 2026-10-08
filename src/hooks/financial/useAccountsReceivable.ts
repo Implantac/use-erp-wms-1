@@ -1,3 +1,4 @@
+import { useEnterpriseStore } from '@/core/stores/useEnterpriseStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { financialService } from '@/services/financial/financialService';
 import { useSupabaseQuery, useSupabaseMutation } from '@/hooks/shared/useSupabaseQuery';
@@ -5,7 +6,8 @@ import { toastSuccess, toastError } from '@/lib/toastHelpers';
 import { AccountReceivable } from '@/types/financial';
 
 export function useAccountsReceivable() {
-  return useSupabaseQuery(['accounts_receivable'], () => financialService.getReceivables());
+  const companyId = useEnterpriseStore(s => s.activeCompanyId);
+  return useSupabaseQuery(['accounts_receivable', companyId], () => financialService.getReceivables(companyId!), { enabled: Boolean(companyId) });
 }
 
 export function useCreateAccountReceivable() {

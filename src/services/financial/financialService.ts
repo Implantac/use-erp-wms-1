@@ -10,10 +10,11 @@ class FinancialService extends BaseService<'financial_ledger'> {
   }
 
   // Receivables
-  async getReceivables(): Promise<AccountReceivable[]> {
+  async getReceivables(companyId: string): Promise<AccountReceivable[]> {
     const { data, error } = await supabase
       .from('accounts_receivable')
       .select('*')
+      .eq('company_id', companyId)
       .order('due_date', { ascending: true })
       .limit(LIST_LIMIT);
     if (error) throw error;
@@ -50,10 +51,11 @@ class FinancialService extends BaseService<'financial_ledger'> {
   }
 
   // Payables
-  async getPayables(): Promise<AccountPayable[]> {
+  async getPayables(companyId: string): Promise<AccountPayable[]> {
     const { data, error } = await supabase
       .from('accounts_payable')
       .select('*')
+      .eq('company_id', companyId)
       .order('due_date', { ascending: true })
       .limit(LIST_LIMIT);
     if (error) throw error;

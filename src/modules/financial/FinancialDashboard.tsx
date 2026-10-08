@@ -1,3 +1,4 @@
+import { useEnterpriseStore } from '@/core/stores/useEnterpriseStore';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Landmark, TrendingDown, TrendingUp } from 'lucide-react';
 import { useBankAccounts } from '@/hooks/financial/useBankAccounts';
@@ -11,10 +12,11 @@ import { Button } from '@/ui/base/button';
 const open = (status: string) => status !== 'paid' && status !== 'cancelled';
 
 export default function FinancialDashboard() {
+  const companyId = useEnterpriseStore(s => s.activeCompanyId);
   const banks = useBankAccounts();
   const receivables = useAccountsReceivable();
   const payables = useAccountsPayable();
-  const loading = banks.isLoading || receivables.isLoading || payables.isLoading;
+  const loading = !companyId || banks.isLoading || receivables.isLoading || payables.isLoading;
   const failed = banks.isError || receivables.isError || payables.isError;
   const limited = (banks.data?.length ?? 0) >= 100 ||
     (receivables.data?.length ?? 0) >= LIST_LIMIT || (payables.data?.length ?? 0) >= LIST_LIMIT;
@@ -46,7 +48,7 @@ export default function FinancialDashboard() {
         <p className="text-muted-foreground">Resumo dos registros financeiros acessíveis à empresa atual.</p>
       </div>
 
-      {loading && <p role="status">Carregando dados financeiros...</p>}
+      {loading && <p role="status">{companyId ? 'Carregando dados financeiros...' : 'Selecione uma empresa para consultar os dados financeiros.'}</p>}
       {failed && (
         <div role="alert" className="rounded-md border border-destructive p-4 text-destructive">
           Não foi possível consultar todos os dados financeiros. Nenhum total parcial será exibido como consolidado.
