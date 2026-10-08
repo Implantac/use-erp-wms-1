@@ -8,7 +8,8 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 - [x] Informar quando limites de consulta tornam os totais incompletos; não apresentar EBITDA sem cálculo verificável.
 - [x] Bloquear ação de criação de boleto: o endpoint financeiro atual não implementa `generate_boleto`.
 - [ ] Revisar demais dashboards/rotas por constantes apresentadas como dados reais e adicionar testes de regressão.
-- [ ] Revisar simulação fiscal: nenhum protocolo SIM pode ser confundido com autorização oficial; homologar estados e chamadas.
+- [x] EFD-Reinf: sem certificado não cria protocolo/transmissão simulada; XML apenas assinado não retorna sucesso de envio; HTTP sem protocolo não confirma autorização. Adicionados testes do cliente contra resposta legada simulada.
+- [ ] Homologar EFD-Reinf ponta a ponta com certificado real e validar semanticamente o XML de resposta oficial (protocolo isolado não prova autorização). Revisar históricos legados SIM existentes.
 
 ## P1 — Gates reproduzíveis e integridade
 - [ ] Corrigir comando `typecheck`: `tsgo` não consta das dependências instaladas; medir memória adequada para a base.

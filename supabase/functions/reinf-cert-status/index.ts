@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         configured: false,
         ws_endpoint_configured: wsEndpoint,
-        mode: "simulated",
+        mode: "unavailable",
       }), { headers: { ...cors, "Content-Type": "application/json" } });
     }
 

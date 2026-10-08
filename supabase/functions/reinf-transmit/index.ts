@@ -1,6 +1,5 @@
-// EFD-Reinf — Transmissão (Sprint 1, modo simulated/sandbox scaffold)
-// Gera envelope XML do lote de eventos, persiste em reinf_transmissions e
-// retorna protocolo. Assinatura XMLDSig real + POST SOAP entram em Sprint 1.1.
+// EFD-Reinf — transmissão: sem certificado e endpoint, falha fechada.
+// Apenas resposta oficial do transporte pode ser tratada como transmissão.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { buildCorsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
 import { requireAuth } from "../_shared/require-auth.ts";
@@ -74,10 +73,6 @@ function buildLoteXml(events: any[]): string {
     <eventos>${items}</eventos>
   </envioLoteEventos>
 </Reinf>`;
-}
-
-function genProtocol(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID().replace(/-/g, "").slice(0, 24).toUpperCase()}`;
 }
 
 Deno.serve(async (req) => {
@@ -183,12 +178,12 @@ Deno.serve(async (req) => {
           company_id: auth.companyId, period_id: periodId,
           event_type: "LOTE", env, status: "signed",
           payload_xml: signedXml, events_count: evs.length,
-          protocol: `SIGNED-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
           error: `assinado com sucesso (subject=${certSubject}, expira=${certExpiry}). POST SOAP desativado (defina REINF_WS_ENDPOINT).`,
           created_by: auth.userId,
         }).select().single();
         return new Response(JSON.stringify({
-          ok: true, env, mode: "signed_only", events_count: evs.length,
+          ok: false, env, mode: "signed_only", events_count: evs.length,
+          message: "XML assinado e armazenado, mas não transmitido. Configure REINF_WS_ENDPOINT.",
           cert: { subject: certSubject, not_after: certExpiry }, transmission: row,
         }), { headers: { ...cors, "Content-Type": "application/json" } });
       }
@@ -205,20 +200,22 @@ Deno.serve(async (req) => {
           body: soapEnvelope,
         });
         const respText = await resp.text();
-        const status: "accepted" | "rejected" = resp.ok ? "accepted" : "rejected";
-        const protocol = (respText.match(/<nrProtocolo>([^<]+)<\/nrProtocolo>/)?.[1]) || `WS-${resp.status}`;
+        const protocol = respText.match(/<nrProtocolo>([^<]+)<\/nrProtocolo>/)?.[1] ?? null;
+        // HTTP 2xx alone does not prove acceptance by the fiscal authority.
+        const accepted = resp.ok && Boolean(protocol);
+        const status: "accepted" | "rejected" = accepted ? "accepted" : "rejected";
         const { data: row } = await admin.from("reinf_transmissions").insert({
           company_id: auth.companyId, period_id: periodId,
           event_type: "LOTE", env, status, protocol,
           payload_xml: signedXml, response_xml: respText.slice(0, 32000),
           events_count: evs.length, transmitted_at: new Date().toISOString(),
-          error: resp.ok ? null : `HTTP ${resp.status}`,
+          error: accepted ? null : `Resposta não confirma autorização (HTTP ${resp.status}).`,
           created_by: auth.userId,
         }).select().single();
         return new Response(JSON.stringify({
-          ok: resp.ok, env, protocol, http_status: resp.status,
+          ok: accepted, env, protocol, http_status: resp.status,
           cert: { subject: certSubject, not_after: certExpiry }, transmission: row,
-        }), { status: resp.ok ? 200 : 502, headers: { ...cors, "Content-Type": "application/json" } });
+        }), { status: accepted ? 200 : 502, headers: { ...cors, "Content-Type": "application/json" } });
       } catch (netErr) {
         console.error("[reinf-transmit] soap_failed", (netErr as Error).message);
         const { data: row } = await admin.from("reinf_transmissions").insert({
@@ -234,20 +231,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Simulated mode — persist payload with mock protocol
-    const protocol = genProtocol("SIM");
-    const { data: row, error: iErr } = await admin.from("reinf_transmissions").insert({
-      company_id: auth.companyId, period_id: periodId,
-      event_type: "LOTE", env, status: "simulated",
-      protocol, payload_xml: xml, events_count: evs.length,
-      transmitted_at: new Date().toISOString(), created_by: auth.userId,
-      response_xml: `<simulated><protocol>${protocol}</protocol><events>${evs.length}</events></simulated>`,
-    }).select().single();
-    if (iErr) throw iErr;
-
+    // No certificate: do not persist a fictitious transmission or protocol.
     return new Response(JSON.stringify({
-      ok: true, env, protocol, events_count: evs.length, transmission: row,
-    }), { headers: { ...cors, "Content-Type": "application/json" } });
+      ok: false, env: "unavailable",
+      message: "Certificado A1 não configurado. Nenhum evento foi transmitido ou protocolado.",
+    }), { status: 503, headers: { ...cors, "Content-Type": "application/json" } });
   } catch (err) {
     console.error("[reinf-transmit]", (err as Error).message);
     return new Response(JSON.stringify({ error: "internal_error" }), {

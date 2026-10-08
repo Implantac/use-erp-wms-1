@@ -21,13 +21,13 @@ export function useReinfTransmit() {
         body: { period_id: periodId },
       });
       if (error) throw error;
-      if (data?.ok) {
-        toast.success(`Transmissão ${data.env === 'simulated' ? 'SIMULADA' : 'enviada'}`, {
+      if (data?.ok && data?.env !== 'simulated' && data?.protocol) {
+        toast.success('Transmissão enviada', {
           description: `Protocolo ${data.protocol} • ${data.events_count} evento(s)`,
         });
       } else {
         toast.warning('Transmissão bloqueada', {
-          description: data?.message || 'Certificado A1 ainda não configurado (Sprint 1.1).',
+          description: data?.message || 'Não houve confirmação de transmissão oficial.',
         });
       }
     } catch (err) {
