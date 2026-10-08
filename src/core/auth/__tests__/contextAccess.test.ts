@@ -39,6 +39,12 @@ describe('contextAccess', () => {
     expect(evaluateContextAccess(criteria ?? {}, { ...storeContext, role: 'admin' }).allowed).toBe(true);
   });
 
+  it('nega permissões não concedidas; papel de visualizador não equivale a acesso total', () => {
+    const restricted = { ...storeContext, role: 'viewer' as const, permissions: [] };
+    expect(evaluateContextAccess({ permission: 'financial.write' }, restricted)).toEqual({ allowed: false, reason: 'permission' });
+    expect(evaluateContextAccess({ permission: 'financial.write' }, { ...restricted, permissions: ['financial.write'] }).allowed).toBe(true);
+  });
+
   it('mantém rotas gerais sem restrição contextual', () => {
     expect(getRouteContextCriteria('/dashboard')).toBeNull();
     expect(getRouteContextCriteria('/financeiro/dashboard')).toBeNull();

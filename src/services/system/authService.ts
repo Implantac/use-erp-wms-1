@@ -26,7 +26,7 @@ export class AuthService {
       name: profileName || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
       email: user.email || '',
       role: (role as AppUser['role']) || 'viewer',
-      permissions: ['all'],
+      permissions: [],
     };
   }
 

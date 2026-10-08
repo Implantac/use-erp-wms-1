@@ -18,7 +18,8 @@ export function OperationalScopeGuard({ children }: { children: ReactNode }) {
   const { activeUnitType, activeChannel, scope, role, permissions, isReady } = useEnterprise();
   const criteria = getRouteContextCriteria(pathname);
 
-  if (!criteria || !isReady) return <>{children}</>;
+  if (!criteria) return <>{children}</>;
+  if (!isReady) return <div role="status" className="py-10">Aguardando autorização do contexto operacional...</div>;
 
   const result = evaluateContextAccess(criteria, {
     unitType: activeUnitType,

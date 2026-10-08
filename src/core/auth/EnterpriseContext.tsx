@@ -202,7 +202,7 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
   const [isLoading, setIsLoading] = useState(true);
   const isMatrixManager = role === 'admin_matriz' || role === 'system_admin' || role === 'admin';
 
-  const executiveCouncil = {
+  const executiveCouncil = useMemo(() => ({
     roles: [
       'CTO Global', 'Arquiteto SAP S/4HANA', 'Arquiteto SAP Business One',
       'Arquiteto TOTVS Protheus', 'Arquiteto Sankhya', 'Arquiteto Oracle Netsuite',
@@ -211,7 +211,7 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
       'Especialista Supply', 'Especialista IA Empresarial', 'Especialista UX Enterprise'
     ],
     mission: 'Construir uma plataforma ERP Enterprise Multivertical, Multiempresa, Inteligente, Adaptativa, Escalável e Orientada a Dados.'
-  };
+  }), []);
 
   const applyCompany = useCallback(async (company: CompanyRow) => {
     if (!company) return;
@@ -251,6 +251,10 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
 
   const isSyncing = useRef(false);
   const lastSyncUser = useRef<string | null>(null);
+  const currentCompanyRef = useRef(currentCompany);
+  const loadingRef = useRef(isLoading);
+  currentCompanyRef.current = currentCompany;
+  loadingRef.current = isLoading;
 
   const loadActiveTenant = useCallback(async (isMounted: MutableRefObject<boolean>) => {
     if (!isMounted.current || isSyncing.current) return;
@@ -283,7 +287,7 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
 
       // Check if we already synced this user to avoid loop
       // We compare ID and state to ensure we don't reload during a render cycle
-      if (user.id === lastSyncUser.current && currentCompany && !isLoading) {
+      if (user.id === lastSyncUser.current && currentCompanyRef.current && !loadingRef.current) {
         isSyncing.current = false;
         return;
       }
@@ -308,18 +312,21 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
         : 'viewer';
       const userName = profile?.name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário';
       setRole(finalRole);
-      setPermissions(['all']);
+      // No permissions are granted by default. Load explicit, tenant-scoped
+      // permissions from an authorized backend before enabling permission gates.
+      setPermissions([]);
       setAllowedCompanies(companies ?? []);
       
       const needsUpdate = 
         storeState.user?.id !== user.id || 
         storeState.user?.name !== userName ||
         storeState.userRole !== finalRole ||
+        (storeState.user?.permissions?.length ?? 0) > 0 ||
         !storeState.isAuthenticated;
 
       if (needsUpdate) {
         useStore.setState((state) => {
-          if (state.user?.id === user.id && state.userRole === finalRole && state.isAuthenticated) return state;
+          if (state.user?.id === user.id && state.userRole === finalRole && state.isAuthenticated && !state.user.permissions?.length) return state;
           
           return {
             ...state,
@@ -328,7 +335,7 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
               name: userName,
               email: user.email || '',
               role: finalRole,
-              permissions: ['all'],
+              permissions: [],
             },
             userRole: finalRole,
             isAuthenticated: true
@@ -574,9 +581,8 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
     companySize, 
     taxRegime, 
     operationTypes,
-    policies.inventory.replenishmentMethod,
-    policies.core.workflowEnabled,
-    policies.core.eventOrchestrationEnabled,
+    policies,
+    executiveCouncil,
     isLoading,
     isSwitching,
     error,
