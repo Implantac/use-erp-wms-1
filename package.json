@@ -11,6 +11,7 @@
     "lint:ci": "node scripts/lint-ci.mjs",
     "typecheck": "tsgo --noEmit",
     "test": "vitest run",
+    "test:rls:live": "node scripts/test-rls-live.mjs",
     "preview": "vite preview",
     "seed:replenishment": "python3 scripts/seed-replenishment.py",
     "e2e": "playwright test --project=chromium",
