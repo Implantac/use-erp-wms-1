@@ -98,8 +98,8 @@ export function ReinfCertificateStatus() {
         {!status?.configured && !loading && (
           <div className="text-xs text-muted-foreground leading-relaxed">
             Nenhum certificado A1 configurado para este tenant. <strong>Transmissão bloqueada:</strong> nenhum protocolo é gerado ou persistido. Configure os segredos
-            <code className="mx-1 px-1 bg-muted rounded">REINF_CERT_A1_B64</code>
-            e <code className="mx-1 px-1 bg-muted rounded">REINF_CERT_A1_PASS</code> no backend para habilitar assinatura.
+            <code className="mx-1 px-1 bg-muted rounded">REINF_CERT_A1_B64_&lt;UUID&gt;</code>
+            e <code className="mx-1 px-1 bg-muted rounded">REINF_CERT_A1_PASS_&lt;UUID&gt;</code> no backend (UUID da empresa sem hífens, em maiúsculas). Segredos globais não são aceitos.
           </div>
         )}
 

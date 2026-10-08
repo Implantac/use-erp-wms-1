@@ -3,6 +3,7 @@
 import { buildCorsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
 import { requireAuth } from "../_shared/require-auth.ts";
 import { inspectCertificate } from "../_shared/reinf-sign.ts";
+import { tenantReinfCertificateSecrets } from "../_shared/reinf-tenant-cert.ts";
 
 Deno.serve(async (req) => {
   const cors = buildCorsHeaders(req);
@@ -22,9 +23,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const compKey = auth.companyId.replace(/-/g, "").toUpperCase();
-    const certB64 = Deno.env.get(`REINF_CERT_A1_B64_${compKey}`) || Deno.env.get("REINF_CERT_A1_B64");
-    const certPass = Deno.env.get(`REINF_CERT_A1_PASS_${compKey}`) || Deno.env.get("REINF_CERT_A1_PASS") || "";
+    const { certificate: certB64, password: certPass } = tenantReinfCertificateSecrets(
+      (name) => Deno.env.get(name), auth.companyId,
+    );
     const wsEndpoint = Boolean(Deno.env.get("REINF_WS_ENDPOINT"));
 
     if (!certB64) {
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const info = inspectCertificate(certB64, certPass);
+      const info = inspectCertificate(certB64, certPass || "");
       const now = Date.now();
       const expiryMs = new Date(info.not_after).getTime();
       const daysToExpire = Math.floor((expiryMs - now) / (1000 * 60 * 60 * 24));

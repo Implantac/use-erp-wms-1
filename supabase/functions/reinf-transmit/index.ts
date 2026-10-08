@@ -5,6 +5,7 @@ import { buildCorsHeaders, handleCorsPreflight } from "../_shared/cors.ts";
 import { requireAuth } from "../_shared/require-auth.ts";
 import { signReinfXml } from "../_shared/reinf-sign.ts";
 import { buildReinfLoteXml } from "../_shared/reinf-lote-xml.ts";
+import { tenantReinfCertificateSecrets } from "../_shared/reinf-tenant-cert.ts";
 
 type EventType = "R-2010" | "R-2020" | "R-4020" | "R-2099" | "R-4099";
 
@@ -117,16 +118,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Detecta certificado A1 via secrets do tenant (nunca expostos ao cliente).
-    // Convenção: REINF_CERT_A1_B64 + REINF_CERT_A1_PASS (globais) OU
-    // REINF_CERT_A1_B64_<COMPANY_ID_SEM_HIFEN> para multi-tenant real.
-    const compKey = auth.companyId.replace(/-/g, "").toUpperCase();
-    const certB64 = Deno.env.get(`REINF_CERT_A1_B64_${compKey}`) || Deno.env.get("REINF_CERT_A1_B64");
+    // Certificado e senha devem pertencer à empresa ativa; nunca usar A1 global.
+    const { certificate: certB64, password: certPass } = tenantReinfCertificateSecrets(
+      (name) => Deno.env.get(name), auth.companyId,
+    );
     const { data: company } = await admin
       .from("companies").select("cnpj").eq("id", auth.companyId).maybeSingle();
-    const certRow = false; // reserva para armazenamento futuro em Vault
-    const hasCert = Boolean(certB64 || certRow);
-    const env: "simulated" | "sandbox" = hasCert ? "sandbox" : "simulated";
+    const env: "simulated" | "sandbox" = certB64 ? "sandbox" : "simulated";
 
     const { data: events } = await admin
       .from("reinf_events").select("*")
@@ -147,12 +145,11 @@ Deno.serve(async (req) => {
 
     // Sandbox mode — cert detectado: assina XMLDSig e (opcionalmente) POST SOAP.
     if (env === "sandbox") {
-      const certPass = Deno.env.get(`REINF_CERT_A1_PASS_${compKey}`) || Deno.env.get("REINF_CERT_A1_PASS") || "";
       let signedXml = "";
       let certSubject = "";
       let certExpiry = "";
       try {
-        const signed = signReinfXml(xml, certB64!, certPass);
+        const signed = signReinfXml(xml, certB64!, certPass || "");
         signedXml = signed.signedXml;
         certSubject = signed.cert.subject;
         certExpiry = signed.cert.not_after;
