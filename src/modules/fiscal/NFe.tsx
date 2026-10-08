@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { toastSuccess } from '@/lib/toastHelpers';
+import { toastSuccess, toastError } from '@/lib/toastHelpers';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatBRL } from '@/lib/formatters';
@@ -8,7 +8,7 @@ import { ExportButton } from '@/shared/components/ExportButton';
 import { Button } from '@/ui/base/button';
 import { useFiscal } from '@/hooks/fiscal/useFiscal';
 import { CreateNFeDialog } from '@/components/fiscal/CreateNFeDialog';
-import { generateDANFE, generateNFeXML } from '@/lib/fiscalDocuments';
+import { generateDANFE } from '@/lib/fiscalDocuments';
 import type { NFe } from '@/types/fiscal';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
@@ -20,8 +20,9 @@ import { CancelNFeDialog } from './nfe/CancelNFeDialog';
 
 export default function NFePage() {
   const { nfes, transmitNFe: transmit, cancelNFe: cancel } = useFiscal();
-  const sendToPending = async (_id: string) => {};
-  const create = async (_data: any) => {};
+  const create = async (_data: unknown): Promise<never> => {
+    throw new Error('Criação de NF-e indisponível: falta validar leiaute IBS/CBS e integrar autorização oficial.');
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -45,8 +46,8 @@ export default function NFePage() {
   const formatDate = (s: string) => format(new Date(s), 'dd/MM/yyyy HH:mm', { locale: ptBR });
 
   const handleTransmit = async (nfe: NFe) => {
-    if (nfe.status === 'draft') await sendToPending(nfe.id);
-    else if (nfe.status === 'pending') await transmit(nfe.id);
+    if (nfe.status === 'pending') await transmit(nfe.id);
+    else toastError('Transmissão de NF-e indisponível para este status.');
   };
 
   const handleCancel = (nfe: NFe) => {
@@ -68,8 +69,8 @@ export default function NFePage() {
   };
 
   const handleDownloadXML = (nfe: NFe) => {
-    generateNFeXML(nfe);
-    toastSuccess('XML Baixado', `XML da NF-e ${nfe.number} baixado com sucesso`);
+    void nfe;
+    toastError('XML oficial indisponível. Não é permitido fabricar o arquivo a partir de dados de tela.');
   };
 
   return (
@@ -87,7 +88,7 @@ export default function NFePage() {
           ]}
           filename="nfe"
         />
-        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+        <Button className="gap-2" disabled title="Criação indisponível até homologação fiscal e leiaute IBS/CBS" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />Nova NF-e
         </Button>
       </PageHeader>

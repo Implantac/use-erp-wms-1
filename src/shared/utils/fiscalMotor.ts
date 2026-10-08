@@ -1,8 +1,7 @@
 /**
- * MOTOR FISCAL ENTERPRISE - REFORMA TRIBUTÁRIA READY
- * Suporte a regime Híbrido: ICMS/IPI/PIS/COFINS + IBS/CBS
+ * Fiscal preview only. No legal classification or NF-e XML is inferred here.
+ * Missing explicit rules must fail rather than fabricating rates or reductions.
  */
-
 export interface TaxCalculationResult {
   icms_base: number;
   icms_value: number;
@@ -28,74 +27,49 @@ export interface TaxRuleLike {
   ibs_rate?: number | null;
 }
 
-export interface NFeXmlHeader {
-  number?: string | number;
-  series?: string | number;
-  issue_date?: string;
-  [key: string]: unknown;
-}
-
-export interface NFeXmlItem {
-  code?: string;
-  description?: string;
-  quantity?: number;
-  unit_price?: number;
-  [key: string]: unknown;
+function explicitRate(value: number | null | undefined, name: string): number {
+  if (value == null || !Number.isFinite(value) || value < 0 || value > 100) {
+    throw new Error(`Regra fiscal incompleta: ${name} precisa de alíquota explícita e válida.`);
+  }
+  return value;
 }
 
 export const calculateTaxes = (
-  item: { price: number; quantity: number; ncm?: string }, 
-  origin: string, 
-  destination: string, 
+  item: { price: number; quantity: number; ncm?: string },
+  origin: string,
+  destination: string,
   rules: TaxRuleLike[],
-  taxRegime: string = 'simples_nacional',
-  regimeType: 'current' | 'hybrid' | 'reformed' = 'hybrid'
+  _taxRegime: string = 'simples_nacional',
+  regimeType: 'current' | 'hybrid' | 'reformed' = 'current',
 ): TaxCalculationResult => {
+  if (!Number.isFinite(item.price) || !Number.isFinite(item.quantity) || item.price < 0 || item.quantity <= 0) {
+    throw new Error('Valor ou quantidade do item inválidos para cálculo fiscal.');
+  }
+  const rule = rules.find(r => r.origin_state === origin && r.destination_state === destination && r.ncm === item.ncm)
+    ?? rules.find(r => r.origin_state === origin && r.destination_state === destination && !r.ncm);
+  if (!rule) throw new Error('Regra fiscal ausente para a operação, UF e NCM informados.');
+
   const baseAmount = item.price * item.quantity;
-  
-  const rule = rules.find(r => 
-    r.origin_state === origin && 
-    r.destination_state === destination &&
-    (r.ncm === item.ncm || !r.ncm)
-  ) || rules.find(r => r.origin_state === origin && r.destination_state === destination);
+  const current = regimeType !== 'reformed';
+  const reform = regimeType !== 'current';
+  const icms_value = current ? baseAmount * explicitRate(rule.icms_rate, 'ICMS') / 100 : 0;
+  const ipi_value = current ? baseAmount * explicitRate(rule.ipi_rate, 'IPI') / 100 : 0;
+  const pis_value = current ? baseAmount * explicitRate(rule.pis_rate, 'PIS') / 100 : 0;
+  const cofins_value = current ? baseAmount * explicitRate(rule.cofins_rate, 'COFINS') / 100 : 0;
+  const icms_st_value = current ? baseAmount * explicitRate(rule.icms_st_rate, 'ICMS-ST') / 100 : 0;
+  const cbs_value = reform ? baseAmount * explicitRate(rule.cbs_rate, 'CBS') / 100 : 0;
+  const ibs_value = reform ? baseAmount * explicitRate(rule.ibs_rate, 'IBS') / 100 : 0;
 
-  // 1. Regras Atuais (Com redução gradual se for híbrido)
-  const reductionFactor = regimeType === 'hybrid' ? 0.9 : (regimeType === 'reformed' ? 0 : 1);
-  
-  const icmsRate = (rule?.icms_rate ?? (origin === destination ? 18 : 12)) * reductionFactor;
-  const ipiRate = (rule?.ipi_rate ?? 0) * reductionFactor;
-  const pisRate = (rule?.pis_rate ?? (taxRegime === 'lucro_real' ? 1.65 : 0.65)) * reductionFactor;
-  const cofinsRate = (rule?.cofins_rate ?? (taxRegime === 'lucro_real' ? 7.6 : 3)) * reductionFactor;
-
-  // 2. Novas Regras (Reforma Tributária - IBS/CBS)
-  // Alíquotas de teste padrão se não houver na regra
-  const cbsRate = rule?.cbs_rate ?? (regimeType !== 'current' ? 8.8 : 0);
-  const ibsRate = rule?.ibs_rate ?? (regimeType !== 'current' ? 17.7 : 0);
-
-  const icms_value = baseAmount * (icmsRate / 100);
-  const ipi_value = baseAmount * (ipiRate / 100);
-  const pis_value = baseAmount * (pisRate / 100);
-  const cofins_value = baseAmount * (cofinsRate / 100);
-  const icms_st_value = rule?.icms_st_rate ? (baseAmount * (rule.icms_st_rate / 100)) * reductionFactor : 0;
-  
-  const cbs_value = baseAmount * (cbsRate / 100);
-  const ibs_value = baseAmount * (ibsRate / 100);
-
+  // IBS/CBS amounts are informational in this preview and must not be added
+  // to a payment total. The 2026 treatment depends on document and regime.
   return {
-    icms_base: baseAmount,
-    icms_value,
-    icms_st_value,
-    ipi_value,
-    pis_value,
-    cofins_value,
-    cbs_value,
-    ibs_value,
-    total_taxes: icms_value + ipi_value + pis_value + cofins_value + icms_st_value + cbs_value + ibs_value
+    icms_base: baseAmount, icms_value, icms_st_value, ipi_value, pis_value,
+    cofins_value, cbs_value, ibs_value,
+    total_taxes: icms_value + icms_st_value + ipi_value + pis_value + cofins_value,
   };
 };
 
-export const generateNFeXML = (header: NFeXmlHeader, items: NFeXmlItem[]) => {
-  return `<?xml version="1.0" encoding="UTF-8"?><infNFe chNFe="${Math.random().toString().slice(2, 46)}" versao="4.00">...</infNFe>`;
-};
-
-
+/** There is no authorized XML builder in this module. */
+export function generateNFeXML(): never {
+  throw new Error('XML fiscal indisponível: exige leiaute vigente, assinatura, validação e protocolo oficial.');
+}

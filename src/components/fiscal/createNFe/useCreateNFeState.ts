@@ -17,7 +17,8 @@ export function useCreateNFeState() {
   const [clientUF, setClientUF] = useState('');
 
   const clientsQuery = useClients();
-  const taxRulesQuery = useFiscalTaxRules('SP', clientUF || 'SP');
+  const originUF = currentCompany?.address_state || '';
+  const taxRulesQuery = useFiscalTaxRules(originUF || undefined, clientUF || undefined);
   const productsQuery = useProducts();
   const clients = useMemo(() => clientsQuery.data || [], [clientsQuery.data]);
   const products = useMemo(() => productsQuery.data || [], [productsQuery.data]);
@@ -25,6 +26,7 @@ export function useCreateNFeState() {
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [taxCalculationError, setTaxCalculationError] = useState<string | null>(null);
 
   const [operationType, setOperationType] = useState('saida');
   const [naturezaOp, setNaturezaOp] = useState('Venda de mercadoria');
@@ -52,26 +54,29 @@ export function useCreateNFeState() {
 
   useEffect(() => {
     if (!clientUF) return;
-    const sameState = clientUF === 'SP';
+    if (!originUF) return;
+    const sameState = clientUF === originUF;
     const newCfop = operationType === 'saida' ? (sameState ? '5102' : '6102') : '1102';
     setDefaultCfop(newCfop);
     setItems((prev) => prev.map((i) => ({ ...i, cfop: newCfop })));
-  }, [clientUF, operationType]);
+  }, [clientUF, operationType, originUF]);
 
   useEffect(() => {
     const calcAll = () => {
+      let calculationError: string | null = null;
       const updated = items.map((it) => {
         if (!it.cfop) return it;
-        const calc = calculateTaxes(
+        try {
+          const calc = calculateTaxes(
           { price: it.unitPrice, quantity: it.quantity, ncm: it.ncm },
-          'SP',
-          clientUF || 'SP',
+          originUF,
+          clientUF,
           taxRulesQuery.data || [],
           currentCompany?.tax_regime || 'simples_nacional',
           'hybrid',
         );
-        return {
-          ...it,
+          return {
+            ...it,
           icms: calc.icms_value,
           pis: calc.pis_value,
           cofins: calc.cofins_value,
@@ -79,13 +84,18 @@ export function useCreateNFeState() {
           ibs: calc.ibs_value,
           cbs: calc.cbs_value,
         };
+        } catch (err) {
+          calculationError = err instanceof Error ? err.message : 'Falha ao calcular tributos.';
+          return { ...it, icms: 0, pis: 0, cofins: 0, ipi: 0, ibs: 0, cbs: 0 };
+        }
       });
+      setTaxCalculationError(calculationError);
       const changed = updated.some((u, i) => u.icms !== items[i]?.icms || u.ibs !== items[i]?.ibs);
       if (changed) setItems(updated);
     };
     if (items.length > 0) calcAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length, items.map((i) => `${i.cfop}-${i.quantity}-${i.unitPrice}-${i.ncm}`).join('|'), clientUF, taxRules, currentCompany?.tax_regime]);
+  }, [items.length, items.map((i) => `${i.cfop}-${i.quantity}-${i.unitPrice}-${i.ncm}`).join('|'), clientUF, originUF, taxRules, currentCompany?.tax_regime]);
 
   const clientOptions: SmartSelectOption[] = useMemo(
     () => clients.map((c) => ({
@@ -153,6 +163,7 @@ export function useCreateNFeState() {
     if (!clientId) steps[1].errors.push('O destinatário é obrigatório. Selecione um cliente da base.');
     if (clientDocument && clientDocument.replace(/\D/g, '').length < 11) steps[1].errors.push('O documento do destinatário (CPF/CNPJ) parece estar incompleto.');
     if (!clientUF) steps[1].errors.push('UF do destinatário não identificada. Verifique o cadastro.');
+    if (!originUF) steps[0].errors.push('UF da empresa emissora não configurada.');
 
     if (items.length === 0) steps[2].errors.push('A nota precisa conter pelo menos um item para ser emitida.');
     items.forEach((item, idx) => {
@@ -162,6 +173,8 @@ export function useCreateNFeState() {
       if (item.unitPrice <= 0) steps[2].errors.push(`Item ${idx + 1}: O valor unitário não pode ser zero.`);
     });
 
+    if (taxCalculationError) steps[3].errors.push(taxCalculationError);
+    if (taxRulesQuery.isError) steps[3].errors.push('Não foi possível consultar as regras fiscais.');
     const totalTax = totalIcms + totalIpi + totalPis + totalCofins;
     if (totalTax === 0 && subtotal > 0) steps[3].warnings.push('Atenção: O valor total de impostos está zerado. Verifique as regras.');
 
@@ -169,7 +182,7 @@ export function useCreateNFeState() {
     if (installments < 1) steps[5].errors.push('O número de parcelas deve ser pelo menos 1.');
 
     return steps;
-  }, [naturezaOp, clientId, clientDocument, clientUF, items, paymentMethod, totalIcms, totalIpi, totalPis, totalCofins, subtotal, installments]);
+  }, [naturezaOp, clientId, clientDocument, clientUF, items, paymentMethod, totalIcms, totalIpi, totalPis, totalCofins, subtotal, installments, taxCalculationError, taxRulesQuery.isError, originUF]);
 
   const allIssues = useMemo(() => {
     const errors: { step: number; message: string }[] = [];
@@ -193,6 +206,7 @@ export function useCreateNFeState() {
 
   const currentStepValidation = validationByStep[step] || { errors: [], warnings: [] };
   const hasBlockingErrors = currentStepValidation.errors.length > 0;
+  const hasAnyBlockingErrors = Object.values(validationByStep).some((stepValidation) => stepValidation.errors.length > 0);
 
   const nothingFoundInView = useMemo(() => {
     if (diagnosisFilter === 'all') return !hasFilteredErrors && !hasFilteredWarnings;
@@ -221,6 +235,6 @@ export function useCreateNFeState() {
     // diagnosis
     diagnosisFilter, setDiagnosisFilter, diagnosisSearch, searchTerm, setSearchTerm,
     validationByStep, allIssues, hasFilteredErrors, hasFilteredWarnings,
-    currentStepValidation, hasBlockingErrors, nothingFoundInView,
+    currentStepValidation, hasBlockingErrors, hasAnyBlockingErrors, nothingFoundInView,
   };
 }

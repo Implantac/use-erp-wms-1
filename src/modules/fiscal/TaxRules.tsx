@@ -71,8 +71,8 @@ export default function TaxRulesPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Motor Fiscal Híbrido"
-        description="Gestão de tributação (Regra Atual vs Reforma IBS/CBS)"
+        title="Cadastro de parâmetros fiscais"
+        description="Parâmetros de referência; não substituem classificação CST/cClassTrib nem autorizam emissão IBS/CBS."
       />
 
       <div className="flex items-center justify-between gap-4">
@@ -248,7 +248,7 @@ export default function TaxRulesPage() {
               <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 flex items-start gap-2">
                  <Sparkles className="h-4 w-4 text-amber-600 mt-0.5" />
                  <p className="text-[11px] text-amber-800">
-                    <strong>Dica IA:</strong> Na regra híbrida, o sistema calculará ambos os tributos para fins de transparência no XML (Lei 12.741) e transição de créditos.
+                    As alíquotas cadastradas aqui não constituem validação legal de IBS/CBS. A emissão depende de CST, cClassTrib, leiaute vigente e homologação por documento e regime.
                  </p>
               </div>
             </TabsContent>

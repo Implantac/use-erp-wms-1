@@ -34,6 +34,12 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 - [ ] Retirar `test.fixme` somente após fixtures e asserções persistidas para cada etapa.
 - [ ] Criar relatórios financeiros por agregação no servidor, sem truncamento silencioso por `LIST_LIMIT`.
 
+## P2A — IBS/CBS para todos os regimes (iniciado)
+- [x] Inventário inicial de fontes oficiais, versões e lacunas em `docs/fiscal/RTC_IBS_CBS_AUDITORIA_2026-10-08.md`; **não é homologação integral**.
+- [x] Eliminar alíquotas IBS/CBS presumidas, redução arbitrária dos tributos legados e XML de NF-e com emitente/protocolo fictícios; bloquear criação/exportação não oficial, exigir regra explícita e sinalizar erro no fluxo de prévia.
+- [ ] Versionar tabelas oficiais CST/cClassTrib, XSD e regras por documento, regime, operação e data; validar com responsável fiscal e homologar em ambiente autorizado.
+- [ ] Revalidar preços, totais, apuração e créditos para 2026 e transição posterior; nenhuma regra genérica substitui todos os regimes.
+
 ## P3 — Integrações externas
 - [ ] Implementar emissão/cancelamento de boleto com adaptador bancário, webhook autenticado, idempotência e baixa transacional; remover bloqueio da UI apenas após homologação.
 - [ ] Homologar NF-e/NFC-e/CT-e/MDF-e/NFS-e e EFD-Reinf com certificado, autorização e rejeição reais; nunca promover simulação a autorização.

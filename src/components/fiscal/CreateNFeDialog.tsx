@@ -31,8 +31,9 @@ export function CreateNFeDialog({ open, onOpenChange, onCreate }: CreateNFeDialo
   const handlePrev = () => state.setStep(Math.max(state.step - 1, 0));
 
   const handleSubmit = async () => {
-    if (state.hasBlockingErrors) return;
+    if (state.hasAnyBlockingErrors) return;
     state.setSaving(true);
+    try {
     await onCreate({
       clientName: state.clientName,
       clientId: state.clientId || undefined,
@@ -56,9 +57,11 @@ export function CreateNFeDialog({ open, onOpenChange, onCreate }: CreateNFeDialo
       discount: state.discount,
       shipping: state.shipping,
     });
-    state.setSaving(false);
     onOpenChange(false);
     state.setStep(0);
+    } finally {
+      state.setSaving(false);
+    }
   };
 
   return (
@@ -91,7 +94,7 @@ export function CreateNFeDialog({ open, onOpenChange, onCreate }: CreateNFeDialo
         <CreateNFeFooter
           step={state.step}
           saving={state.saving}
-          hasBlockingErrors={state.hasBlockingErrors}
+          hasBlockingErrors={state.step === STEPS.length - 1 ? state.hasAnyBlockingErrors : state.hasBlockingErrors}
           onPrev={handlePrev}
           onNext={handleNext}
           onSubmit={handleSubmit}
