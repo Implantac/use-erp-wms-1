@@ -1,0 +1,13 @@
+# Contenção de transições WMS e auditoria de suporte histórico
+
+**Estado: correções no código, não aplicadas ou provadas em Supabase real. Produção continua NO-GO.**
+
+## Status WMS
+
+O CHECK de `20260807204950_...` admite `requested, approved, picking, picked, shipped, in_transit, received, checked, completed, divergent`. A tela `UnifiedSupplyChain.tsx` antes avançava para `reserved` e `delivered`, que o CHECK rejeita, e permitia a qualquer usuário com acesso avançar fases sem efeitos de estoque nem verificação server-side do papel. A tela agora mostra as etapas efetivamente admitidas e **não oferece avanço**; o botão de consulta sem ação foi removido. A migration `20261008220000_block_unsafe_supply_chain_status_changes.sql` acrescenta um trigger que rejeita `UPDATE OF status` com mudança de valor sob JWT `authenticated` (SQLSTATE 42501), mesmo por chamada direta à API; service-role/operador privilegiado precisa de procedimento auditado separado. **Pode interromper outras telas autenticadas que atualizavam status** — é uma contenção deliberada, não operação WMS pronta. Não rodar em produção sem testar em clone e mapear os chamadores afetados. Não remove linhas históricas nem amplia o CHECK.
+
+**Aceite para substituir o bloqueio:** máquina única de estados no servidor, papel autorizado por tenant/unidade, expected-state compare-and-swap, validação de quantidades/estoque, mutações transacionais e idempotência, ledger consistente, eventos de concorrência/timeout/retry, A/B com dois usuários. Só remover a guarda após homologação e aprovação operacional; testar contra banco real `UPDATE` direto autenticado (deve negar), service-role (somente manutenção autorizada), demais colunas, concorrência e trigger do ledger.
+
+## Histórico de privilégios de suporte
+
+As migrations de agosto de 2026 consultam uma conta de suporte nominada, podem conceder papel admin e assinatura longa e modificam plano Enterprise global. Isso **não prova** que a conta exista no banco implantado. `scripts/audit-legacy-support-privileges.sql` é uma inspeção **somente leitura**, executável como DBA em cópia isolada, que **falha** se encontrar a conta (mesmo sem papel admin) para exigir análise humana. Não revogue papéis/remova usuários/planos automaticamente em bases existentes: inventarie `auth.users`, `profiles`, `user_roles`, `subscriptions`, `plans` e `plan_modules`, determine titularidade/escopo, aprove plano de remediação, registre trilha de auditoria, faça backup e execute retirada controlada do acesso indevido. Confira também outros usuários privilegiados, bypass RLS e tokens de serviço. Uma instalação nova precisa passar por esse ensaio e por teste A/B completo antes da venda.
