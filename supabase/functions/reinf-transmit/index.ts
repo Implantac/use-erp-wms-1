@@ -8,6 +8,7 @@ import { buildReinfLoteXml } from "../_shared/reinf-lote-xml.ts";
 import { tenantReinfCertificateSecrets } from "../_shared/reinf-tenant-cert.ts";
 import { validateReinfCertificate } from "../_shared/reinf-certificate-policy.ts";
 import { normalizeValidReinfCnpj } from "../_shared/reinf-cnpj.ts";
+import { assertAllReinfEventsSigned } from "../_shared/reinf-signature-policy.ts";
 
 type EventType = "R-2010" | "R-2020" | "R-4020" | "R-2099" | "R-4099";
 
@@ -153,6 +154,7 @@ Deno.serve(async (req) => {
       try {
         const signed = signReinfXml(xml, certB64!, certPass || "");
         signedXml = signed.signedXml;
+        assertAllReinfEventsSigned(xml, signedXml);
         certSubject = signed.cert.subject;
         certExpiry = signed.cert.not_after;
         const certificatePolicy = validateReinfCertificate(signed.cert, company.cnpj);

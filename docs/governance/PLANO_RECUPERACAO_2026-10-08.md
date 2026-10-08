@@ -16,6 +16,7 @@ Um recurso só é marcado como pronto quando existe teste automatizado do efeito
 - [x] Substituir `_TENANT_` no lote EFD-Reinf pelo CNPJ da empresa; exigir CNPJ numérico com dígitos verificadores válidos (o XML atual não suporta CNPJ alfanumérico). Tratar protocolo de recebimento como `sent`, não como `accepted`; avisar na UI que autorização ainda está pendente.
 - [x] Remover fallback de certificado A1 global nas funções de transmissão e status: somente secrets com sufixo do UUID da empresa são aceitos. Instalações com secret global precisam migrar antes do deploy; isolamento comprovado por teste unitário, não por homologação criptográfica.
 - [x] Conferir CNPJ da empresa no `subject` do A1 e período de validade antes da transmissão; status do certificado informa falha de validação. Formatos de certificado que não exponham CNPJ no subject falham fechados.
+- [x] Bloquear envio de lote quando algum evento não for reconhecido/assinado ou seu Id mudar. Esta checagem estrutural não substitui verificação XMLDSig criptográfica externa.
 - [ ] Homologar EFD-Reinf ponta a ponta com certificado real e validar semanticamente o XML de resposta oficial (protocolo isolado não prova autorização). Revisar históricos legados SIM e formatos de subject ICP-Brasil usados por clientes reais.
 
 ## P1 — Gates reproduzíveis e integridade
