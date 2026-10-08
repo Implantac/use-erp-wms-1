@@ -45,17 +45,10 @@ export function useCreateBoleto() {
   return useMutation({
     mutationFn: async (input: { receivable_id?: string; client_id?: string; client_name?: string; amount: number; due_date: string; bank_account_id?: string; notes?: string }) => {
       if (!companyId) throw new Error('Empresa não selecionada');
-      const idempotencyKey = `boleto-${input.receivable_id || 'manual'}-${Date.now()}`;
-
-      
-      const { data, error } = await supabase.functions.invoke('financial-intelligence', {
-        body: { action: 'generate_boleto', ...input, company_id: companyId, idempotency_key: idempotencyKey }
-      });
-      if (error) throw new Error(`Não foi possível gerar o boleto no provedor bancário: ${error.message}`);
-      if (!data?.id || !data?.digitable_line) {
-        throw new Error('O provedor bancário não retornou um boleto válido. Nenhuma cobrança foi criada.');
-      }
-      return data;
+      void input;
+      // financial-intelligence does not implement generate_boleto. Do not send a
+      // fictitious charge or report success until a bank adapter exists.
+      throw new Error('Emissão de boleto indisponível: integração bancária não implementada. Nenhuma cobrança foi criada.');
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['financial_boletos'] });

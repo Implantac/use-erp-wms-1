@@ -69,9 +69,9 @@ export default function Boletos() {
 
   return (
     <PageContainer>
-      <PageHeader title="Boletos" description="Geração e controle de boletos. Provedor real configurável.">
+      <PageHeader title="Boletos" description="Consulta de boletos existentes. Emissão indisponível até a implementação de integração bancária.">
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" />Novo Boleto</Button></DialogTrigger>
+          <DialogTrigger asChild><Button disabled title="Emissão indisponível: integração bancária ainda não implementada" className="gap-2"><Plus className="h-4 w-4" />Novo Boleto indisponível</Button></DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Gerar Boleto</DialogTitle></DialogHeader>
             <div className="grid gap-3 py-2">
@@ -96,7 +96,7 @@ export default function Boletos() {
                 <div className="grid gap-1.5"><Label className="text-xs">Valor *</Label><Input type="number" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></div>
                 <div className="grid gap-1.5"><Label className="text-xs">Vencimento *</Label><Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} /></div>
               </div>
-              <p className="text-xs text-muted-foreground">Provedor atual: <strong>mock</strong> (linha digitável simulada). Conecte um banco/Asaas para emissão real.</p>
+              <p className="text-xs text-muted-foreground">A emissão requer um provedor bancário configurado. Sem resposta válida do provedor, nenhum boleto será criado.</p>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

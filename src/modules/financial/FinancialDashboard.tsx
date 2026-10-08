@@ -1,132 +1,85 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";
-import { Button } from "@/ui/base/button";
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Wallet, 
-  BarChart3, 
-  ArrowUpRight, 
-  ArrowDownRight,
-  ShieldCheck,
-  FileText
-} from "lucide-react";
+import { Link } from 'react-router-dom';
+import { AlertTriangle, ArrowRight, Landmark, TrendingDown, TrendingUp } from 'lucide-react';
+import { useBankAccounts } from '@/hooks/financial/useBankAccounts';
+import { useAccountsPayable } from '@/hooks/financial/useAccountsPayable';
+import { useAccountsReceivable } from '@/hooks/financial/useAccountsReceivable';
+import { LIST_LIMIT } from '@/lib/queryLimits';
+import { formatBRL } from '@/lib/formatters';
+import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
+import { Button } from '@/ui/base/button';
+
+const open = (status: string) => status !== 'paid' && status !== 'cancelled';
 
 export default function FinancialDashboard() {
+  const banks = useBankAccounts();
+  const receivables = useAccountsReceivable();
+  const payables = useAccountsPayable();
+  const loading = banks.isLoading || receivables.isLoading || payables.isLoading;
+  const failed = banks.isError || receivables.isError || payables.isError;
+  const limited = (banks.data?.length ?? 0) >= 100 ||
+    (receivables.data?.length ?? 0) >= LIST_LIMIT || (payables.data?.length ?? 0) >= LIST_LIMIT;
+
+  const balance = (banks.data ?? []).filter(a => a.active).reduce((sum, a) => sum + Number(a.balance ?? 0), 0);
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  const due = (date: string) => {
+    const value = new Date(`${date.slice(0, 10)}T12:00:00`);
+    return value >= start && value < end;
+  };
+  const receivableTotal = (receivables.data ?? []).filter(r => open(r.status) && due(r.due_date))
+    .reduce((sum, r) => sum + Number(r.open_amount ?? r.amount), 0);
+  const payableTotal = (payables.data ?? []).filter(p => open(p.status) && due(p.due_date))
+    .reduce((sum, p) => sum + Number(p.open_amount ?? p.amount), 0);
+
+  const cards = [
+    { title: 'Saldo das contas bancárias ativas', value: balance, icon: Landmark, path: '/financeiro/tesouraria' },
+    { title: 'A receber nos próximos 7 dias', value: receivableTotal, icon: TrendingUp, path: '/financeiro/receber' },
+    { title: 'A pagar nos próximos 7 dias', value: payableTotal, icon: TrendingDown, path: '/financeiro/pagar' },
+  ];
+
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Controladoria & Finanças</h1>
-          <p className="text-muted-foreground">Visão consolidada e saúde financeira do grupo empresarial.</p>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Controladoria & Finanças</h1>
+        <p className="text-muted-foreground">Resumo dos registros financeiros acessíveis à empresa atual.</p>
+      </div>
+
+      {loading && <p role="status">Carregando dados financeiros...</p>}
+      {failed && (
+        <div role="alert" className="rounded-md border border-destructive p-4 text-destructive">
+          Não foi possível consultar todos os dados financeiros. Nenhum total parcial será exibido como consolidado.
+          <Button variant="outline" className="ml-3" onClick={() => {
+            void banks.refetch(); void receivables.refetch(); void payables.refetch();
+          }}>Tentar novamente</Button>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="gap-2">
-            <FileText className="h-4 w-4" />
-            DRE Consolidada
-          </Button>
-          <Button className="gap-2">
-            <ShieldCheck className="h-4 w-4" />
-            Conciliação IA
-          </Button>
+      )}
+      {!loading && !failed && limited && (
+        <div role="status" className="flex items-start gap-2 rounded-md border border-warning p-4 text-sm">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          As consultas atingiram o limite de registros. Este resumo pode estar incompleto; use relatórios paginados para totais consolidados.
         </div>
+      )}
+      {!loading && !failed && (
+        <div className="grid gap-4 md:grid-cols-3">
+          {cards.map(({ title, value, icon: Icon, path }) => (
+            <Card key={title}>
+              <CardHeader><CardTitle className="flex items-center gap-2 text-sm"><Icon className="h-4 w-4" />{title}</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-2xl font-bold">{formatBRL(value)}</p>
+                <Button asChild variant="link" className="p-0"><Link to={path}>Ver lançamentos <ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-3">
+        <Button asChild variant="outline"><Link to="/financeiro/fluxo">Fluxo de caixa</Link></Button>
+        <Button asChild variant="outline"><Link to="/financeiro/dre">DRE</Link></Button>
+        <Button asChild variant="outline"><Link to="/financeiro/conciliacao">Conciliação bancária</Link></Button>
       </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Saldo Disponível</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ 1.842.000,00</div>
-            <div className="flex items-center text-xs text-green-500 mt-1">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              +4.5% vs ontem
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Contas a Receber (7d)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ 642.500,00</div>
-            <p className="text-xs text-muted-foreground mt-1">12 faturas pendentes</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Contas a Pagar (7d)</CardTitle>
-            <TrendingDown className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">R$ 312.400,00</div>
-            <p className="text-xs text-muted-foreground mt-1">8 faturas próximas ao vencimento</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">EBITDA Gerencial</CardTitle>
-            <BarChart3 className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">24.8%</div>
-            <div className="flex items-center text-xs text-red-500 mt-1">
-              <ArrowDownRight className="h-3 w-3 mr-1" />
-              -1.2% meta do mês
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Fluxo de Caixa Projetado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] flex items-end justify-between gap-4 px-4">
-              {[65, 45, 75, 55, 85, 95, 70].map((val, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full bg-primary/20 rounded-t-lg transition-all hover:bg-primary/40" style={{ height: `${val}%` }} />
-                  <span className="text-[10px] text-muted-foreground">0{i+1}/06</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Alertas Financeiros</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3 p-3 rounded-lg border border-red-100 bg-red-50 dark:bg-red-900/10 dark:border-red-900/20">
-              <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                <TrendingDown className="h-4 w-4" />
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-red-700 dark:text-red-400">Risco de Inadimplência</h4>
-                <p className="text-xs text-red-600 dark:text-red-300 mt-0.5">3 clientes do setor têxtil ultrapassaram o limite de crédito.</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3 p-3 rounded-lg border border-blue-100 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-900/20">
-              <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                <BarChart3 className="h-4 w-4" />
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-400">Oportunidade de Caixa</h4>
-                <p className="text-xs text-blue-600 dark:text-blue-300 mt-0.5">Saldo ocioso detectado. IA sugere aplicação em CDI de liquidez diária.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <p className="text-xs text-muted-foreground">Saldo bancário reflete os saldos cadastrados; não representa reconciliação bancária confirmada. Valores a vencer não incluem títulos já pagos ou cancelados.</p>
     </div>
   );
 }
