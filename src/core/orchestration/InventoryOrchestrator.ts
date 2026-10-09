@@ -158,7 +158,7 @@ export const useInventoryOrchestrator = (providedCompanyId?: string) => {
         isHandlingCleanup.current = false;
       }, 100);
     };
-  }, [companyId, eventBus, isContextLoading, handleSaleCompleted, handleTransferShipped]);
+  }, [companyId, eventBus, isContextLoading, handleSaleCompleted, handleTransferShipped, logToLedger]);
 
   return {
     logToLedger

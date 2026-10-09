@@ -70,7 +70,7 @@ export const useStoreOrchestrator = (providedCompanyId?: string) => {
         }
       }
     }
-  }, [companyId, eventBus]);
+  }, [companyId]);
 
   useEffect(() => {
     if (!branchId || isContextLoading) return;

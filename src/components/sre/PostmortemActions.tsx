@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
@@ -33,7 +33,7 @@ export function PostmortemActions({ postmortemId }: { postmortemId: string }) {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ title: '', owner_id: '', due_at: '', priority: 'medium' });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const [{ data }, { data: profs }] = await Promise.all([
       supabase.from('sre_postmortem_actions').select('*').eq('postmortem_id', postmortemId).order('created_at', { ascending: false }),
@@ -42,8 +42,8 @@ export function PostmortemActions({ postmortemId }: { postmortemId: string }) {
     setItems((data ?? []) as unknown as Action[]);
     setUsers((profs ?? []) as Array<{ id: string; name?: string | null }>);
     setLoading(false);
-  };
-  useEffect(() => { void load(); }, [postmortemId]);
+  }, [postmortemId]);
+  useEffect(() => { void load(); }, [load]);
 
   const add = async () => {
     if (!form.title) { toast.error('Título obrigatório'); return; }

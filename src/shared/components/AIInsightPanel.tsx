@@ -36,6 +36,7 @@ interface AIInsightPanelProps {
 
 export function AIInsightPanel({ entityKey, value, delta, goal, horizon = "month" }: AIInsightPanelProps) {
   const entity = getEntity(entityKey);
+  const deltaKey = JSON.stringify(delta ?? null);
   const [loading, setLoading] = useState(true);
   const [insight, setInsight] = useState<AIInsight | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +48,7 @@ export function AIInsightPanel({ entityKey, value, delta, goal, horizon = "month
       setError(null);
       try {
         const { data, error: err } = await supabase.functions.invoke("ai-insight", {
-          body: { entityKey, value, delta, goal, horizon },
+          body: { entityKey, value, delta: (JSON.parse(deltaKey) ?? undefined) as AIInsightPanelProps["delta"], goal, horizon },
         });
         if (cancelled) return;
         if (err) throw err;
@@ -63,7 +64,7 @@ export function AIInsightPanel({ entityKey, value, delta, goal, horizon = "month
     return () => {
       cancelled = true;
     };
-  }, [entityKey, value, goal, horizon, JSON.stringify(delta)]);
+  }, [entityKey, value, goal, horizon, deltaKey]);
 
   if (!entity) return null;
 

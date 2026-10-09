@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { RefreshCw, ArrowRight, AlertTriangle, CheckCircle, Search, Filter, Brain, CheckSquare, Square, Rocket, Trash2, History, RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/ui/base/card';
 import { Button } from '@/ui/base/button';
@@ -40,23 +40,23 @@ export function SmartReplenishment() {
     setEditedQuantities(newQuantities);
   };
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (historyStack.length === 0) return;
     const prev = historyStack[historyStack.length - 1];
     setRedoStack(current => [...current, editedQuantities]);
     setHistoryStack(current => current.slice(0, -1));
     setEditedQuantities(prev);
     toast.info("Desfeito com sucesso");
-  };
+  }, [historyStack, editedQuantities, setEditedQuantities, setHistoryStack, setRedoStack]);
 
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
     setHistoryStack(current => [...current, editedQuantities]);
     setRedoStack(current => current.slice(0, -1));
     setEditedQuantities(next);
     toast.info("Refeito com sucesso");
-  };
+  }, [redoStack, editedQuantities, setEditedQuantities, setHistoryStack, setRedoStack]);
 
 
 
@@ -341,25 +341,24 @@ export function SmartReplenishment() {
     setSelectedIds(newSet);
   };
 
-  // Efeito para sincronizar selectedIds com editedQuantities ao carregar
+  // Sync only when the actual suggestion set changes; do not undo a user's
+  // manual deselection when quantities or keyboard history change.
+  const lastSuggestionsRef = useRef(suggestions);
   useEffect(() => {
+    if (lastSuggestionsRef.current === suggestions) return;
+    lastSuggestionsRef.current = suggestions;
     const editedIds = Object.keys(editedQuantities);
-    if (editedIds.length > 0 && selectedIds.size === 0) {
-      const newSelected = new Set(selectedIds);
-      editedIds.forEach(id => {
-        // Apenas adiciona se existir na sugestão atual para evitar lixo
-        if (suggestions.find(s => s.id === id)) {
-          newSelected.add(id);
-        }
-      });
-      if (newSelected.size > 0) {
-        setSelectedIds(newSelected);
-      }
-    }
-  }, [suggestions.length]); // Executa quando as sugestões carregam
+    if (!editedIds.length) return;
+    const availableIds = new Set(suggestions.map(s => s.id));
+    setSelectedIds(current => {
+      if (current.size > 0) return current;
+      const next = new Set(editedIds.filter(id => availableIds.has(id)));
+      return next.size ? next : current;
+    });
+  }, [suggestions, editedQuantities]);
 
   // Atalhos de teclado
-  useMemo(() => {
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!showBulkPreview) return;
       
@@ -386,7 +385,7 @@ export function SmartReplenishment() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showBulkPreview, bulkConfirmStep, historyStack, redoStack, editedQuantities]);
+  }, [showBulkPreview, bulkConfirmStep, historyStack, redoStack, editedQuantities, handleUndo, handleRedo, showClearConfirm]);
 
   return (
     <div className="space-y-4">

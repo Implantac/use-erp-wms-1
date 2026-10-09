@@ -125,7 +125,6 @@ export function Sidebar() {
     if (toExpand.length > 0) {
       setExpandedItems((prev) => Array.from(new Set([...prev, ...toExpand])));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextualSections, location.pathname]);
 
   // Auto-close mobile drawer on route change
