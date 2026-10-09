@@ -65,3 +65,7 @@ O carregamento de sessão e o mapeamento de usuário atribuíam `permissions: ['
 ### 08/10/2026 — Indicadores WMS e efeitos React
 
 `WMSAnalytics` agora exige empresa ativa, aplica `company_id` às seis consultas, rejeita erros em qualquer fonte, descarta respostas antigas após troca de empresa/período e não transforma ausência de medições em SLA/acuracidade de 100%. Consultas que atinjam o teto usual de 1.000 linhas falham fechadas em vez de apresentar um total parcial; **a agregação paginada no servidor e a prova RLS em banco ainda faltam**. O nome de indicador foi ajustado para refletir inspeções sem rejeição, não acuracidade de estoque. Hook de reposição deixou de registrar listener de teclado durante render e de resselecionar itens após desmarcação manual; outras dependências de hooks foram reconciliadas sem ignorar regras. Typecheck e 175 testes Vitest passaram; `lint:ci` ainda não está verde até resolver os exports mistos.
+
+### 08/10/2026 — Gate de lint local
+
+A separação de hooks/constantes de arquivos com componentes React (sem silenciar `react-refresh`) eliminou os 13 avisos restantes. `npm run lint:ci`: **exit 0, 0 errors/0 warnings reportáveis**; typecheck e **175 testes unitários** passaram na verificação local. O gate ainda exclui **1.024** achados de `no-explicit-any`: lint verde não prova tipagem completa. Não houve confirmação do workflow remoto, build, E2E ou Supabase. Docs de recuperação mantêm status NO-GO.

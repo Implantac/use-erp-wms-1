@@ -13,7 +13,7 @@ import { Plus, Tag, RefreshCw, Trash2, Search } from 'lucide-react';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useConfirm } from '@/shared/components/ConfirmDialog';
+import { useConfirm } from '@/shared/components/confirmContext';
 
 const tagTypeLabels: Record<string, string> = { product: 'Produto', pallet: 'Palete', location: 'Local', asset: 'Ativo' };
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {

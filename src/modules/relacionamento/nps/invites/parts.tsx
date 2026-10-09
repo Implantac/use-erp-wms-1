@@ -1,22 +1,8 @@
-import { Link2, Mail, MessageCircle, QrCode } from 'lucide-react';
 import { Card, CardContent } from '@/ui/base/card';
 import { Badge, type BadgeProps } from '@/ui/base/badge';
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 
 export type BulkResultItem = { id: string; name: string; ok: boolean; error?: string };
 export type BulkResult = { title: string; items: BulkResultItem[] } | null;
-
-export const CHANNELS = [
-  { v: 'link', label: 'Link manual', icon: Link2 },
-  { v: 'email', label: 'E-mail', icon: Mail },
-  { v: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
-  { v: 'sms', label: 'SMS', icon: MessageCircle },
-  { v: 'qr', label: 'QR Code', icon: QrCode },
-];
-
-export const PAGE_SIZE = 20;
 
 export function KPI({ label, value, sub, tone = 'default' }: { label: string; value: number | string; sub?: string; tone?: 'default' | 'success' | 'warn' | 'danger' | 'info' }) {
   const toneClass = {
@@ -49,21 +35,4 @@ export function StatusBadge({ status }: { status: string }) {
   };
   const s = map[status] ?? { label: status, variant: 'outline' };
   return <Badge variant={s.variant} className={s.className}>{s.label}</Badge>;
-}
-
-export function useTokensMap(invites: { id: string }[]) {
-  const inviteIds = useMemo(() => invites.map((i) => i.id), [invites]);
-  const { data } = useQuery({
-    queryKey: ['nps', 'tokens', inviteIds.join(',')],
-    enabled: inviteIds.length > 0,
-    queryFn: async () => {
-      const { data } = await supabase.from('nps_tokens').select('invite_id,token').in('invite_id', inviteIds);
-      return data ?? [];
-    },
-  });
-  return useMemo(() => {
-    const m = new Map<string, string>();
-    (data ?? []).forEach((t) => { if (t.invite_id) m.set(t.invite_id, t.token); });
-    return m;
-  }, [data]);
 }

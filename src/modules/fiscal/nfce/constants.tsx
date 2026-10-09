@@ -9,19 +9,19 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/ui/base/badge';
 
-export const statusConfig: Record<string, { color: string; icon: React.ComponentType<{ className?: string }> }> = {
+const statusConfig: Record<string, { color: string; icon: React.ComponentType<{ className?: string }> }> = {
   authorized: { color: 'bg-success/10 text-success', icon: CheckCircle },
   cancelled: { color: 'bg-muted text-muted-foreground', icon: XCircle },
   contingency: { color: 'bg-warning/10 text-warning', icon: AlertTriangle },
 };
 
-export const statusLabels: Record<string, string> = {
+const statusLabels: Record<string, string> = {
   authorized: 'Autorizada',
   cancelled: 'Cancelada',
   contingency: 'Contingência',
 };
 
-export const paymentLabels: Record<string, string> = {
+const paymentLabels: Record<string, string> = {
   cash: 'Dinheiro',
   credit_card: 'Cartão de Crédito',
   debit_card: 'Cartão de Débito',
@@ -30,7 +30,7 @@ export const paymentLabels: Record<string, string> = {
   multiple: 'Múltiplo',
 };
 
-export const paymentIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+const paymentIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   cash: Banknote,
   credit_card: CreditCard,
   debit_card: CreditCard,

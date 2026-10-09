@@ -1,7 +1,7 @@
 import { TrendingUp, Wallet, Users, ShoppingCart } from "lucide-react";
 import { Card, CardContent } from "@/ui/base/card";
 import { cn } from "@/lib/utils";
-import { brl } from "./utils";
+import { brl } from "./currency";
 import type { SuccessData, SuccessCashFlow90d } from "../types";
 
 export function KpiRow({ totals, cashflow }: { totals: SuccessData["totals"]; cashflow: SuccessCashFlow90d }) {

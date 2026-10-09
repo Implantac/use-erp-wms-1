@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/ui/base/card";
 import { Badge } from "@/ui/base/badge";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
-import { openDrillDown } from "./DrillDownDrawer";
+import { openDrillDown } from "./drillDownEvents";
 import type { EntityKey } from "@/core/entityRegistry";
 
 type Trend = "up" | "down" | "flat";

@@ -13,7 +13,7 @@ import { Plus, Radio, Wifi, WifiOff, Settings, Trash2, RefreshCw } from 'lucide-
 import { EmptyState } from '@/shared/components/EmptyState';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useConfirm } from '@/shared/components/ConfirmDialog';
+import { useConfirm } from '@/shared/components/confirmContext';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   active: { label: 'Ativo', variant: 'default' },

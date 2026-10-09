@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { PAGE_SIZE } from './parts';
+import { PAGE_SIZE } from './options';
 import type { NPSInvite } from './types';
 
 export function useInvitesFilters(

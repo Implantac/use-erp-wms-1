@@ -5,7 +5,7 @@ import {
 import { Badge } from "@/ui/base/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";
 import { cn } from "@/lib/utils";
-import { brl } from "./utils";
+import { brl } from "./currency";
 import type { SuccessData } from "../types";
 
 type ProductsCustomersGridProps = Pick<

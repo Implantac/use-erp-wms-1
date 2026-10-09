@@ -26,7 +26,7 @@ interface ExecutionRow {
   result: unknown;
 }
 
-export function usePluginExecutions(pluginId?: string) {
+function usePluginExecutions(pluginId?: string) {
   const companyId = useEnterpriseStore((s) => s.activeCompanyId);
   return useQuery({
     queryKey: ["plugin_executions", companyId, pluginId],

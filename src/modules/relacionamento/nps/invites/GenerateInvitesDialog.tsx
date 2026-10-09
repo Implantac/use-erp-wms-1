@@ -6,7 +6,7 @@ import { Checkbox } from '@/ui/base/checkbox';
 import { Badge } from '@/ui/base/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
 import { Search, Send, RotateCcw } from 'lucide-react';
-import { CHANNELS } from './parts';
+import { CHANNELS } from './options';
 import type { ClientPickerRow } from './types';
 
 interface GenerateInvitesDialogProps {

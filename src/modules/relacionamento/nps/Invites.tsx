@@ -11,8 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Send, Copy, Mail, Search, Trash2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRCodeDialog } from './QRCodeDialog';
-import { useConfirm } from '@/shared/components/ConfirmDialog';
-import { CHANNELS, PAGE_SIZE, KPI, useTokensMap, type BulkResult } from './invites/parts';
+import { useConfirm } from '@/shared/components/confirmContext';
+import { KPI, type BulkResult } from './invites/parts';
+import { CHANNELS, PAGE_SIZE } from './invites/options';
+import { useTokensMap } from './invites/useTokensMap';
 import { InvitesTable } from './invites/InvitesTable';
 import { GenerateInvitesDialog } from './invites/GenerateInvitesDialog';
 import { BulkResultDialog } from './invites/BulkResultDialog';

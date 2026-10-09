@@ -12,7 +12,7 @@ export interface QuickAction {
   icon: typeof PackageCheck;
 }
 
-export const defaultQuickActions: QuickAction[] = [
+const defaultQuickActions: QuickAction[] = [
   { label: 'Pedir reposição', href: '/operacional/rede/ressuprimento', icon: RefreshCw },
   { label: 'Receber mercadoria', href: '/operacional/rede/receber', icon: PackageCheck },
   { label: 'Transferir mercadoria', href: '/operacional/rede/transferencias', icon: ArrowLeftRight },

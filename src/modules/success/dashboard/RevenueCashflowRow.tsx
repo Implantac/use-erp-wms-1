@@ -1,7 +1,8 @@
 import { TrendingUp, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";
 import { cn } from "@/lib/utils";
-import { brl, RevenueBarChart } from "./utils";
+import { RevenueBarChart } from "./utils";
+import { brl } from "./currency";
 import type { SuccessMonthlyRevenue, SuccessCashFlow90d } from "../types";
 
 export function RevenueCashflowRow({ revenue12m, cashflow }: { revenue12m: SuccessMonthlyRevenue[]; cashflow: SuccessCashFlow90d }) {

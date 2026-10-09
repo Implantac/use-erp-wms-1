@@ -3,7 +3,7 @@ import { Badge } from "@/ui/base/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";
 import { Progress } from "@/ui/base/progress";
 import { cn } from "@/lib/utils";
-import { brl } from "./utils";
+import { brl } from "./currency";
 import type { SuccessData } from "../types";
 
 export function MonthGoalCard({ monthGoal, monthDelta }: { monthGoal: SuccessData["monthGoal"]; monthDelta: number }) {

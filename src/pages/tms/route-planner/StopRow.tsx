@@ -4,7 +4,7 @@ import { Button } from '@/ui/base/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
 import type { RouteStop } from '@/hooks/tms/useRoutePlanning';
 
-export const STATUS_LABEL: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+const STATUS_LABEL: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   pending: { label: 'Pendente', variant: 'secondary' },
   en_route: { label: 'Em rota', variant: 'default' },
   arrived: { label: 'Chegou', variant: 'default' },

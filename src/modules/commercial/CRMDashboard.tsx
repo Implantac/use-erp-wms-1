@@ -8,7 +8,8 @@ import { useSalesFunnel, useCreateFunnelItem, FUNNEL_STAGES } from '@/hooks/comm
 import { useClients } from '@/hooks/commercial/useClients';
 import { useSalesReps } from '@/hooks/commercial/useSalesReps';
 import { useFunnelMetrics } from './sales-funnel/useFunnelMetrics';
-import { EMPTY_FORM, FunnelFormDialog, type FunnelFormData } from './sales-funnel/FunnelFormDialog';
+import { FunnelFormDialog } from './sales-funnel/FunnelFormDialog';
+import { EMPTY_FORM, type FunnelFormData } from './sales-funnel/formDefaults';
 import { formatBRL } from '@/lib/formatters';
 import { toastError } from '@/lib/toastHelpers';
 import { EmptyState } from '@/shared/components/EmptyState';

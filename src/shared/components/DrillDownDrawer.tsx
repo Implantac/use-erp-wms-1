@@ -9,7 +9,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/base/tabs";
 import { Badge } from "@/ui/base/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { getEntity, type EntityKey, type PublicTableName } from "@/core/entityRegistry";
+import { getEntity, type PublicTableName } from "@/core/entityRegistry";
+import { DRILLDOWN_OPEN_EVENT, type DrillDownOpenPayload } from "./drillDownEvents";
 import { AIInsightPanel } from "./AIInsightPanel";
 import { Skeleton } from "@/ui/base/skeleton";
 import { EmptyState } from "./EmptyState";
@@ -28,20 +29,6 @@ type ListQuery = {
 
 const dynamicList = (table: PublicTableName) =>
   (supabase.from(table) as unknown as ListQuery).select("*").limit(20);
-
-export const DRILLDOWN_OPEN_EVENT = "drilldown:open";
-
-export interface DrillDownOpenPayload {
-  entityKey: EntityKey;
-  value?: number | string;
-  delta?: { day?: number; week?: number; month?: number; year?: number };
-  goal?: number;
-  companyId?: string;
-}
-
-export function openDrillDown(payload: DrillDownOpenPayload) {
-  window.dispatchEvent(new CustomEvent(DRILLDOWN_OPEN_EVENT, { detail: payload }));
-}
 
 export function DrillDownDrawer() {
   const [open, setOpen] = useState(false);

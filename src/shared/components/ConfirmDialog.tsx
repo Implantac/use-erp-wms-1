@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ConfirmCtx, type ConfirmFn, type ConfirmOptions } from './confirmContext';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,20 +12,6 @@ import {
   AlertDialogTitle,
 } from '@/ui/base/alert-dialog';
 import { cn } from '@/lib/utils';
-
-export type ConfirmVariant = 'default' | 'destructive' | 'warning';
-
-export interface ConfirmOptions {
-  title: string;
-  description?: ReactNode;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  variant?: ConfirmVariant;
-}
-
-type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>;
-
-const ConfirmCtx = createContext<ConfirmFn | null>(null);
 
 /**
  * Provider global de confirmação destrutiva unificada.
@@ -86,12 +73,3 @@ export const ConfirmDialogProvider = React.memo(({ children }: { children: React
 });
 
 ConfirmDialogProvider.displayName = 'ConfirmDialogProvider';
-
-export function useConfirm(): ConfirmFn {
-  const ctx = useContext(ConfirmCtx);
-  if (!ctx) {
-    // Fallback seguro para telas ainda sem provider — usa window.confirm.
-    return async (opts) => window.confirm(opts.title);
-  }
-  return ctx;
-}

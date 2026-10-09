@@ -1,8 +1,6 @@
+import { brl } from './currency';
 import { Heart, AlertTriangle, Sparkles, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export const brl = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function GradePill({ grade, score }: { grade: string; score: number }) {
   const color =
