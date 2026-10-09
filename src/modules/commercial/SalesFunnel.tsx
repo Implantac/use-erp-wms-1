@@ -15,7 +15,8 @@ import { KANBAN_STAGES, useFunnelMetrics } from './sales-funnel/useFunnelMetrics
 import { FunnelKanban } from './sales-funnel/FunnelKanban';
 import { FunnelAnalytics } from './sales-funnel/FunnelAnalytics';
 import { FunnelAlerts } from './sales-funnel/FunnelAlerts';
-import { EMPTY_FORM, FunnelFormDialog, type FunnelFormData } from './sales-funnel/FunnelFormDialog';
+import { FunnelFormDialog } from './sales-funnel/FunnelFormDialog';
+import { EMPTY_FORM, type FunnelFormData } from './sales-funnel/formDefaults';
 
 export default function SalesFunnelPage() {
   const { data: funnel = [], isLoading } = useSalesFunnel();

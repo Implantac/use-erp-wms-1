@@ -69,3 +69,7 @@ O carregamento de sessão e o mapeamento de usuário atribuíam `permissions: ['
 ### 08/10/2026 — Gate de lint local
 
 A separação de hooks/constantes de arquivos com componentes React (sem silenciar `react-refresh`) eliminou os 13 avisos restantes. `npm run lint:ci`: **exit 0, 0 errors/0 warnings reportáveis**; typecheck e **175 testes unitários** passaram na verificação local. O gate ainda exclui **1.024** achados de `no-explicit-any`: lint verde não prova tipagem completa. Não houve confirmação do workflow remoto, build, E2E ou Supabase. Docs de recuperação mantêm status NO-GO.
+
+### 08/10/2026 — Tentativa de build após lint verde
+
+Primeira tentativa `NODE_OPTIONS=--max-old-space-size=1536 npx bun run build` detectou import obsoleto `EMPTY_FORM` em `SalesFunnel.tsx`, resultante da separação de arquivos do gate lint; corrigido no código e reexecutado. Segunda tentativa transformou **4.890 módulos** e chegou a `computing gzip size`, mas o processo foi encerrado com **SIGKILL / exit 137** no sandbox com aproximadamente 2 GiB de RAM; **não existe artefato validado localmente**. Isso não prova falha em runner de CI maior, mas impede declarar build aprovado. Typecheck, lint local (0 avisos reportáveis) e 175 testes passaram após a correção. Confirmar build e Docker em runner com memória, artefato e smoke test antes do GO.
