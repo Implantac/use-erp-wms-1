@@ -984,7 +984,10 @@ jobs:
       - name: Unitários e integração
         run: bun run test
 
-      - name: Isolamento RLS obrigatório
+      - name: Testar comportamento fail-closed dos verificadores RLS
+        run: bun run test:rls:guard
+
+      - name: Catálogo e matriz RLS em banco de homologação (não substitui ensaio A/B)
         run: node scripts/rls-static-check.mjs --require-connection
 
       - name: Build de produção

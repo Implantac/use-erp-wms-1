@@ -4,4 +4,6 @@
 
 **Atenção:** `financial-rls-role-matrix.sql` abre uma transação, cria fixtures em `auth.users` e faz `ROLLBACK`. Por isso a conexão `RLS_CHECK_DATABASE_URL` precisa de privilégios de teste e **jamais** deve apontar para banco de produção, dados de clientes ou uma cópia que possa enviar e-mails/webhooks. Também não é uma credencial “somente leitura”. Use projeto descartável, jobs externos bloqueados, restore inicial e credenciais guardadas como secret. Teste dos scripts SQL depende de banco com migrations completas. Os checks de catálogo por padrão de texto (`ILIKE`) não asseguram semântica da policy: uma policy extra pode ampliar acesso. O ensaio com duas sessões autenticadas e fixtures próprias visíveis/estranhas invisíveis segue em `docs/governance/ENSAIO_RLS_A_B.md`, ainda não executado.
 
+O workflow executa `bun run test:rls:guard` antes de tentar o banco. Esse passo não requer segredos. A etapa SQL continua bloqueada se o segredo de banco isolado não estiver configurado; nenhum resultado do GitHub Actions foi observado nesta revisão.
+
 **Aceite antes do GO:** rodar gate SQL em projeto isolado; documentar migrations/aprovação e assegurar que o SQL não altera dados após rollback; rodar A/B vivo com contas não privilegiadas para leitura **e escrita** dos objetos críticos, RPCs, Edge e Storage. Falha, ausência de fixtures ou conexão = NO-GO.
