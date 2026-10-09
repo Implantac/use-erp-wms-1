@@ -61,3 +61,7 @@ O carregamento de sessão e o mapeamento de usuário atribuíam `permissions: ['
 ### 08/10/2026 — Demanda preditiva sem confiança fabricada
 
 `PredictiveIntelligenceService` devolvia confiança 0,85 fixa, demanda baseada em poucas linhas com média/dias hipotéticos e posições DOCK/PICKING fictícias; a tela 360° usava o resultado para sugerir compra, cobertura e EOQ. O serviço agora falha sem modelo validado, o hook descarta previsão anterior ao mudar SKU e mostra indisponibilidade sem valores de reposição. Teste cobre ambos os métodos. **Previsão real, indicadores de acurácia, histórico completo e otimização de posições continuam não implementados/homologados.**
+
+### 08/10/2026 — Indicadores WMS e efeitos React
+
+`WMSAnalytics` agora exige empresa ativa, aplica `company_id` às seis consultas, rejeita erros em qualquer fonte, descarta respostas antigas após troca de empresa/período e não transforma ausência de medições em SLA/acuracidade de 100%. Consultas que atinjam o teto usual de 1.000 linhas falham fechadas em vez de apresentar um total parcial; **a agregação paginada no servidor e a prova RLS em banco ainda faltam**. O nome de indicador foi ajustado para refletir inspeções sem rejeição, não acuracidade de estoque. Hook de reposição deixou de registrar listener de teclado durante render e de resselecionar itens após desmarcação manual; outras dependências de hooks foram reconciliadas sem ignorar regras. Typecheck e 175 testes Vitest passaram; `lint:ci` ainda não está verde até resolver os exports mistos.

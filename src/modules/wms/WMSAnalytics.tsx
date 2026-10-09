@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";
 import { Badge } from "@/ui/base/badge";
 import { Button } from "@/ui/base/button";
@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/base/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/base/table";
 import { Activity, TrendingUp, Clock, AlertTriangle, Target, Gauge, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useEnterprise } from "@/core/auth/EnterpriseContext";
+import { measuredPercent } from './wmsAnalyticsMetrics';
 import { toastError } from "@/lib/toastHelpers";
 import { errorMessage } from "@/lib/errors";
 import { EmptyState } from "@/shared/components/EmptyState";
@@ -21,7 +23,7 @@ type KPI = {
   avgPickMinutes: number;
   slaOnTime: number;
   slaLate: number;
-  accuracyPct: number;
+  accuracyPct: number | null;
   qualityFails: number;
   tasksPerHour: number;
 };
@@ -44,6 +46,10 @@ type PickingRow = { id: string; status: string | null; created_at: string; compl
 const rangeToHours: Record<Range, number> = { "24h": 24, "7d": 24 * 7, "30d": 24 * 30 };
 
 export default function WMSAnalytics() {
+  const { currentCompany } = useEnterprise();
+  const companyId = currentCompany?.id;
+  const generation = useRef(0);
+  const [queryError, setQueryError] = useState(false);
   const [range, setRange] = useState<Range>("7d");
   const [loading, setLoading] = useState(false);
   const [kpi, setKpi] = useState<KPI | null>(null);
@@ -56,18 +62,32 @@ export default function WMSAnalytics() {
     return d.toISOString();
   }, [range]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    const request = ++generation.current;
+    setKpi(null);
+    setShipments([]);
+    setEvents([]);
+    setQueryError(false);
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     try {
       const [recv, ship, pickAll, logs, qual, evts] = await Promise.all([
-        supabase.from("wms_receiving_orders").select("id,status,created_at").gte("created_at", since),
-        supabase.from("wms_shipments").select("id,status,carrier,tracking_number,scheduled_date,shipped_at,delivered_at,created_at").gte("created_at", since).order("created_at", { ascending: false }),
-        supabase.from("wms_picking_orders").select("id,status,created_at,completed_at").gte("created_at", since),
-        supabase.from("wms_task_logs").select("id,task_type,duration_seconds,created_at").gte("created_at", since),
-        supabase.from("wms_quality_checks").select("id,decision,created_at").gte("created_at", since),
-        supabase.from("wms_events").select("id,event_type,created_at,payload").gte("created_at", since).order("created_at", { ascending: false }).limit(50),
+        supabase.from("wms_receiving_orders").select("id,status,created_at").eq("company_id", companyId).gte("created_at", since),
+        supabase.from("wms_shipments").select("id,status,carrier,tracking_number,scheduled_date,shipped_at,delivered_at,created_at").eq("company_id", companyId).gte("created_at", since).order("created_at", { ascending: false }),
+        supabase.from("wms_picking_orders").select("id,status,created_at,completed_at").eq("company_id", companyId).gte("created_at", since),
+        supabase.from("wms_task_logs").select("id,task_type,duration_seconds,created_at").eq("company_id", companyId).gte("created_at", since),
+        supabase.from("wms_quality_checks").select("id,decision,created_at").eq("company_id", companyId).gte("created_at", since),
+        supabase.from("wms_events").select("id,event_type,created_at,payload").eq("company_id", companyId).gte("created_at", since).order("created_at", { ascending: false }).limit(50),
       ]);
 
+      const firstError = [recv, ship, pickAll, logs, qual, evts].find(result => result.error)?.error;
+      if (firstError) throw firstError;
+      // Supabase PostgREST commonly caps responses at 1,000 rows. Do not
+      // present a potentially truncated sample as a complete period KPI.
+      if ([recv, ship, pickAll, logs, qual].some(result => (result.data?.length ?? 0) >= 1000)) {
+        throw new Error('Consulta WMS atingiu limite de linhas; agregação paginada no servidor necessária.');
+      }
+      if (generation.current !== request) return;
       const shipRows = (ship.data ?? []) as ShipmentRow[];
       const pickRows = (pickAll.data ?? []) as PickingRow[];
       const logRows = (logs.data ?? []) as Array<{ duration_seconds: number | null }>;
@@ -85,7 +105,7 @@ export default function WMSAnalytics() {
       const slaLate = shipRows.filter((s) => s.delivered_at && s.scheduled_date && new Date(s.delivered_at) > new Date(s.scheduled_date)).length;
 
       const qualFails = qRows.filter((q) => q.decision === "rejected" || q.decision === "quarantine").length;
-      const accuracy = qRows.length ? Math.max(0, 100 - (qualFails / qRows.length) * 100) : 100;
+      const accuracy = measuredPercent(qRows.length - qualFails, qRows.length);
 
       const totalSeconds = logRows.reduce((a, l) => a + (l.duration_seconds || 0), 0);
       const tasksPerHour = totalSeconds > 0 ? (logRows.length / (totalSeconds / 3600)) : 0;
@@ -98,30 +118,41 @@ export default function WMSAnalytics() {
         avgPickMinutes: Math.round(avgPickMin),
         slaOnTime: slaOn,
         slaLate,
-        accuracyPct: Math.round(accuracy * 10) / 10,
+        accuracyPct: accuracy,
         qualityFails: qualFails,
         tasksPerHour: Math.round(tasksPerHour * 10) / 10,
       });
       setShipments(shipRows.slice(0, 20));
       setEvents((evts.data ?? []) as EventRow[]);
     } catch (e) {
-      toastError("Falha ao carregar analytics", errorMessage(e));
+      if (generation.current === request) {
+        setKpi(null);
+        setQueryError(true);
+        toastError("Falha ao carregar analytics", errorMessage(e));
+      }
     } finally {
-      setLoading(false);
+      if (generation.current === request) setLoading(false);
     }
-  };
+  }, [companyId, since]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [range]);
+  useEffect(() => {
+    void load();
+    return () => { generation.current += 1; };
+  }, [load]);
 
   const slaTotal = (kpi?.slaOnTime ?? 0) + (kpi?.slaLate ?? 0);
-  const slaPct = slaTotal > 0 ? Math.round(((kpi?.slaOnTime ?? 0) / slaTotal) * 100) : 100;
+  const slaPct = measuredPercent(kpi?.slaOnTime ?? 0, slaTotal);
+
+  if (!companyId) return <p role="alert">Selecione uma empresa para consultar os indicadores WMS.</p>;
+  if (queryError) return <p role="alert" className="text-destructive">Falha na consulta WMS. Nenhum indicador foi confirmado. <Button onClick={() => void load()}>Tentar novamente</Button></p>;
+  if (!kpi) return <p role="status">Consultando indicadores WMS...</p>;
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Gauge className="h-6 w-6 text-primary" /> WMS Analytics &amp; SLA</h1>
-          <p className="text-sm text-muted-foreground">KPIs operacionais consolidados por tenant</p>
+          <p className="text-sm text-muted-foreground">Indicadores calculados dos registros retornados da empresa selecionada; amostras extensas exigem agregação no servidor.</p>
         </div>
         <div className="flex items-center gap-2">
           <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
@@ -140,9 +171,9 @@ export default function WMSAnalytics() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard icon={<Activity className="h-4 w-4" />} title="Recebimentos" value={kpi?.receivings ?? 0} />
         <KpiCard icon={<TrendingUp className="h-4 w-4" />} title="Expedições" value={kpi?.shipments ?? 0} />
-        <KpiCard icon={<Target className="h-4 w-4" />} title="SLA no prazo" value={`${slaPct}%`} sub={`${kpi?.slaOnTime ?? 0} on / ${kpi?.slaLate ?? 0} atraso`} />
+        <KpiCard icon={<Target className="h-4 w-4" />} title="SLA no prazo" value={slaPct === null ? "Não medido" : `${slaPct}%`} sub={`${kpi?.slaOnTime ?? 0} on / ${kpi?.slaLate ?? 0} atraso`} />
         <KpiCard icon={<Clock className="h-4 w-4" />} title="Pick médio" value={`${kpi?.avgPickMinutes ?? 0} min`} sub={`${kpi?.pickingsCompleted ?? 0} concluídos`} />
-        <KpiCard icon={<AlertTriangle className="h-4 w-4" />} title="Acuracidade" value={`${kpi?.accuracyPct ?? 0}%`} sub={`${kpi?.qualityFails ?? 0} falhas`} />
+        <KpiCard icon={<AlertTriangle className="h-4 w-4" />} title="Inspeções sem rejeição" value={kpi?.accuracyPct == null ? "Não medido" : `${kpi.accuracyPct}%`} sub={`${kpi?.qualityFails ?? 0} falhas`} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
