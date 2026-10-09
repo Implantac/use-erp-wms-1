@@ -66,3 +66,28 @@ SELECT tablename, policyname, cmd,
 FROM pg_policies
 WHERE schemaname='public' AND tablename IN ('orders','order_items')
 ORDER BY tablename, cmd, policyname;
+
+-- PSQL ON_ERROR_STOP must fail on missing/open policies, not merely print FAIL.
+DO $assert_order$
+DECLARE v_table text; v_rel oid; v_failed text := '';
+BEGIN
+  FOREACH v_table IN ARRAY ARRAY['orders','order_items'] LOOP
+    v_rel := to_regclass('public.' || v_table);
+    IF v_rel IS NULL OR NOT COALESCE((SELECT relrowsecurity FROM pg_class WHERE oid = v_rel), false) OR
+       (v_table = 'orders' AND NOT COALESCE((SELECT attnotnull FROM pg_attribute WHERE attrelid = v_rel AND attname = 'company_id' AND NOT attisdropped), false)) OR
+       NOT EXISTS (
+         SELECT 1 FROM pg_policies
+          WHERE schemaname = 'public' AND tablename = v_table AND cmd IN ('SELECT','ALL')
+            AND (qual ILIKE '%get_user_company_id%' OR (v_table = 'order_items' AND qual ILIKE '%orders%'))
+       ) OR
+       EXISTS (
+         SELECT 1 FROM pg_policies
+          WHERE schemaname = 'public' AND tablename = v_table AND cmd IN ('SELECT','ALL')
+            AND (qual IS NULL OR lower(trim(qual)) IN ('true','(true)'))
+       )
+    THEN
+      v_failed := v_failed || ' ' || v_table;
+    END IF;
+  END LOOP;
+  IF v_failed <> '' THEN RAISE EXCEPTION 'RLS estático MCP get_order falhou:%', v_failed; END IF;
+END $assert_order$;
