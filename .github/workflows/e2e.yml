@@ -1,40 +1,45 @@
 name: Playwright Tests
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      E2E_TENANT_A_EMAIL: ${{ secrets.E2E_TENANT_A_EMAIL }}
+      E2E_TENANT_A_PASSWORD: ${{ secrets.E2E_TENANT_A_PASSWORD }}
+      E2E_TENANT_B_EMAIL: ${{ secrets.E2E_TENANT_B_EMAIL }}
+      E2E_TENANT_B_PASSWORD: ${{ secrets.E2E_TENANT_B_PASSWORD }}
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: lts/*
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci || npm install
-      
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps chromium
-      
-    - name: Run Playwright tests
-      run: npm run e2e:critical
-      env:
-        BASE_URL: http://localhost:8080
-        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-        VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-        E2E_TENANT_A_EMAIL: ${{ secrets.E2E_TENANT_A_EMAIL }}
-        E2E_TENANT_A_PASSWORD: ${{ secrets.E2E_TENANT_A_PASSWORD }}
-        E2E_TENANT_B_EMAIL: ${{ secrets.E2E_TENANT_B_EMAIL }}
-        E2E_TENANT_B_PASSWORD: ${{ secrets.E2E_TENANT_B_PASSWORD }}
-
-    - uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: playwright-report-${{ github.run_id }}
-        path: playwright-report/
-        retention-days: 7
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Validate isolated E2E configuration
+        run: |
+          for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY E2E_TENANT_A_EMAIL E2E_TENANT_A_PASSWORD E2E_TENANT_B_EMAIL E2E_TENANT_B_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name ausente — E2E com tenants não executado; configure projeto de homologação isolado."
+              exit 2
+            fi
+          done
+      - name: Install from committed lockfile
+        run: bun install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Run Playwright tests
+        run: bun run e2e:critical
+        env:
+          BASE_URL: http://localhost:8080
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
