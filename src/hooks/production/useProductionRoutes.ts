@@ -71,7 +71,7 @@ export function useProductionRoutes() {
     // database statement. Never delete children before the parent succeeds.
     const { data, error } = await supabase.from('production_routes').delete().eq('id', id).select('id');
     if (error || !data?.length) {
-      toast.error('Rota não excluída. Verifique vínculo ou permissão.');
+      toast.error('Rota não excluída. Pode estar vinculada a uma OP ou faltar permissão.');
       return false;
     }
     toast.success('Rota excluída');
