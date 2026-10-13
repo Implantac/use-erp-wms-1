@@ -60,3 +60,7 @@ Em `EnterpriseConfig.tsx`, switches `companies.settings.modules` eram anunciados
 ## Verificação local acumulada após contenções e perfis (13/10/2026)
 
 No commit `24ab46c`, com dependências npm instaladas **sem gerar lockfile**, `npm run typecheck` passou e `npx vitest run --maxWorkers=2` passou **193/193 testes em 43 arquivos**. Esta contagem inclui testes hipotéticos/mockados; não substitui RLS, E2E autenticado, build/container nem banco. Os testes estáticos de contenção foram executados separadamente conforme os incrementos anteriores. GitHub Actions consultado: Playwright `24ab46c` falhou; CI ainda em andamento na consulta. Resultados posteriores devem ser consultados antes de afirmar aprovação remota.
+
+## Incremento — cobertura de OP não calculável sem BOM válida
+
+`MRPOpsTab.tsx` iniciava cobertura da OP em **100%** mesmo sem componentes válidos na ficha. `grossCoverage.ts` agora exige ficha não vazia, código de componente, quantidade positiva/finita, unidade explícita e necessidade calculada com a **mesma unidade**; caso contrário a tela indica «Não calculável» em vez de declarar cobertura suficiente. A porcentagem válida continua apenas comparação com saldo bruto, não disponibilidade líquida ou autorização de consumo. `npm run typecheck` aprovado, Vitest `grossCoverage.test.ts` 3/3 (ficha vazia, código ausente, unidade divergente, cobertura válida). Sem migration/banco, não prova acurácia dos saldos ou conversões. Aplicável a qualquer segmento produtivo com BOM.

@@ -6,7 +6,8 @@ import { Progress } from '@/ui/base/progress';
 import { cn } from '@/lib/utils';
 import type { MaterialNeed } from './types';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
-import type { TechnicalSheetMaterial, TechnicalSheetRow } from '@/hooks/production/useTechnicalSheets';
+import type { TechnicalSheetRow } from '@/hooks/production/useTechnicalSheets';
+import { getOrderGrossCoverage } from './grossCoverage';
 
 interface Props {
   activeOPs: ProductionOrderRow[];
@@ -30,7 +31,7 @@ export function MRPOpsTab({ activeOPs, sheets, materialNeeds }: Props) {
                 <TableHead className="text-right">Qtd. Pendente</TableHead>
                 <TableHead>Ficha Técnica</TableHead>
                 <TableHead>Materiais</TableHead>
-                <TableHead>Cobertura</TableHead>
+                <TableHead>Cobertura bruta estimada</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -39,14 +40,7 @@ export function MRPOpsTab({ activeOPs, sheets, materialNeeds }: Props) {
                 const matCount = sheet ? (sheet.materials?.length || 0) : 0;
                 const remaining = Math.max(0, op.quantity - op.produced_quantity);
 
-                let opCoverage = 100;
-                if (sheet && Array.isArray(sheet.materials)) {
-                  sheet.materials.forEach((mat: TechnicalSheetMaterial) => {
-                    const code = mat.code || mat.componentCode || mat.material_code || '';
-                    const need = materialNeeds.find(n => n.materialCode === code);
-                    if (need && need.coveragePct < opCoverage) opCoverage = need.coveragePct;
-                  });
-                }
+                const opCoverage = getOrderGrossCoverage(sheet?.materials, materialNeeds);
 
                 return (
                   <TableRow key={op.id}>
@@ -62,12 +56,12 @@ export function MRPOpsTab({ activeOPs, sheets, materialNeeds }: Props) {
                     </TableCell>
                     <TableCell>{matCount} itens</TableCell>
                     <TableCell>
-                      {sheet ? (
+                      {opCoverage !== null ? (
                         <div className="flex items-center gap-2">
                           <Progress value={opCoverage} className="w-16 h-2" />
                           <span className={cn('text-xs font-bold', opCoverage < 100 ? 'text-destructive' : 'text-green-600')}>{opCoverage}%</span>
                         </div>
-                      ) : <span className="text-xs text-muted-foreground">—</span>}
+                      ) : <span className="text-xs text-muted-foreground">Não calculável: verifique ficha, código e unidade</span>}
                     </TableCell>
                   </TableRow>
                 );
