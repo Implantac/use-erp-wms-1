@@ -46,7 +46,7 @@ export default function SupplyStockPage() {
     const supply = supplies.find(s => s.id === movForm.supply_id);
     if (!supply) return;
     const op = activeOPs.find(o => o.id === movForm.production_order_id);
-    await registerMovement({
+    const saved = await registerMovement({
       supply_id: movForm.supply_id,
       supply_code: supply.code,
       supply_name: supply.name,
@@ -61,6 +61,7 @@ export default function SupplyStockPage() {
       operator: movForm.operator || null,
       reason: movForm.reason || null,
     });
+    if (!saved) return;
     setMovementOpen(false);
     setMovForm({ supply_id: '', direction: 'in', quantity: 0, unit_cost: 0, production_order_id: '', reason: '', operator: '', document_number: '' });
   };
@@ -72,7 +73,7 @@ export default function SupplyStockPage() {
   return (
     <PageContainer>
       <PageHeader title="Estoque de Insumos" description="Controle de matérias-primas e insumos de produção">
-        <Button variant="outline" onClick={() => setMovementOpen(true)}><ArrowUpCircle className="h-4 w-4 mr-2" /> Movimentação</Button>
+        <Button variant="outline" disabled title="Requer operação transacional de estoque homologada"><ArrowUpCircle className="h-4 w-4 mr-2" /> Movimentação indisponível</Button>
         <Button onClick={() => setNewSupplyOpen(true)}><Plus className="h-4 w-4 mr-2" /> Novo Insumo</Button>
       </PageHeader>
 
