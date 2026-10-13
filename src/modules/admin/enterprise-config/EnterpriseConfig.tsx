@@ -35,11 +35,7 @@ import { Badge } from "@/ui/base/badge";
 import { Separator } from "@/ui/base/separator";
 import { OperationalFeedback } from "@/components/shared/OperationalFeedback";
 
-export default function EnterpriseConfig() {
-  const { company, isLoading: loadingCompany } = useActiveTenant();
-  const [loading, setLoading] = useState(false);
-  const [industrial, setIndustrial] = useState(() => parseIndustrialPlanning(null));
-  const [settings, setSettings] = useState({
+const DEFAULT_ENTERPRISE_SETTINGS = {
     business_model: 'hybrid',
     tax_regime: 'simples',
     allow_negative_stock: false,
@@ -60,17 +56,37 @@ export default function EnterpriseConfig() {
       order_min_value: 0,
       require_manager_for_cancellation: true
     }
-  });
+  };
+
+export default function EnterpriseConfig() {
+  const { company, isLoading: loadingCompany } = useActiveTenant();
+  const [loading, setLoading] = useState(false);
+  const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
+  const [industrial, setIndustrial] = useState(() => parseIndustrialPlanning(null));
+  const [settings, setSettings] = useState(() => ({ ...DEFAULT_ENTERPRISE_SETTINGS, modules: { ...DEFAULT_ENTERPRISE_SETTINGS.modules }, approvals: { ...DEFAULT_ENTERPRISE_SETTINGS.approvals } }));
 
   useEffect(() => {
     if (company?.settings) {
-      setSettings(prev => ({ ...prev, ...(company.settings as any) }));
-      setIndustrial(parseIndustrialPlanning((company.settings as Record<string, unknown>).industrial));
+      const saved = company.settings as Record<string, unknown>;
+      setSettings({
+        ...DEFAULT_ENTERPRISE_SETTINGS,
+        ...saved,
+        modules: { ...DEFAULT_ENTERPRISE_SETTINGS.modules, ...(saved.modules as Record<string, boolean> || {}) },
+        approvals: { ...DEFAULT_ENTERPRISE_SETTINGS.approvals, ...(saved.approvals as Record<string, number | boolean> || {}) },
+      });
+      setIndustrial(parseIndustrialPlanning(saved.industrial));
+    } else {
+      setSettings({ ...DEFAULT_ENTERPRISE_SETTINGS, modules: { ...DEFAULT_ENTERPRISE_SETTINGS.modules }, approvals: { ...DEFAULT_ENTERPRISE_SETTINGS.approvals } });
+      setIndustrial(parseIndustrialPlanning(null));
     }
+    setLoadedCompanyId(company?.id ?? null);
   }, [company]);
 
   const handleSave = async () => {
-    if (!company) return;
+    if (!company || loadedCompanyId !== company.id) {
+      toast.error('Aguarde carregar a configuração da empresa ativa.');
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -104,7 +120,7 @@ export default function EnterpriseConfig() {
       >
         <div className="flex gap-2">
            <Button variant="outline" size="sm">Histórico de Alterações</Button>
-           <Button onClick={handleSave} disabled={loading} size="sm" className="gap-2">
+           <Button onClick={handleSave} disabled={loading || loadedCompanyId !== company?.id} size="sm" className="gap-2">
             {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Salvar Tudo
           </Button>

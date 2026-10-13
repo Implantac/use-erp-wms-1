@@ -13,37 +13,46 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 
-export default function GlobalSettings() {
-  const { company, isLoading: loadingCompany } = useActiveTenant();
-
-  const [loading, setLoading] = useState(false);
-  const [settings, setSettings] = useState({
+const DEFAULT_GLOBAL_SETTINGS = {
     business_model: 'hybrid', // wholesale, retail, hybrid
     tax_regime: 'simples',
     allow_negative_stock: false,
     auto_billing: false,
     use_multi_branch: true,
     default_markup: 30
-  });
+  };
+
+export default function GlobalSettings() {
+  const { company, isLoading: loadingCompany } = useActiveTenant();
+
+  const [loading, setLoading] = useState(false);
+  const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
+  const [settings, setSettings] = useState(DEFAULT_GLOBAL_SETTINGS);
 
   useEffect(() => {
     if (company?.settings) {
-      setSettings(prev => ({ ...prev, ...(company.settings as any) }));
+      setSettings({ ...DEFAULT_GLOBAL_SETTINGS, ...(company.settings as Record<string, unknown>) });
+    } else {
+      setSettings(DEFAULT_GLOBAL_SETTINGS);
     }
+    setLoadedCompanyId(company?.id ?? null);
   }, [company]);
 
 
   const handleSave = async () => {
-    if (!company) return;
+    if (!company || loadedCompanyId !== company.id) {
+      toast.error('Aguarde carregar a configuração da empresa ativa.');
+      return;
+    }
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('companies')
-        .update({ settings: settings as any })
-        .eq('id', company.id);
+        .update({ settings: { ...(company.settings as Record<string, unknown> || {}), ...settings } as any })
+        .eq('id', company.id)
+        .select('id');
 
-
-      if (error) throw error;
+      if (error || !data?.length) throw error || new Error('Atualização não autorizada ou não persistida');
       toast.success("Configurações globais atualizadas");
     } catch (error) {
       console.error(error);
@@ -154,7 +163,7 @@ export default function GlobalSettings() {
 
         <div className="flex justify-end gap-3">
           <Button variant="outline">Cancelar</Button>
-          <Button onClick={handleSave} disabled={loading} className="gap-2">
+          <Button onClick={handleSave} disabled={loading || loadedCompanyId !== company?.id} className="gap-2">
             {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Salvar Alterações
           </Button>
