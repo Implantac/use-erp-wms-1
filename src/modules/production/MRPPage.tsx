@@ -17,17 +17,41 @@ import { useMRPNeeds } from './mrp/useMRPNeeds';
 import { MRPNeedsTab } from './mrp/MRPNeedsTab';
 import { MRPOpsTab } from './mrp/MRPOpsTab';
 import { MRPPurchaseTab } from './mrp/MRPPurchaseTab';
+import { refreshGrossSources } from './mrp/refreshSources';
 
 export default function MRPPage() {
-  const { orders, loading: loadingOrders } = useProductionOrders();
-  const { sheets, loading: loadingSheets } = useTechnicalSheets();
-  const { supplies, loading: loadingSupplies } = useSupplyStock();
+  const { orders, loading: loadingOrders, refetch: refetchOrders } = useProductionOrders();
+  const { sheets, loading: loadingSheets, refetch: refetchSheets } = useTechnicalSheets();
+  const { supplies, loading: loadingSupplies, refetch: refetchSupplies } = useSupplyStock();
   const { capacities } = useProductionCapacity();
   const [selectedTab, setSelectedTab] = useState('needs');
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshFailed, setRefreshFailed] = useState(false);
 
   const { activeOPs, materialNeeds, opsWithInvalidSheet } = useMRPNeeds(orders, sheets, supplies);
 
   const loading = loadingOrders || loadingSheets || loadingSupplies;
+
+  const recalculate = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshFailed(false);
+    try {
+      const refreshed = await refreshGrossSources([refetchOrders, refetchSheets, refetchSupplies]);
+      if (!refreshed) {
+        setRefreshFailed(true);
+        toast.error('Projeção não atualizada: uma ou mais consultas falharam.');
+        return;
+      }
+      toast.success('Fontes recarregadas; projeção bruta atualizada.');
+    } catch (error) {
+      console.error(error);
+      setRefreshFailed(true);
+      toast.error('Projeção não atualizada. Tente novamente.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const totalMaterials = materialNeeds.length;
   const criticalCount = materialNeeds.filter(m => m.status === 'critical').length;
@@ -41,11 +65,12 @@ export default function MRPPage() {
   return (
     <PageContainer loading={loading}>
       <PageHeader title="MRP — Planejamento de Materiais" description="Simulação de consumo versus saldo bruto: não considera reservas, bloqueios, entradas previstas nem conversões de unidade">
-        <Button variant="outline" onClick={() => toast.info('Recalculando...')}>
+        <Button variant="outline" onClick={recalculate} disabled={refreshing}>
           <RefreshCw className="h-4 w-4 mr-2" /> Recalcular
         </Button>
       </PageHeader>
 
+      {refreshFailed && <p role="alert" className="text-sm text-destructive">Falha ao atualizar fontes. Os números podem estar desatualizados; não use esta projeção para decisões de compra.</p>}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
         <KPICard title="OPs Ativas" value={activeOPs.length} icon={<Layers className="h-5 w-5" />} accentColor="primary" index={0} />
         <KPICard title="Materiais" value={totalMaterials} icon={<Package className="h-5 w-5" />} accentColor="info" index={1} />

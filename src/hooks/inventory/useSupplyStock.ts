@@ -49,9 +49,10 @@ export function useSupplyStock() {
   const fetchSupplies = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase.from('supply_stock').select('*').order('name');
-    if (error) { console.error(error); toast.error('Erro ao carregar insumos'); }
+    if (error) { console.error(error); toast.error('Erro ao carregar insumos'); setLoading(false); return false; }
     else setSupplies((data || []) as SupplyItem[]);
     setLoading(false);
+    return true;
   }, []);
 
   const fetchMovements = useCallback(async () => {

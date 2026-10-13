@@ -51,9 +51,10 @@ export function useProductionOrders() {
   const fetch = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase.from('production_orders').select('*').order('created_at', { ascending: false });
-    if (error) { console.error(error); toast.error('Erro ao carregar ordens de produção'); }
+    if (error) { console.error(error); toast.error('Erro ao carregar ordens de produção'); setLoading(false); return false; }
     else setOrders((data || []) as ProductionOrderRow[]);
     setLoading(false);
+    return true;
   }, []);
 
   useEffect(() => { fetch(); }, [fetch]);

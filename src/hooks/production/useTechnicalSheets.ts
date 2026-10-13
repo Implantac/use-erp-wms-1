@@ -43,9 +43,10 @@ export function useTechnicalSheets() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase.from('product_technical_sheets').select('*').order('product_name');
-    if (error) { console.error(error); toast.error('Erro ao carregar fichas técnicas'); }
+    if (error) { console.error(error); toast.error('Erro ao carregar fichas técnicas'); setLoading(false); return false; }
     else setSheets((data || []) as unknown as TechnicalSheetRow[]);
     setLoading(false);
+    return true;
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
