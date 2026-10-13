@@ -56,3 +56,7 @@ A configuração empresarial existente (`src/modules/admin/enterprise-config/Ent
 ## Incremento — preferências não são ativação de módulos
 
 Em `EnterpriseConfig.tsx`, switches `companies.settings.modules` eram anunciados como «Módulos Ativos»/«disponíveis para os usuários», embora a busca nos guards, rotas e navegação não tenha encontrado consumo desses flags. A tela agora os identifica como **preferências de planejamento** e alerta que não concedem licença, permissões, estoque negativo ou processos/fiscal homologados. O exemplo de estados foi rotulado como visual. `node --test scripts/test-settings-no-false-enablement.mjs` 1/1 e `npm run typecheck` aprovado; não houve mudança de RLS/migration nem ativação de módulos. Critério para habilitação real: catálogo de funcionalidades por tenant/unidade, verificação backend/RLS, perfis individuais, isolamento A/B e testes de rota/ação. Não usar switch visual como gate de venda.
+
+## Verificação local acumulada após contenções e perfis (13/10/2026)
+
+No commit `24ab46c`, com dependências npm instaladas **sem gerar lockfile**, `npm run typecheck` passou e `npx vitest run --maxWorkers=2` passou **193/193 testes em 43 arquivos**. Esta contagem inclui testes hipotéticos/mockados; não substitui RLS, E2E autenticado, build/container nem banco. Os testes estáticos de contenção foram executados separadamente conforme os incrementos anteriores. GitHub Actions consultado: Playwright `24ab46c` falhou; CI ainda em andamento na consulta. Resultados posteriores devem ser consultados antes de afirmar aprovação remota.
