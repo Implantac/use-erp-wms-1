@@ -41,12 +41,30 @@ test.describe('Segurança - Isolamento de Tenant', () => {
     expect(profileError).toBeNull();
     expect(profileA?.company_id).toBeTruthy();
 
+    const { data: profileB, error: profileBError } = await clientB
+      .from('profiles')
+      .select('company_id')
+      .single();
+    expect(profileBError).toBeNull();
+    expect(profileB?.company_id).toBeTruthy();
+
     const companyA = required('company_id da empresa A', profileA?.company_id ?? undefined);
-    const [branches, products] = await Promise.all([
+    const companyB = required('company_id da empresa B', profileB?.company_id ?? undefined);
+    expect(companyB, 'As identidades A/B devem pertencer a empresas diferentes').not.toBe(companyA);
+
+    // A must see its own seeded rows; otherwise B seeing [] proves nothing.
+    // Provision at least one branch and product for A in isolated staging.
+    const [ownBranches, ownProducts, branches, products] = await Promise.all([
+      clientA.from('branches').select('id, company_id').eq('company_id', companyA).limit(1),
+      clientA.from('products').select('id, company_id').eq('company_id', companyA).limit(1),
       clientB.from('branches').select('id, company_id').eq('company_id', companyA),
       clientB.from('products').select('id, company_id').eq('company_id', companyA),
     ]);
 
+    expect(ownBranches.error).toBeNull();
+    expect(ownProducts.error).toBeNull();
+    expect(ownBranches.data?.length, 'A precisa enxergar filial própria cadastrada').toBeGreaterThan(0);
+    expect(ownProducts.data?.length, 'A precisa enxergar produto próprio cadastrado').toBeGreaterThan(0);
     expect(branches.error).toBeNull();
     expect(products.error).toBeNull();
     expect(branches.data).toEqual([]);
