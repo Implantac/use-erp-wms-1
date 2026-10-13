@@ -49,7 +49,7 @@ export default function Onboarding() {
   const [form, setForm] = useState({
     company_name: '',
     cnpj: '',
-    segment: 'confeccao',
+    segment: '',
     phone: '',
     address_street: '',
     address_number: '',

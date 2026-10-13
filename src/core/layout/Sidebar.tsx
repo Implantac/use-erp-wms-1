@@ -210,11 +210,9 @@ export function Sidebar() {
           {(filteredSections || []).map((section, sectionIndex) => {
             if (!section) return null;
             
-            // Se não houver segment (ex: admin logado sem empresa selecionada ainda), mostra tudo.
-            // Caso contrário, filtra pelo rótulo da seção (que deve bater exatamente com os nomes no adaptive.ts).
-            const isVisible = !segment || !section.label || (
-              SEGMENTS[segment]?.allowedSections?.includes(section.label)
-            );
+            // No configured niche means no operational sections, never all sections.
+            const isVisible = segment !== 'unconfigured' && !!section.label &&
+              SEGMENTS[segment].allowedSections.includes(section.label);
 
             if (!isVisible) return null;
 

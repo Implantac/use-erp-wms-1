@@ -16,6 +16,17 @@ export type Segment =
   | 'holding' 
   | 'apparel';
 
+/** Legacy onboarding values are persisted in companies.segment; never cast an unknown value into a valid niche. */
+export function normalizeSegment(value: string | null | undefined): Segment | null {
+  if (!value) return null;
+  const aliases: Record<string, Segment> = {
+    confeccao: 'apparel', industria: 'industry', distribuicao: 'distribution',
+    varejo: 'retail', servicos: 'services',
+  };
+  if (Object.prototype.hasOwnProperty.call(aliases, value)) return aliases[value];
+  return Object.prototype.hasOwnProperty.call(SEGMENTS, value) ? value as Segment : null;
+}
+
 export interface SegmentConfig {
   label: string;
   allowedSections: string[];

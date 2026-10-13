@@ -1,3 +1,4 @@
+import { normalizeSegment, type Segment as AdaptiveSegment } from '@/config/adaptive';
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type MutableRefObject } from 'react';
 import { withRenderMonitor } from '@/core/debug/RenderDepthMonitor';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +20,7 @@ import {
   type SwitchContextInput,
 } from './operationalContext';
 
-export type Segment = 'textile' | 'food_factory' | 'pharma' | 'distribution' | 'services' | 'retail' | 'general' | 'fio' | 'tecelagem' | 'animal_feed' | 'industry' | 'wholesaler' | 'retail_chain' | 'franchise' | 'holding' | 'apparel';
+export type Segment = AdaptiveSegment | 'unconfigured';
 
 export interface TenantRef { id: string; name: string }
 export interface GroupRef { id: string; name: string }
@@ -161,7 +162,7 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
   const [isSwitching, setIsSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [segment, setSegment] = useState<Segment>('general');
+  const [segment, setSegment] = useState<Segment>('unconfigured');
   const [subSegment, setSubSegment] = useState<string>('');
   const [companySize, setCompanySize] = useState<string>('Pequeno');
   const [taxRegime, setTaxRegime] = useState<string>('Simples Nacional');
@@ -223,7 +224,7 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
     useEnterpriseStore.getState().setActiveCompanyId(company.id);
 
     const { getEnterprisePolicies } = await import('@/core/orchestration/policyEngine');
-    const seg = (company.segment as Segment | null) ?? 'general';
+    const seg = normalizeSegment(company.segment) ?? 'unconfigured';
     const nextPolicies = getEnterprisePolicies(seg);
     
     setSegment(prev => prev === seg ? prev : seg);
