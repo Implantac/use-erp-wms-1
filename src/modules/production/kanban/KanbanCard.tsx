@@ -49,7 +49,7 @@ const NEXT_ACTIONS: Record<string, { label: string; status: string; icon: Lucide
     { label: 'Finalizar', status: 'finishing', icon: Wrench },
   ],
   paused: [{ label: 'Retomar', status: 'in_progress', icon: ArrowRight }],
-  finishing: [{ label: 'Concluir', status: 'completed', icon: CheckCircle }],
+  finishing: [],
   completed: [],
 };
 

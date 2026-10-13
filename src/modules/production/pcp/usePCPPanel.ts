@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { format, differenceInDays, parseISO, differenceInMinutes } from 'date-fns';
 import { toastError, toastSuccess } from '@/lib/toastHelpers';
 import { supabase } from '@/integrations/supabase/client';
-import { checkProductionCompletion } from '@/hooks/commercial/useOrderLifecycle';
 import { errorMessage } from '@/lib/errors';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
 import type { TimeEntryRow } from '@/hooks/system/useTimeEntries';
@@ -82,17 +81,12 @@ export async function generateOPFromOrder(order: DbOrder, lifecycle: Lifecycle, 
   } catch (e) { toastError(errorMessage(e), undefined, 'Erro ao gerar OP'); }
 }
 
-export async function handleStatusChange(op: ProductionOrderRow, newStatus: string, update: UpdateOP, salesOrders: DbOrder[] = []) {
+export async function handleStatusChange(op: ProductionOrderRow, newStatus: string, update: UpdateOP) {
+  if (newStatus === 'completed') { toastError('Conclusão de OP bloqueada até validação transacional de qualidade e estoque'); return; }
   await update(op.id, {
     status: newStatus,
     ...(newStatus === 'in_progress' ? { start_date: new Date().toISOString() } : {}),
     ...(newStatus === 'completed' ? { completed_date: new Date().toISOString() } : {}),
   });
-  if (newStatus === 'completed') {
-    const orderNumMatch = op.order_number.match(/PED\d+/);
-    if (orderNumMatch) {
-      const salesOrder = (salesOrders || []).find(o => o.number === orderNumMatch[0]);
-      if (salesOrder) await checkProductionCompletion(salesOrder.number, salesOrder.id);
-    }
-  }
+
 }

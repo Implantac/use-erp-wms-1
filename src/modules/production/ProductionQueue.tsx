@@ -41,7 +41,6 @@ export default function ProductionQueuePage() {
   const today = new Date();
 
   const handleStart = async (op: ProductionOrderRow) => { await update(op.id, { status: 'in_progress', start_date: new Date().toISOString() }); };
-  const handleComplete = async (op: ProductionOrderRow) => { await update(op.id, { status: 'completed', completed_date: new Date().toISOString() }); };
 
   return (
     <PageContainer loading={loading}>
@@ -98,7 +97,7 @@ export default function ProductionQueuePage() {
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           {o.status === 'planned' && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleStart(o)}><Play className="h-3 w-3 mr-1" /> Iniciar</Button>}
-                          {o.status === 'in_progress' && <Button size="sm" className="h-7 text-xs" onClick={() => handleComplete(o)}><CheckCircle className="h-3 w-3 mr-1" /> Finalizar</Button>}
+                          {o.status === 'in_progress' && <Button size="sm" className="h-7 text-xs" disabled title="Conclusão transacional ainda não homologada"><CheckCircle className="h-3 w-3 mr-1" /> Conclusão bloqueada</Button>}
                         </div>
                       </TableCell>
                     </TableRow>

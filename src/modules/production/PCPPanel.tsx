@@ -47,7 +47,7 @@ export default function PCPPanel() {
     name: productionStatusConfig[k]?.label || k, value: v,
   }));
 
-  const onStatusChange = (op: ProductionOrderRow, newStatus: string) => handleStatusChange(op, newStatus, update, salesOrders || []);
+  const onStatusChange = (op: ProductionOrderRow, newStatus: string) => handleStatusChange(op, newStatus, update);
 
   return (
     <PageContainer loading={loading}>

@@ -19,13 +19,12 @@ interface Props {
   onStart: (o: ProductionOrderRow) => void;
   onPause: (o: ProductionOrderRow) => void;
   onResume: (o: ProductionOrderRow) => void;
-  onComplete: (o: ProductionOrderRow) => void;
 }
 
 const getProgress = (o: ProductionOrderRow) => o.quantity > 0 ? Math.round((o.produced_quantity / o.quantity) * 100) : 0;
 const isLate = (o: ProductionOrderRow) => !!(o.due_date && differenceInDays(new Date(), parseISO(o.due_date)) > 0 && !['completed', 'cancelled'].includes(o.status));
 
-export function OrdersTable({ orders, onView, onStart, onPause, onResume, onComplete }: Props) {
+export function OrdersTable({ orders, onView, onStart, onPause, onResume }: Props) {
   return (
     <Card>
       <CardHeader>
@@ -77,7 +76,7 @@ export function OrdersTable({ orders, onView, onStart, onPause, onResume, onComp
                       {order.status === 'in_progress' && (
                         <>
                           <Button variant="outline" size="sm" onClick={() => onPause(order)}><Pause className="h-4 w-4" /></Button>
-                          <Button variant="default" size="sm" onClick={() => onComplete(order)}><CheckCircle className="h-4 w-4 mr-1" />Concluir</Button>
+                          <Button variant="outline" size="sm" disabled title="Exige conclusão transacional homologada"><CheckCircle className="h-4 w-4 mr-1" />Conclusão bloqueada</Button>
                         </>
                       )}
                       {order.status === 'paused' && <Button variant="outline" size="sm" onClick={() => onResume(order)}><Play className="h-4 w-4 mr-1" />Retomar</Button>}

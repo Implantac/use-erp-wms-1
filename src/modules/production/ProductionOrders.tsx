@@ -41,7 +41,7 @@ export default function ProductionOrdersPage() {
 
   return (
     <PageContainer loading={loading}>
-      <PageHeader title="Ordens de Produção" description="Gestão completa das OPs com rastreabilidade total">
+      <PageHeader title="Ordens de Produção" description="Consulta e acompanhamento de OPs. Conclusão e rastreabilidade integral ainda não homologadas.">
         <ExportButton
           data={filteredOrders as unknown as Record<string, unknown>[]}
           columns={[
@@ -72,7 +72,6 @@ export default function ProductionOrdersPage() {
         onStart={(o) => setStatus(o, 'in_progress')}
         onPause={(o) => setStatus(o, 'paused')}
         onResume={(o) => setStatus(o, 'in_progress')}
-        onComplete={(o) => setStatus(o, 'completed')}
       />
 
       <OrderDetailDialog order={selectedOrder} open={detailsOpen} onOpenChange={setDetailsOpen} />

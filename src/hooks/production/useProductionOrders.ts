@@ -60,10 +60,12 @@ export function useProductionOrders() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const update = async (id: string, updates: Partial<ProductionOrderRow>) => {
+    if (updates.status === 'completed') { toast.error('Conclusão de OP indisponível até validação transacional de qualidade e estoque'); return false; }
     const { error } = await supabase.from('production_orders').update({ ...updates, updated_at: new Date().toISOString() } as TablesUpdate<'production_orders'>).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar ordem'); return; }
+    if (error) { toast.error('Erro ao atualizar ordem'); return false; }
     toast.success('Ordem atualizada');
     await fetch();
+    return true;
   };
 
   return { orders, loading, refetch: fetch, update };

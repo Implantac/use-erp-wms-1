@@ -144,10 +144,10 @@ export default function OperatorTerminalPage() {
           rejected_quantity: newRejected,
           realized_time_minutes: order.realized_time_minutes + elapsedMin,
         };
+        // A finished time entry is not a completed OP. Quality and stock must
+        // be reconciled by a separately homologated transactional workflow.
         if (newProduced >= order.quantity) {
-          updates.status = 'completed';
-          updates.completed_date = new Date().toISOString();
-          toast.success('🎉 Ordem de Produção concluída!');
+          toast.info('Quantidade apontada; conclusão da OP pendente de qualidade e estoque.');
         }
         await updateOrder(order.id, updates);
       }

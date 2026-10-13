@@ -13,7 +13,7 @@ import type { BottleneckAnalysis } from '../BottleneckDialog';
 
 export function useKanbanActions(params: {
   orders: ProductionOrderRow[];
-  update: (id: string, updates: TablesUpdate<'production_orders'>) => Promise<void>;
+  update: (id: string, updates: TablesUpdate<'production_orders'>) => Promise<boolean>;
   refetch: () => Promise<void> | void;
   capacityLoad: Record<string, { name: string; capacity: number; allocated: number }>;
   wipLimits: Record<string, number>;
@@ -35,6 +35,7 @@ export function useKanbanActions(params: {
   const [bottleneckOpen, setBottleneckOpen] = useState(false);
 
   const moveOrder = useCallback(async (orderId: string, newStatus: string) => {
+    if (newStatus === 'completed') { toast.error('Conclusão de OP indisponível até validação transacional'); return false; }
     const order = orders.find(o => o.id === orderId);
     const wcId = order && (order as { work_center_id?: string | null }).work_center_id;
     if (wcId && capacityLoad[wcId]) {
@@ -49,7 +50,7 @@ export function useKanbanActions(params: {
     const updates: TablesUpdate<'production_orders'> = { status: newStatus };
     if (newStatus === 'in_progress' || newStatus === 'outsourced') updates.start_date = updates.start_date || new Date().toISOString();
     if (newStatus === 'completed') updates.completed_date = new Date().toISOString();
-    await update(orderId, updates);
+    return (await update(orderId, updates)) === true;
   }, [update, orders, capacityLoad]);
 
   const handleDragEnd = useCallback(async (result: DropResult) => {
@@ -77,7 +78,8 @@ export function useKanbanActions(params: {
       }
     }
 
-    await moveOrder(draggableId, newStatus);
+    const moved = await moveOrder(draggableId, newStatus);
+    if (!moved) return;
     toast.success(`OP ${order.order_number} movida para ${STATUS_LABELS[newStatus]}`);
   }, [orders, moveOrder, wipLimits]);
 
