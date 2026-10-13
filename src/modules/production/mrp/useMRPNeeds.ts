@@ -3,6 +3,7 @@ import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders'
 import type { SupplyItem } from '@/hooks/inventory/useSupplyStock';
 import { useMemo } from 'react';
 import type { MaterialNeed } from './types';
+import { hasValidSheetMaterials } from './validateMaterials';
 
 export function useMRPNeeds(orders: ProductionOrderRow[], sheets: SheetLike[], supplies: SupplyItem[]) {
   const activeOPs = useMemo(
@@ -15,13 +16,13 @@ export function useMRPNeeds(orders: ProductionOrderRow[], sheets: SheetLike[], s
 
     activeOPs.forEach(op => {
       const sheet = sheets.find(s => s.product_code === op.product_code || s.product_id === op.product_id);
-      if (sheet && Array.isArray(sheet.materials)) {
+      if (sheet && hasValidSheetMaterials(sheet.materials)) {
         const remainingQty = Math.max(0, op.quantity - op.produced_quantity);
         sheet.materials.forEach((mat: MaterialItemLike) => {
           const code = mat.code || mat.componentCode || mat.material_code || '';
           const name = mat.name || mat.componentName || mat.material_name || code;
-          const qtyPerUnit = mat.quantity || mat.qty || 0;
-          const waste = mat.waste_pct || mat.wastePercentage || 0;
+          const qtyPerUnit = mat.quantity ?? mat.qty ?? 0;
+          const waste = mat.waste_pct ?? mat.wastePercentage ?? 0;
           const needed = remainingQty * qtyPerUnit * (1 + waste / 100);
 
           if (!needsMap[code]) {
@@ -63,10 +64,10 @@ export function useMRPNeeds(orders: ProductionOrderRow[], sheets: SheetLike[], s
     }).sort((a, b) => a.coveragePct - b.coveragePct);
   }, [activeOPs, sheets, supplies]);
 
-  const opsWithoutSheet = useMemo(
-    () => activeOPs.filter(op => !sheets.find(s => s.product_code === op.product_code || s.product_id === op.product_id)),
+  const opsWithInvalidSheet = useMemo(
+    () => activeOPs.filter(op => !hasValidSheetMaterials(sheets.find(s => s.product_code === op.product_code || s.product_id === op.product_id)?.materials)),
     [activeOPs, sheets]
   );
 
-  return { activeOPs, materialNeeds, opsWithoutSheet };
+  return { activeOPs, materialNeeds, opsWithInvalidSheet };
 }

@@ -25,7 +25,7 @@ export default function MRPPage() {
   const { capacities } = useProductionCapacity();
   const [selectedTab, setSelectedTab] = useState('needs');
 
-  const { activeOPs, materialNeeds, opsWithoutSheet } = useMRPNeeds(orders, sheets, supplies);
+  const { activeOPs, materialNeeds, opsWithInvalidSheet } = useMRPNeeds(orders, sheets, supplies);
 
   const loading = loadingOrders || loadingSheets || loadingSupplies;
 
@@ -54,16 +54,16 @@ export default function MRPPage() {
         <KPICard title="Custo estimado" value={`R$ ${(totalDeficitValue / 1000).toFixed(1)}k`} icon={<ShoppingCart className="h-5 w-5" />} accentColor="warning" index={4} />
       </div>
 
-      {opsWithoutSheet.length > 0 && (
+      {opsWithInvalidSheet.length > 0 && (
         <Card className="border-warning/40">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-warning text-sm">
-              <AlertTriangle className="h-4 w-4" /> {opsWithoutSheet.length} OP(s) sem Ficha Técnica cadastrada
+              <AlertTriangle className="h-4 w-4" /> {opsWithInvalidSheet.length} OP(s) sem ficha técnica completa — excluídas desta projeção
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {opsWithoutSheet.slice(0, 10).map(op => (
+              {opsWithInvalidSheet.slice(0, 10).map(op => (
                 <Badge key={op.id} variant="outline" className="text-xs">
                   {op.order_number} — {op.product_name}
                 </Badge>
@@ -77,7 +77,7 @@ export default function MRPPage() {
         <TabsList>
           <TabsTrigger value="needs">Necessidades de Material</TabsTrigger>
           <TabsTrigger value="ops">OPs × Materiais</TabsTrigger>
-          <TabsTrigger value="purchase">Sugestão de Compra</TabsTrigger>
+          <TabsTrigger value="purchase">Projeção de compra (bloqueada)</TabsTrigger>
           <TabsTrigger value="simulation"><FlaskConical className="h-4 w-4 mr-1" /> Simulação What-If</TabsTrigger>
         </TabsList>
 
