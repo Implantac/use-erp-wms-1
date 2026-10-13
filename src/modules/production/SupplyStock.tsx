@@ -36,7 +36,8 @@ export default function SupplyStockPage() {
 
   const handleCreateSupply = async () => {
     if (!supplyForm.code || !supplyForm.name) return;
-    await createSupply(supplyForm);
+    const created = await createSupply(supplyForm);
+    if (!created) return;
     setNewSupplyOpen(false);
     setSupplyForm({ code: '', name: '', unit: 'UN', current_quantity: 0, min_quantity: 0, max_quantity: 0, unit_cost: 0, supplier: '', location: '', category: '' });
   };
@@ -199,7 +200,7 @@ export default function SupplyStockPage() {
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div><Label>Unidade</Label><Input value={supplyForm.unit} onChange={e => setSupplyForm({ ...supplyForm, unit: e.target.value })} /></div>
-              <div><Label>Qtde Inicial</Label><Input type="number" value={supplyForm.current_quantity} onChange={e => setSupplyForm({ ...supplyForm, current_quantity: toSafeNumber(e.target.value) })} /></div>
+              <div><Label>Qtde Inicial</Label><Input type="number" value={0} disabled aria-describedby="supply-opening-balance-note" /><p id="supply-opening-balance-note" className="text-xs text-muted-foreground">Saldo inicia em zero; entrada requer movimentação homologada.</p></div>
               <div><Label>Custo Unit. (R$)</Label><Input type="number" step="0.01" value={supplyForm.unit_cost} onChange={e => setSupplyForm({ ...supplyForm, unit_cost: toSafeNumber(e.target.value) })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">

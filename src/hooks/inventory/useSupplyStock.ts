@@ -63,13 +63,18 @@ export function useSupplyStock() {
   useEffect(() => { fetchSupplies(); fetchMovements(); }, [fetchSupplies, fetchMovements]);
 
   const createSupply = async (supply: Partial<SupplyItem>) => {
-    const totalValue = (supply.current_quantity || 0) * (supply.unit_cost || 0);
+    if (supply.current_quantity !== undefined && supply.current_quantity !== 0) {
+      toast.error('Saldo inicial indisponível: registre a entrada transacional antes de usar o estoque.');
+      return false;
+    }
+    // Explicitly override caller-supplied balance and valuation fields.
     const { error } = await supabase.from('supply_stock').insert({
+      ...supply,
       code: supply.code!,
       name: supply.name!,
       unit: supply.unit!,
-      ...supply,
-      total_value: totalValue,
+      current_quantity: 0,
+      total_value: 0,
     });
     if (error) { toast.error('Erro ao criar insumo'); return false; }
     toast.success('Insumo cadastrado');
@@ -78,6 +83,10 @@ export function useSupplyStock() {
   };
 
   const updateSupply = async (id: string, updates: Partial<SupplyItem>) => {
+    if (updates.current_quantity !== undefined || updates.total_value !== undefined) {
+      toast.error('Alteração direta de saldo indisponível; use movimentação transacional homologada.');
+      return false;
+    }
     const { error } = await supabase.from('supply_stock').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
     if (error) { toast.error('Erro ao atualizar insumo'); return; }
     await fetchSupplies();
