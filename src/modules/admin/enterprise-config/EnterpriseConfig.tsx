@@ -115,7 +115,7 @@ export default function EnterpriseConfig() {
     <PageContainer>
       <PageHeader 
         title="Configuração da Empresa" 
-        description="Gestão centralizada de parâmetros, permissões e fluxos operacionais."
+        description="Preferências empresariais; não substituem autorização, regras transacionais ou homologação."
         icon={Building2}
       >
         <div className="flex gap-2">
@@ -127,10 +127,13 @@ export default function EnterpriseConfig() {
         </div>
       </PageHeader>
 
+      <p role="note" className="text-sm text-warning">
+        Alterar estas preferências não habilita módulos, emissão fiscal, estoque negativo, aprovações ou processos industriais. Acesso e regras dependem do backend e de homologação por cliente.
+      </p>
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="general">Geral & Modelo</TabsTrigger>
-          <TabsTrigger value="modules">Módulos Habilitados</TabsTrigger>
+          <TabsTrigger value="modules">Preferências de módulos</TabsTrigger>
           <TabsTrigger value="industrial">Planejamento industrial</TabsTrigger>
           <TabsTrigger value="processes">Regras & Aprovações</TabsTrigger>
           <TabsTrigger value="fiscal">Fiscal & Contábil</TabsTrigger>
@@ -208,7 +211,7 @@ export default function EnterpriseConfig() {
                 <div className="flex items-center justify-between p-4 border rounded-xl bg-muted/5">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-bold">Multi-Filiais</Label>
-                    <p className="text-xs text-muted-foreground italic">Habilita gestão de rede e transferências.</p>
+                    <p className="text-xs text-muted-foreground italic">Preferência de configuração; não habilita transferências sem fluxo homologado.</p>
                   </div>
                   <Switch 
                     checked={settings.use_multi_branch}
@@ -254,8 +257,8 @@ export default function EnterpriseConfig() {
         <TabsContent value="modules" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Módulos Ativos</CardTitle>
-              <CardDescription>Selecione quais áreas do ERP estarão disponíveis para os usuários.</CardDescription>
+              <CardTitle>Preferências de módulos</CardTitle>
+              <CardDescription>Preferências de planejamento. Estes controles não concedem acesso, licença ou ativação operacional.</CardDescription>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
@@ -327,7 +330,7 @@ export default function EnterpriseConfig() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">O sistema aplicará os seguintes estados padrão para novos processos:</p>
+                <p className="text-sm text-muted-foreground">Exemplo visual de estados; não define transições reais nem autoriza operações:</p>
                 <div className="space-y-2">
                   {['Rascunho', 'Aguardando Aprovação', 'Reservado', 'Em Separação', 'Faturado', 'Concluído'].map((status, idx) => (
                     <div key={status} className="flex items-center gap-3 text-sm">
