@@ -74,11 +74,11 @@ export class MRPService {
     const criticals = needs.filter(n => n.status === 'critical');
     if (criticals.length > 0) {
       suggestions.push({
-        type: 'purchase',
-        severity: 'critical',
-        title: `${criticals.length} material(is) em estado crítico`,
-        description: `Materiais ${criticals.slice(0, 3).map(c => c.materialName).join(', ')} com cobertura abaixo de 50%. Gere pedido de compra urgente.`,
-        estimatedImpact: `${formatBRL(criticals.reduce((s, c) => s + c.deficit * c.unitCost, 0))} em compras necessárias`,
+        type: 'alert',
+        severity: 'warning',
+        title: `${criticals.length} material(is) com baixa cobertura bruta estimada`,
+        description: `Materiais ${criticals.slice(0, 3).map(c => c.materialName).join(', ')}: projeção pelo saldo bruto, sem reservas, bloqueios ou conversões. Verifique disponibilidade real antes de comprar.`,
+        estimatedImpact: `Custo hipotético do déficit bruto: ${formatBRL(criticals.reduce((s, c) => s + c.deficit * c.unitCost, 0))}; não é pedido aprovado`,
       });
     }
 
@@ -89,8 +89,8 @@ export class MRPService {
       suggestions.push({
         type: 'alert',
         severity: 'warning',
-        title: `${opsAtRisk.size} OP(s) em risco por falta de material`,
-        description: `Ordens ${[...opsAtRisk].slice(0, 3).join(', ')} podem parar por falta de insumos. Priorize compras ou redistribua.`,
+        title: `${opsAtRisk.size} OP(s) para revisar disponibilidade de material`,
+        description: `Ordens ${[...opsAtRisk].slice(0, 3).join(', ')}: cobertura estimada com saldo bruto; validar lotes, reservas e unidade antes de agir.`,
       });
     }
 
@@ -129,7 +129,7 @@ export class MRPService {
 
     return suggestions.sort((a, b) => {
       const sev = { critical: 0, warning: 1, info: 2 };
-      return (sev[a.severity] || 2) - (sev[b.severity] || 2);
+      return (sev[a.severity] ?? 2) - (sev[b.severity] ?? 2);
     });
   }
 }
