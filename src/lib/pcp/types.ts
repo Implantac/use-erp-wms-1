@@ -118,13 +118,14 @@ export interface PCPMetrics {
   completedToday: number;
   avgLeadTimePlanned: number;
   avgLeadTimeReal: number;
-  leadTimeVariance: number;
   delayRate: number;
   delayedCount: number;
   onTimeRate: number;
   efficiency: number;
   throughput: number;
-  utilizationPct: number;
+  leadTimeSampleSize: number;
+  dueDateSampleSize: number;
+  completedSampleSize: number;
 }
 
 export interface ScheduleSlot {
