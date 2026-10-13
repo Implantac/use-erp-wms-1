@@ -68,12 +68,12 @@ export function OrderBomTab({ productId, quantity }: Props) {
     <div className="space-y-4">
       <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
         <Layers className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-        <p>Ao concluir a OP, cada material é baixado do estoque da unidade: quantidade por peça × total produzido, mais a perda.</p>
+        <p>Ficha para estimar materiais. O cadastro não reserva nem baixa estoque. A conclusão da OP permanece bloqueada até consumo transacional, qualidade e rastreabilidade homologados.</p>
       </div>
 
       {error ? <p className="text-sm text-destructive">Não foi possível carregar a ficha de materiais.</p>
         : isLoading ? <div className="h-20 animate-pulse rounded-lg bg-muted" />
-        : items.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Nenhum material cadastrado. A conclusão dará entrada apenas no produto pronto.</p>
+        : items.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Nenhum material cadastrado. Não libere a produção sem revisar a ficha técnica e a rota.</p>
         : (
           <ul className="divide-y divide-border rounded-lg border border-border">
             {items.map((it: any) => {

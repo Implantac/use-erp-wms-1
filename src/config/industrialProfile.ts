@@ -9,10 +9,17 @@ export const INDUSTRIAL_PROFILES = {
 export const INDUSTRIAL_STAGES = {
   fiber_preparation: 'Preparação da fibra',
   spinning: 'Fiação',
-  weaving: 'Tecelagem',
+  weaving: 'Tecelagem (tecido plano)',
+  knitting: 'Malharia (malha)',
   dyeing: 'Tinturaria',
   finishing: 'Acabamento',
 } as const;
+
+// Planning paths only; no automatic OP, stock or quality writes.
+export const TEXTILE_PILOT_PATHS = {
+  woven: ['fiber_preparation', 'spinning', 'weaving', 'dyeing', 'finishing'],
+  knitted: ['fiber_preparation', 'spinning', 'knitting', 'dyeing', 'finishing'],
+} as const satisfies Record<string, readonly (keyof typeof INDUSTRIAL_STAGES)[]>;
 
 export type IndustrialProfile = keyof typeof INDUSTRIAL_PROFILES;
 export type IndustrialStage = keyof typeof INDUSTRIAL_STAGES;

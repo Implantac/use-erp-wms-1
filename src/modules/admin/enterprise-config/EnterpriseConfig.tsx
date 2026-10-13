@@ -144,7 +144,7 @@ export default function EnterpriseConfig() {
           <Card>
             <CardHeader>
               <CardTitle>Perfil e etapas industriais</CardTitle>
-              <CardDescription>Planejamento por empresa. Não habilita produção, estoque, qualidade ou acesso a dados: processos dependem de autorização e homologação próprias.</CardDescription>
+              <CardDescription>Planejamento por empresa. Tecelagem (tecido plano) e malharia (malha) são etapas distintas e podem coexistir. Não habilita produção, estoque, qualidade ou acesso a dados: processos dependem de autorização e homologação próprias.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
