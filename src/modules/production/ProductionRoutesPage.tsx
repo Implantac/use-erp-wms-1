@@ -40,7 +40,7 @@ export default function ProductionRoutesPage() {
   const handleSave = async () => { const ok = editing ? await update(editing.id, form) : await create(form); if (ok) setOpen(false); };
 
   const handleDelete = async () => {
-    if (deleteId) { await remove(deleteId); if (selectedRoute === deleteId) setSelectedRoute(null); setDeleteId(null); }
+    if (deleteId) { const removed = await remove(deleteId); if (removed && selectedRoute === deleteId) setSelectedRoute(null); if (removed) setDeleteId(null); }
   };
 
   return (

@@ -67,12 +67,16 @@ export function useProductionRoutes() {
   };
 
   const remove = async (id: string) => {
-    // Delete steps first (cascade should handle, but be safe)
-    await supabase.from('production_route_steps').delete().eq('route_id', id);
-    const { error } = await supabase.from('production_routes').delete().eq('id', id);
-    if (error) { toast.error('Erro ao excluir rota'); return; }
+    // The route_steps FK has ON DELETE CASCADE: delete the parent in one
+    // database statement. Never delete children before the parent succeeds.
+    const { data, error } = await supabase.from('production_routes').delete().eq('id', id).select('id');
+    if (error || !data?.length) {
+      toast.error('Rota não excluída. Verifique vínculo ou permissão.');
+      return false;
+    }
     toast.success('Rota excluída');
     await fetch();
+    return true;
   };
 
   return { routes, loading, refetch: fetch, create, update, remove };
