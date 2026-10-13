@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useEnterprise } from '@/core/auth/EnterpriseContext';
+import { canViewVertical } from '@/config/verticalAccess';
 import { evaluateContextAccess, getRouteContextCriteria } from '@/core/auth/contextAccess';
 import { EmptyState } from '@/shared/components/EmptyState';
 
@@ -15,9 +16,16 @@ const REASON_MESSAGES = {
 
 export function OperationalScopeGuard({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const { activeUnitType, activeChannel, scope, role, permissions, isReady } = useEnterprise();
+  const { activeUnitType, activeChannel, scope, role, permissions, isReady, segment } = useEnterprise();
   const criteria = getRouteContextCriteria(pathname);
 
+  if (pathname === '/vertical' || pathname.startsWith('/vertical/')) {
+    if (!isReady) return <div role="status" className="py-10">Aguardando perfil da empresa...</div>;
+    if (!canViewVertical(segment, pathname)) return (
+      <EmptyState icon={ShieldAlert} title="Pacote indisponível para este perfil"
+        description="Configure um perfil industrial ou comercial compatível com esta área." />
+    );
+  }
   if (!criteria) return <>{children}</>;
   if (!isReady) return <div role="status" className="py-10">Aguardando autorização do contexto operacional...</div>;
 

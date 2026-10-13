@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { useAuth } from '@/hooks/system/useAuth';
 import { useEnterprise } from '../auth/EnterpriseContext';
 import { SEGMENTS } from '@/config/adaptive';
+import { canViewVertical } from '@/config/verticalAccess';
 
 import { getNavigationForContext } from '@/config/navigation';
 import { TooltipProvider } from '@/ui/base/tooltip';
@@ -211,8 +212,11 @@ export function Sidebar() {
             if (!section) return null;
             
             // No configured niche means no operational sections, never all sections.
-            const isVisible = segment !== 'unconfigured' && !!section.label &&
-              SEGMENTS[segment].allowedSections.includes(section.label);
+            const isVisible = segment !== 'unconfigured' && !!section.label && (
+              section.label === 'Pacotes Verticais'
+                ? section.items.some(item => canViewVertical(segment, item.href))
+                : SEGMENTS[segment].allowedSections.includes(section.label)
+            );
 
             if (!isVisible) return null;
 
@@ -236,13 +240,8 @@ export function Sidebar() {
                   {(section.items || []).filter((item) => {
                     if (!item) return false;
                     
-                    // Segment-specific overrides
-                    if (segment === 'services' && (item.title === 'Estoque' || item.title === 'Produção' || item.title === 'WMS')) return false;
-                    
                     if (section.label === 'Pacotes Verticais') {
-                      if (segment === 'textile' && item.title !== 'Indústria Têxtil') return false;
-                      if (segment === 'pharma' && item.title !== 'Farmacêutico') return false;
-                      if (segment === 'food_factory' && !item.title.includes('Alimentos')) return false;
+                      return canViewVertical(segment, item.href);
                     }
 
                     return true;
