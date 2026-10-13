@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { INDUSTRIAL_PROFILES, INDUSTRIAL_STAGES, parseIndustrialPlanning, type IndustrialProfile, type IndustrialStage, type StageMode } from "@/config/industrialProfile";
 import { PageContainer } from "@/shared/components/PageContainer";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/ui/base/card";
@@ -37,6 +38,7 @@ import { OperationalFeedback } from "@/components/shared/OperationalFeedback";
 export default function EnterpriseConfig() {
   const { company, isLoading: loadingCompany } = useActiveTenant();
   const [loading, setLoading] = useState(false);
+  const [industrial, setIndustrial] = useState(() => parseIndustrialPlanning(null));
   const [settings, setSettings] = useState({
     business_model: 'hybrid',
     tax_regime: 'simples',
@@ -63,6 +65,7 @@ export default function EnterpriseConfig() {
   useEffect(() => {
     if (company?.settings) {
       setSettings(prev => ({ ...prev, ...(company.settings as any) }));
+      setIndustrial(parseIndustrialPlanning((company.settings as Record<string, unknown>).industrial));
     }
   }, [company]);
 
@@ -70,12 +73,13 @@ export default function EnterpriseConfig() {
     if (!company) return;
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('companies')
-        .update({ settings: settings as any })
-        .eq('id', company.id);
+        .update({ settings: { ...(company.settings as Record<string, unknown> || {}), ...settings, industrial } as any })
+        .eq('id', company.id)
+        .select('id');
 
-      if (error) throw error;
+      if (error || !data?.length) throw error || new Error('Atualização não autorizada ou não persistida');
       toast.success("Configuração empresarial atualizada com sucesso");
     } catch (error) {
       console.error(error);
@@ -111,10 +115,51 @@ export default function EnterpriseConfig() {
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="general">Geral & Modelo</TabsTrigger>
           <TabsTrigger value="modules">Módulos Habilitados</TabsTrigger>
+          <TabsTrigger value="industrial">Planejamento industrial</TabsTrigger>
           <TabsTrigger value="processes">Regras & Aprovações</TabsTrigger>
           <TabsTrigger value="fiscal">Fiscal & Contábil</TabsTrigger>
           <TabsTrigger value="governance">Governança</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="industrial">
+          <Card>
+            <CardHeader>
+              <CardTitle>Perfil e etapas industriais</CardTitle>
+              <CardDescription>Planejamento por empresa. Não habilita produção, estoque, qualidade ou acesso a dados: processos dependem de autorização e homologação próprias.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Perfil industrial</Label>
+                <Select value={industrial.profile ?? 'none'} onValueChange={value => setIndustrial({ profile: value === 'none' ? null : value as IndustrialProfile, stages: {} })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um perfil" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Não configurado</SelectItem>
+                    {Object.entries(INDUSTRIAL_PROFILES).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {industrial.profile && Object.entries(INDUSTRIAL_STAGES).map(([key, label]) => {
+                const stage = key as IndustrialStage;
+                return <div key={key} className="flex items-center justify-between gap-4">
+                  <Label>{label}</Label>
+                  <Select value={industrial.stages[stage] ?? 'unused'} onValueChange={value => setIndustrial(prev => {
+                    const stages = { ...prev.stages };
+                    if (value === 'unused') delete stages[stage];
+                    else stages[stage] = value as StageMode;
+                    return { ...prev, stages };
+                  })}>
+                    <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unused">Não utilizada</SelectItem>
+                      <SelectItem value="internal">Interna</SelectItem>
+                      <SelectItem value="outsourced">Terceirizada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>;
+              })}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="general" className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
