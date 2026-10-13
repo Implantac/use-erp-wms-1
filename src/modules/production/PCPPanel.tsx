@@ -5,7 +5,6 @@ import { Badge } from '@/ui/base/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/base/tabs';
 import { useProductionOrders, type ProductionOrderRow } from '@/hooks/production/useProductionOrders';
 import { useOrders } from '@/hooks/commercial/useOrders';
-import { useOrderLifecycle } from '@/hooks/commercial/useOrderLifecycle';
 import { useTimeEntries } from '@/hooks/system/useTimeEntries';
 import { useProductionCapacity } from '@/hooks/production/useProductionCapacity';
 import { useTechnicalSheets } from '@/hooks/production/useTechnicalSheets';
@@ -21,16 +20,15 @@ import { CapacityTab } from './pcp/CapacityTab';
 import { ProductivityTab } from './pcp/ProductivityTab';
 import { AlertsTab } from './pcp/AlertsTab';
 import { GenerateOPDialog } from './pcp/GenerateOPDialog';
-import { usePCPPanelState, computeDerived, generateOPFromOrder, handleStatusChange } from './pcp/usePCPPanel';
+import { usePCPPanelState, computeDerived, handleStatusChange } from './pcp/usePCPPanel';
 
 export default function PCPPanel() {
-  const { orders: productionOrders, loading, refetch, update } = useProductionOrders();
+  const { orders: productionOrders, loading, update } = useProductionOrders();
   const { data: salesOrders } = useOrders();
   const { entries: timeEntries } = useTimeEntries();
   const { capacities } = useProductionCapacity();
   const { sheets } = useTechnicalSheets();
   const { supplies } = useSupplyStock();
-  const lifecycle = useOrderLifecycle();
   const pcpIntel = usePCPIntelligence();
   const { search, setSearch, statusFilter, setStatusFilter, generatingFor, setGeneratingFor } = usePCPPanelState();
 
@@ -58,7 +56,7 @@ export default function PCPPanel() {
         <KPICard title="Planejadas" value={statusCounts['planned'] || 0} icon={<Clock className="h-5 w-5" />} accentColor="warning" index={1} />
         <KPICard title="Em Produção" value={statusCounts['in_progress'] || 0} icon={<Factory className="h-5 w-5" />} accentColor="info" index={2} />
         <KPICard title="Finalizadas" value={statusCounts['completed'] || 0} icon={<CheckCircle className="h-5 w-5" />} accentColor="success" index={3} />
-        <KPICard title="Eficiência Geral" value={`${totalCapacity.toFixed(0)}%`} icon={<Gauge className="h-5 w-5" />} accentColor={totalCapacity >= 70 ? 'success' : 'warning'} index={4} />
+        <KPICard title="Avanço médio das OPs" value={`${totalCapacity.toFixed(0)}%`} icon={<Gauge className="h-5 w-5" />} accentColor={totalCapacity >= 70 ? 'success' : 'warning'} index={4} />
       </div>
 
       <Tabs defaultValue="orders">
@@ -115,7 +113,6 @@ export default function PCPPanel() {
       <GenerateOPDialog
         order={generatingFor}
         onClose={() => setGeneratingFor(null)}
-        onConfirm={() => generateOPFromOrder(generatingFor, lifecycle, refetch, () => setGeneratingFor(null))}
       />
     </PageContainer>
   );

@@ -1,14 +1,10 @@
 import { useState } from 'react';
-import { format, differenceInDays, parseISO, differenceInMinutes } from 'date-fns';
-import { toastError, toastSuccess } from '@/lib/toastHelpers';
-import { supabase } from '@/integrations/supabase/client';
-import { errorMessage } from '@/lib/errors';
+import { differenceInDays, parseISO, differenceInMinutes } from 'date-fns';
+import { toastError } from '@/lib/toastHelpers';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
 import type { TimeEntryRow } from '@/hooks/system/useTimeEntries';
 import type { DbOrder } from '@/hooks/commercial/useOrders';
-import type { useOrderLifecycle } from '@/hooks/commercial/useOrderLifecycle';
 
-type Lifecycle = ReturnType<typeof useOrderLifecycle>;
 type UpdateOP = (id: string, updates: Partial<ProductionOrderRow>) => Promise<void> | void;
 
 export function usePCPPanelState() {
@@ -61,32 +57,12 @@ export function computeDerived(productionOrders: ProductionOrderRow[], salesOrde
   return { statusCounts, totalCapacity, ordersAwaitingProduction, workCenterData, today, delayedOPs, operatorData };
 }
 
-export async function generateOPFromOrder(order: DbOrder, lifecycle: Lifecycle, refetch: () => Promise<void>, onDone: () => void) {
-  const items = order.items || [];
-  if (items.length === 0) { toastError('Pedido sem itens'); return; }
-  try {
-    for (const item of items) {
-      const opNumber = `OP-${format(new Date(), 'yyyyMMdd')}-${order.number}-${item.product_code}`;
-      await supabase.from('production_orders').insert({
-        company_id: order.company_id, order_number: opNumber, product_id: item.product_id, product_code: item.product_code,
-        product_name: item.product_name, quantity: item.quantity, produced_quantity: 0, unit: 'UN',
-        status: 'planned', priority: order.priority || 'medium', due_date: order.delivery_date,
-        notes: `Gerada do pedido ${order.number}`,
-      });
-    }
-    lifecycle.mutate({ orderId: order.id, order, targetStatus: 'in_production', observation: `${items.length} OP(s) gerada(s)` });
-    toastSuccess(`${items.length} OP(s) gerada(s) do pedido ${order.number}`);
-    await refetch();
-    onDone();
-  } catch (e) { toastError(errorMessage(e), undefined, 'Erro ao gerar OP'); }
-}
 
 export async function handleStatusChange(op: ProductionOrderRow, newStatus: string, update: UpdateOP) {
   if (newStatus === 'completed') { toastError('Conclusão de OP bloqueada até validação transacional de qualidade e estoque'); return; }
   await update(op.id, {
     status: newStatus,
     ...(newStatus === 'in_progress' ? { start_date: new Date().toISOString() } : {}),
-    ...(newStatus === 'completed' ? { completed_date: new Date().toISOString() } : {}),
   });
 
 }
