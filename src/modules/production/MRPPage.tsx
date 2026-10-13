@@ -14,7 +14,6 @@ import { AlertTriangle, Package, CheckCircle, XCircle, Layers, RefreshCw, Shoppi
 import { toast } from 'sonner';
 import MRPSimulation from '@/components/production/MRPSimulation';
 import { useMRPNeeds } from './mrp/useMRPNeeds';
-import { useMRPPurchaseOrder } from './mrp/useMRPPurchaseOrder';
 import { MRPNeedsTab } from './mrp/MRPNeedsTab';
 import { MRPOpsTab } from './mrp/MRPOpsTab';
 import { MRPPurchaseTab } from './mrp/MRPPurchaseTab';
@@ -27,7 +26,6 @@ export default function MRPPage() {
   const [selectedTab, setSelectedTab] = useState('needs');
 
   const { activeOPs, materialNeeds, opsWithoutSheet } = useMRPNeeds(orders, sheets, supplies);
-  const { generatingPO, handleGeneratePurchaseOrder } = useMRPPurchaseOrder(materialNeeds, supplies);
 
   const loading = loadingOrders || loadingSheets || loadingSupplies;
 
@@ -42,7 +40,7 @@ export default function MRPPage() {
 
   return (
     <PageContainer loading={loading}>
-      <PageHeader title="MRP — Planejamento de Materiais" description="Cálculo de necessidades de insumos baseado nas OPs ativas e fichas técnicas">
+      <PageHeader title="MRP — Planejamento de Materiais" description="Simulação de consumo versus saldo bruto: não considera reservas, bloqueios, entradas previstas nem conversões de unidade">
         <Button variant="outline" onClick={() => toast.info('Recalculando...')}>
           <RefreshCw className="h-4 w-4 mr-2" /> Recalcular
         </Button>
@@ -51,9 +49,9 @@ export default function MRPPage() {
       <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
         <KPICard title="OPs Ativas" value={activeOPs.length} icon={<Layers className="h-5 w-5" />} accentColor="primary" index={0} />
         <KPICard title="Materiais" value={totalMaterials} icon={<Package className="h-5 w-5" />} accentColor="info" index={1} />
-        <KPICard title="Disponíveis" value={okCount} icon={<CheckCircle className="h-5 w-5" />} accentColor="success" index={2} />
-        <KPICard title="Faltantes" value={criticalCount + partialCount} icon={<XCircle className="h-5 w-5" />} accentColor="danger" index={3} />
-        <KPICard title="Custo Déficit" value={`R$ ${(totalDeficitValue / 1000).toFixed(1)}k`} icon={<ShoppingCart className="h-5 w-5" />} accentColor="warning" index={4} />
+        <KPICard title="Saldo cobre (bruto)" value={okCount} icon={<CheckCircle className="h-5 w-5" />} accentColor="success" index={2} />
+        <KPICard title="Déficit bruto" value={criticalCount + partialCount} icon={<XCircle className="h-5 w-5" />} accentColor="danger" index={3} />
+        <KPICard title="Custo estimado" value={`R$ ${(totalDeficitValue / 1000).toFixed(1)}k`} icon={<ShoppingCart className="h-5 w-5" />} accentColor="warning" index={4} />
       </div>
 
       {opsWithoutSheet.length > 0 && (
@@ -86,7 +84,7 @@ export default function MRPPage() {
         <TabsContent value="needs"><MRPNeedsTab materialNeeds={materialNeeds} /></TabsContent>
         <TabsContent value="ops"><MRPOpsTab activeOPs={activeOPs} sheets={sheets} materialNeeds={materialNeeds} /></TabsContent>
         <TabsContent value="purchase">
-          <MRPPurchaseTab materialNeeds={materialNeeds} supplies={supplies} generatingPO={generatingPO} onGenerate={handleGeneratePurchaseOrder} />
+          <MRPPurchaseTab materialNeeds={materialNeeds} supplies={supplies} />
         </TabsContent>
         <TabsContent value="simulation">
           <MRPSimulation orders={orders} sheets={sheets} supplies={supplies} capacities={capacities} />

@@ -10,11 +10,9 @@ import type { MaterialNeed } from './types';
 interface Props {
   materialNeeds: MaterialNeed[];
   supplies: SupplyItem[];
-  generatingPO: boolean;
-  onGenerate: () => void;
 }
 
-export function MRPPurchaseTab({ materialNeeds, supplies, generatingPO, onGenerate }: Props) {
+export function MRPPurchaseTab({ materialNeeds, supplies }: Props) {
   const deficits = materialNeeds.filter(m => m.deficit > 0);
   const totalCost = deficits.reduce((s, m) => {
     const supply = supplies.find(su => su.code === m.materialCode || su.name === m.materialName);
@@ -29,16 +27,19 @@ export function MRPPurchaseTab({ materialNeeds, supplies, generatingPO, onGenera
             <ShoppingCart className="h-5 w-5" /> Sugestão de Compra
           </CardTitle>
           {deficits.length > 0 && (
-            <Button size="sm" onClick={onGenerate} disabled={generatingPO}>
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              {generatingPO ? 'Gerando...' : 'Gerar Pedido de Compra'}
+            <Button size="sm" disabled title="Exige MRP líquido e pedido transacional homologados">
+              Gerar pedido indisponível
             </Button>
           )}
         </div>
       </CardHeader>
       <CardContent>
+        <p role="status" className="mb-4 text-sm text-warning">
+          Projeção apenas pelo saldo bruto. Não considera reservas, bloqueios, entradas previstas ou unidades incompatíveis.
+          Não utilize esta lista para emitir pedidos até o cálculo líquido e a gravação atômica serem homologados.
+        </p>
         {deficits.length === 0 ? (
-          <p className="text-center py-8 text-muted-foreground">Todos os materiais possuem cobertura suficiente. Nenhuma compra sugerida.</p>
+          <p className="text-center py-8 text-muted-foreground">Nenhum déficit bruto calculado; disponibilidade para compra ainda não foi validada.</p>
         ) : (
           <>
             <div className="mb-4 p-3 rounded-lg bg-muted/50 border">
@@ -51,7 +52,7 @@ export function MRPPurchaseTab({ materialNeeds, supplies, generatingPO, onGenera
               <TableHeader>
                 <TableRow>
                   <TableHead>Material</TableHead>
-                  <TableHead className="text-right">Qtd. a Comprar</TableHead>
+                  <TableHead className="text-right">Déficit bruto estimado</TableHead>
                   <TableHead>Unidade</TableHead>
                   <TableHead>Fornecedor</TableHead>
                   <TableHead className="text-right">Custo Est.</TableHead>
@@ -71,7 +72,7 @@ export function MRPPurchaseTab({ materialNeeds, supplies, generatingPO, onGenera
                       <TableCell className="text-right">R$ {formatNumber(estCost, 2)}</TableCell>
                       <TableCell>
                         <Badge variant={m.status === 'critical' ? 'destructive' : 'secondary'}>
-                          {m.status === 'critical' ? 'Urgente' : 'Normal'}
+                          {m.status === 'critical' ? 'Baixa cobertura bruta' : 'Cobertura parcial bruta'}
                         </Badge>
                       </TableCell>
                     </TableRow>

@@ -14,7 +14,7 @@ export function MRPNeedsTab({ materialNeeds }: { materialNeeds: MaterialNeed[] }
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Calculator className="h-5 w-5" /> Explosão de Necessidades
+          <Calculator className="h-5 w-5" /> Simulação de Necessidades (Saldo Bruto)
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -30,9 +30,9 @@ export function MRPNeedsTab({ materialNeeds }: { materialNeeds: MaterialNeed[] }
               <TableRow>
                 <TableHead>Material</TableHead>
                 <TableHead className="text-right">Necessário</TableHead>
-                <TableHead className="text-right">Em Estoque</TableHead>
-                <TableHead className="text-right">Déficit</TableHead>
-                <TableHead>Cobertura</TableHead>
+                <TableHead className="text-right">Saldo bruto</TableHead>
+                <TableHead className="text-right">Déficit bruto</TableHead>
+                <TableHead>Cobertura bruta</TableHead>
                 <TableHead>OPs</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
