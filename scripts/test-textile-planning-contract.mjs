@@ -8,6 +8,6 @@ test('woven and knitted paths are distinct planning metadata, not stock writes',
   assert.match(profile, /knitting: 'Malharia \(malha\)'/);
   assert.match(profile, /woven: \['fiber_preparation', 'spinning', 'weaving', 'dyeing', 'finishing'\]/);
   assert.match(profile, /knitted: \['fiber_preparation', 'spinning', 'knitting', 'dyeing', 'finishing'\]/);
-  assert.match(bom, /não reserva nem baixa estoque/);
+  assert.match(bom, /Consulta sem edição, reserva ou baixa/);
   assert.doesNotMatch(bom, /Ao concluir a OP, cada material é baixado|A conclusão dará entrada apenas/);
 });
