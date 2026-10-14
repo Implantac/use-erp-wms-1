@@ -8,7 +8,8 @@ export interface MaterialNeed {
   available: number;
   deficit: number;
   coveragePct: number;
+  coverageKnown: boolean;
   relatedOPs: string[];
-  status: 'ok' | 'partial' | 'critical';
+  status: 'ok' | 'partial' | 'critical' | 'unverified';
   supplier?: string;
 }

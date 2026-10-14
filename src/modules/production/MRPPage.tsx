@@ -10,7 +10,7 @@ import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { useTechnicalSheets } from '@/hooks/production/useTechnicalSheets';
 import { useSupplyStock } from '@/hooks/inventory/useSupplyStock';
 import { useProductionCapacity } from '@/hooks/production/useProductionCapacity';
-import { AlertTriangle, Package, CheckCircle, XCircle, Layers, RefreshCw, ShoppingCart, FlaskConical } from 'lucide-react';
+import { AlertTriangle, Package, CheckCircle, XCircle, Layers, RefreshCw, HelpCircle, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import MRPSimulation from '@/components/production/MRPSimulation';
 import { useMRPNeeds } from './mrp/useMRPNeeds';
@@ -57,10 +57,7 @@ export default function MRPPage() {
   const criticalCount = materialNeeds.filter(m => m.status === 'critical').length;
   const partialCount = materialNeeds.filter(m => m.status === 'partial').length;
   const okCount = materialNeeds.filter(m => m.status === 'ok').length;
-  const totalDeficitValue = materialNeeds.reduce((s, m) => {
-    const supply = supplies.find(su => su.code === m.materialCode || su.name === m.materialName);
-    return s + m.deficit * (supply?.unit_cost || 0);
-  }, 0);
+  const unverifiedCount = materialNeeds.filter(m => !m.coverageKnown).length;
 
   return (
     <PageContainer loading={loading}>
@@ -76,7 +73,7 @@ export default function MRPPage() {
         <KPICard title="Materiais" value={totalMaterials} icon={<Package className="h-5 w-5" />} accentColor="info" index={1} />
         <KPICard title="Saldo cobre (bruto)" value={okCount} icon={<CheckCircle className="h-5 w-5" />} accentColor="success" index={2} />
         <KPICard title="Déficit bruto" value={criticalCount + partialCount} icon={<XCircle className="h-5 w-5" />} accentColor="danger" index={3} />
-        <KPICard title="Custo estimado" value={`R$ ${(totalDeficitValue / 1000).toFixed(1)}k`} icon={<ShoppingCart className="h-5 w-5" />} accentColor="warning" index={4} />
+        <KPICard title="Não verificáveis" value={unverifiedCount} icon={<HelpCircle className="h-5 w-5" />} accentColor="warning" index={4} />
       </div>
 
       {opsWithInvalidSheet.length > 0 && (
@@ -109,7 +106,7 @@ export default function MRPPage() {
         <TabsContent value="needs"><MRPNeedsTab materialNeeds={materialNeeds} /></TabsContent>
         <TabsContent value="ops"><MRPOpsTab activeOPs={activeOPs} sheets={sheets} materialNeeds={materialNeeds} /></TabsContent>
         <TabsContent value="purchase">
-          <MRPPurchaseTab materialNeeds={materialNeeds} supplies={supplies} />
+          <MRPPurchaseTab materialNeeds={materialNeeds} />
         </TabsContent>
         <TabsContent value="simulation">
           <MRPSimulation orders={orders} sheets={sheets} supplies={supplies} capacities={capacities} />

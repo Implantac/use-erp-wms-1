@@ -10,7 +10,7 @@ export function getOrderGrossCoverage(materials: MaterialItemLike[] | null | und
     const quantity = material.quantity ?? material.qty;
     if (!code || !Number.isFinite(quantity) || (quantity ?? 0) <= 0 || !material.unit) return null;
     const need = needs.find(n => n.materialCode === code && n.unit === material.unit);
-    if (!need || !Number.isFinite(need.coveragePct)) return null;
+    if (!need || need.coverageKnown === false || !Number.isFinite(need.coveragePct)) return null;
     coverage = Math.min(coverage, need.coveragePct);
   }
   return coverage;

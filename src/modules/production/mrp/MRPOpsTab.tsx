@@ -8,6 +8,7 @@ import type { MaterialNeed } from './types';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
 import type { TechnicalSheetRow } from '@/hooks/production/useTechnicalSheets';
 import { getOrderGrossCoverage } from './grossCoverage';
+import { getUniqueSheet } from './grossNeeds';
 
 interface Props {
   activeOPs: ProductionOrderRow[];
@@ -36,7 +37,7 @@ export function MRPOpsTab({ activeOPs, sheets, materialNeeds }: Props) {
             </TableHeader>
             <TableBody>
               {activeOPs.map(op => {
-                const sheet = sheets.find(s => s.product_code === op.product_code || s.product_id === op.product_id);
+                const sheet = getUniqueSheet(op, sheets);
                 const matCount = sheet ? (sheet.materials?.length || 0) : 0;
                 const remaining = Math.max(0, op.quantity - op.produced_quantity);
 
@@ -51,7 +52,7 @@ export function MRPOpsTab({ activeOPs, sheets, materialNeeds }: Props) {
                       {sheet ? (
                         <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">v{sheet.version}</Badge>
                       ) : (
-                        <Badge variant="destructive">Sem ficha</Badge>
+                        <Badge variant="destructive">Ficha ausente ou ambígua</Badge>
                       )}
                     </TableCell>
                     <TableCell>{matCount} itens</TableCell>

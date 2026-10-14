@@ -39,7 +39,7 @@ export function MRPNeedsTab({ materialNeeds }: { materialNeeds: MaterialNeed[] }
             </TableHeader>
             <TableBody>
               {materialNeeds.map(m => (
-                <TableRow key={m.materialCode} className={cn(m.status === 'critical' && 'bg-destructive/5')}>
+                <TableRow key={`${m.materialCode}:${m.unit}`} className={cn(m.status === 'critical' && 'bg-destructive/5')}>
                   <TableCell>
                     <div>
                       <span className="font-medium">{m.materialName}</span>
@@ -47,15 +47,15 @@ export function MRPNeedsTab({ materialNeeds }: { materialNeeds: MaterialNeed[] }
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-mono">{formatNumber(m.totalRequired)} {m.unit}</TableCell>
-                  <TableCell className="text-right font-mono">{formatNumber(m.inStock)} {m.unit}</TableCell>
+                  <TableCell className="text-right font-mono">{m.coverageKnown ? `${formatNumber(m.inStock)} ${m.unit}` : '—'}</TableCell>
                   <TableCell className={cn('text-right font-mono font-bold', m.deficit > 0 ? 'text-destructive' : 'text-green-600')}>
-                    {m.deficit > 0 ? `-${formatNumber(m.deficit)}` : '0'} {m.unit}
+                    {m.coverageKnown ? `${m.deficit > 0 ? `-${formatNumber(m.deficit)}` : '0'} ${m.unit}` : '—'}
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
+                    {m.coverageKnown ? <div className="flex items-center gap-2">
                       <Progress value={m.coveragePct} className="w-16 h-2" />
                       <span className="text-xs">{m.coveragePct}%</span>
-                    </div>
+                    </div> : <span className="text-xs text-muted-foreground">Não verificável</span>}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

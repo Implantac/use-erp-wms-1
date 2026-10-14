@@ -12,6 +12,7 @@ describe('cobertura bruta de OP', () => {
   it('não compara saldos em unidades diferentes ou sem necessidade calculada', () => {
     expect(getOrderGrossCoverage([{ code: 'FIO', quantity: 2, unit: 'm' }], [need])).toBeNull();
     expect(getOrderGrossCoverage([{ code: 'FIO', quantity: 2, unit: 'kg' }], [])).toBeNull();
+    expect(getOrderGrossCoverage([{ code: 'FIO', quantity: 2, unit: 'kg' }], [{ ...need, coverageKnown: false }])).toBeNull();
   });
   it('retorna menor cobertura bruta dos materiais válidos', () => {
     expect(getOrderGrossCoverage([{ code: 'FIO', quantity: 2, unit: 'kg' }], [need])).toBe(65);
