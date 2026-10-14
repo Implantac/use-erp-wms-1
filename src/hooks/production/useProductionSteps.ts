@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -41,6 +41,8 @@ export interface ProductionOrderStep {
 export function useProductionSteps() {
   const { company } = useActiveTenant();
   const companyId = company?.id;
+  const companyIdRef = useRef(companyId);
+  companyIdRef.current = companyId;
   const [steps, setSteps] = useState<ProductionStep[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,6 +54,7 @@ export function useProductionSteps() {
       .select('*')
       .eq('company_id', companyId)
       .order('sequence', { ascending: true });
+    if (companyIdRef.current !== companyId) return;
     if (error) { console.error(error); toast.error('Erro ao carregar etapas'); }
     else setSteps(data || []);
     setLoading(false);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -37,6 +37,8 @@ export interface ProductionRouteRow {
 export function useProductionRoutes() {
   const { company } = useActiveTenant();
   const companyId = company?.id;
+  const companyIdRef = useRef(companyId);
+  companyIdRef.current = companyId;
   const [routes, setRoutes] = useState<ProductionRouteRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,6 +50,7 @@ export function useProductionRoutes() {
       .select('*')
       .eq('company_id', companyId)
       .order('code');
+    if (companyIdRef.current !== companyId) return;
     if (error) { console.error(error); toast.error('Erro ao carregar rotas'); }
     else setRoutes(data || []);
     setLoading(false);
@@ -93,6 +96,8 @@ export function useProductionRoutes() {
 export function useProductionRouteSteps(routeId?: string) {
   const { company } = useActiveTenant();
   const companyId = company?.id;
+  const companyIdRef = useRef(companyId);
+  companyIdRef.current = companyId;
   const [steps, setSteps] = useState<ProductionRouteStep[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -104,6 +109,7 @@ export function useProductionRouteSteps(routeId?: string) {
       .select('*, production_sectors(name), production_resources(name)')
       .eq('route_id', routeId).eq('company_id', companyId)
       .order('sequence');
+    if (companyIdRef.current !== companyId) return;
     if (error) { console.error(error); }
     else setSteps((data || []).map((d) => ({
       ...d,
