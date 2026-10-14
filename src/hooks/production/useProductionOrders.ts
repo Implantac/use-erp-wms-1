@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 
 export interface ProductionOrderRow {
   id: string;
@@ -45,28 +46,37 @@ export interface ProductionOrderRow {
 }
 
 export function useProductionOrders() {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
+  const companyIdRef = useRef(companyId);
+  companyIdRef.current = companyId;
+  const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
   const [orders, setOrders] = useState<ProductionOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetch = useCallback(async () => {
+    if (!companyId) { setOrders([]); setLoadedCompanyId(null); setLoading(false); return false; }
     setLoading(true);
-    const { data, error } = await supabase.from('production_orders').select('*').order('created_at', { ascending: false });
-    if (error) { console.error(error); toast.error('Erro ao carregar ordens de produção'); setLoading(false); return false; }
-    else setOrders((data || []) as ProductionOrderRow[]);
+    const { data, error } = await supabase.from('production_orders').select('*').eq('company_id', companyId).order('created_at', { ascending: false });
+    if (companyIdRef.current !== companyId) return false;
+    if (error) { console.error(error); toast.error('Erro ao carregar ordens de produção'); setOrders([]); setLoadedCompanyId(null); setLoading(false); return false; }
+    setOrders((data || []) as ProductionOrderRow[]);
+    setLoadedCompanyId(companyId);
     setLoading(false);
     return true;
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
   const update = async (id: string, updates: Partial<ProductionOrderRow>) => {
+    if (!companyId) { toast.error('Selecione uma empresa'); return false; }
     if (updates.status === 'completed') { toast.error('Conclusão de OP indisponível até validação transacional de qualidade e estoque'); return false; }
-    const { error } = await supabase.from('production_orders').update({ ...updates, updated_at: new Date().toISOString() } as TablesUpdate<'production_orders'>).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar ordem'); return false; }
+    const { data, error } = await supabase.from('production_orders').update({ ...updates, company_id: companyId, updated_at: new Date().toISOString() } as TablesUpdate<'production_orders'>).eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao atualizar ordem'); return false; }
     toast.success('Ordem atualizada');
     await fetch();
     return true;
   };
 
-  return { orders, loading, refetch: fetch, update };
+  return { orders: loadedCompanyId === companyId ? orders : [], loading, refetch: fetch, update };
 }

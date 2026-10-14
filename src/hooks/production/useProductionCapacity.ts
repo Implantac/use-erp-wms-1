@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 
 export interface ProductionCapacityRow {
   id: string;
@@ -18,21 +19,29 @@ export interface ProductionCapacityRow {
 }
 
 export function useProductionCapacity() {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
+  const companyIdRef = useRef(companyId);
+  companyIdRef.current = companyId;
+  const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
   const [capacities, setCapacities] = useState<ProductionCapacityRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
+    if (!companyId) { setCapacities([]); setLoadedCompanyId(null); setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await supabase.from('production_capacity').select('*').order('sector');
-    if (error) { console.error(error); toast.error('Erro ao carregar capacidade'); }
-    else setCapacities(data || []);
+    const { data, error } = await supabase.from('production_capacity').select('*').eq('company_id', companyId).order('sector');
+    if (companyIdRef.current !== companyId) return;
+    if (error) { console.error(error); toast.error('Erro ao carregar capacidade'); setCapacities([]); setLoadedCompanyId(null); }
+    else { setCapacities(data || []); setLoadedCompanyId(companyId); }
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const create = async (item: Partial<ProductionCapacityRow>) => {
-    const { error } = await supabase.from('production_capacity').insert(item as TablesInsert<'production_capacity'>);
+    if (!companyId) { toast.error('Selecione uma empresa'); return false; }
+    const { error } = await supabase.from('production_capacity').insert({ ...item, company_id: companyId } as TablesInsert<'production_capacity'>);
     if (error) { toast.error('Erro ao criar capacidade'); return false; }
     toast.success('Capacidade cadastrada');
     await fetchData();
@@ -40,18 +49,20 @@ export function useProductionCapacity() {
   };
 
   const update = async (id: string, updates: Partial<ProductionCapacityRow>) => {
-    const { error } = await supabase.from('production_capacity').update({ ...updates, updated_at: new Date().toISOString() } as TablesUpdate<'production_capacity'>).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar'); return; }
+    if (!companyId) { toast.error('Selecione uma empresa'); return; }
+    const { data, error } = await supabase.from('production_capacity').update({ ...updates, company_id: companyId, updated_at: new Date().toISOString() } as TablesUpdate<'production_capacity'>).eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao atualizar'); return; }
     toast.success('Atualizado');
     await fetchData();
   };
 
   const remove = async (id: string) => {
-    const { error } = await supabase.from('production_capacity').delete().eq('id', id);
-    if (error) { toast.error('Erro ao excluir'); return; }
+    if (!companyId) { toast.error('Selecione uma empresa'); return; }
+    const { data, error } = await supabase.from('production_capacity').delete().eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao excluir'); return; }
     toast.success('Excluído');
     await fetchData();
   };
 
-  return { capacities, loading, refetch: fetchData, create, update, remove };
+  return { capacities: loadedCompanyId === companyId ? capacities : [], loading, refetch: fetchData, create, update, remove };
 }
