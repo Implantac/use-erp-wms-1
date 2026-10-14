@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 
 export interface ProductCost {
   id: string;
@@ -23,16 +24,23 @@ export interface ProductCost {
 }
 
 export function useProductCosts() {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
+  const companyIdRef = useRef(companyId);
+  companyIdRef.current = companyId;
+  const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
   const [costs, setCosts] = useState<ProductCost[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchCosts = useCallback(async () => {
+    if (!companyId) { setCosts([]); setLoadedCompanyId(null); setLoading(false); return; }
     setLoading(true);
-    const { data, error } = await supabase.from('product_costs').select('*').order('product_name');
-    if (error) { console.error(error); toast.error('Erro ao carregar custos'); }
-    else setCosts(data || []);
+    const { data, error } = await supabase.from('product_costs').select('*').eq('company_id', companyId).order('product_name');
+    if (companyIdRef.current !== companyId) return;
+    if (error) { console.error(error); toast.error('Erro ao carregar custos'); setCosts([]); setLoadedCompanyId(null); }
+    else { setCosts(data || []); setLoadedCompanyId(companyId); }
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { fetchCosts(); }, [fetchCosts]);
 
@@ -45,6 +53,7 @@ export function useProductCosts() {
   };
 
   const createCost = async (cost: Partial<ProductCost>) => {
+    if (!companyId) { toast.error('Selecione uma empresa'); return false; }
     const calc = calculateCost(
       cost.raw_material_cost || 0,
       cost.labor_rate_per_hour || 0,
@@ -53,7 +62,7 @@ export function useProductCosts() {
       cost.sale_price || 0,
     );
     const { error } = await supabase.from('product_costs').insert({
-      ...cost, ...calc, last_calculated_at: new Date().toISOString(),
+      ...cost, ...calc, company_id: companyId, last_calculated_at: new Date().toISOString(),
     } as TablesInsert<'product_costs'>);
     if (error) { toast.error('Erro ao criar custo'); return false; }
     toast.success('Custo cadastrado');
@@ -62,7 +71,9 @@ export function useProductCosts() {
   };
 
   const updateCost = async (id: string, updates: Partial<ProductCost>) => {
+    if (!companyId || loadedCompanyId !== companyId) { toast.error('Selecione uma empresa com custos carregados'); return; }
     const existing = costs.find(c => c.id === id);
+    if (!existing) { toast.error('Custo não encontrado na empresa ativa'); return; }
     const merged = { ...existing, ...updates };
     const calc = calculateCost(
       merged.raw_material_cost || 0,
@@ -71,30 +82,30 @@ export function useProductCosts() {
       merged.operational_cost || 0,
       merged.sale_price || 0,
     );
-    const { error } = await supabase.from('product_costs').update({
-      ...updates, ...calc, last_calculated_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-    } as TablesUpdate<'product_costs'>).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar custo'); return; }
+    const { data, error } = await supabase.from('product_costs').update({
+      ...updates, ...calc, company_id: companyId, last_calculated_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    } as TablesUpdate<'product_costs'>).eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao atualizar custo'); return; }
     toast.success('Custo atualizado');
     await fetchCosts();
   };
 
   const deleteCost = async (id: string) => {
-    const { error } = await supabase.from('product_costs').delete().eq('id', id);
-    if (error) { toast.error('Erro ao excluir custo'); return; }
+    if (!companyId) { toast.error('Selecione uma empresa'); return; }
+    const { data, error } = await supabase.from('product_costs').delete().eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao excluir custo'); return; }
     toast.success('Custo excluído');
     await fetchCosts();
   };
 
-  // Summary stats
-  const avgMargin = costs.length > 0 ? costs.reduce((s, c) => s + c.profit_margin, 0) / costs.length : 0;
-  const totalRevenue = costs.reduce((s, c) => s + c.sale_price, 0);
-  const totalCostSum = costs.reduce((s, c) => s + c.total_cost, 0);
-  const lowMarginProducts = costs.filter(c => c.profit_margin < 15);
-  const highCostProducts = costs.filter(c => c.total_cost > c.sale_price * 0.8);
+  // Unit catalog references only; no realized revenue or total cost.
+  const scopedCosts = loadedCompanyId === companyId ? costs : [];
+  const avgMargin = scopedCosts.length > 0 ? scopedCosts.reduce((s, c) => s + c.profit_margin, 0) / scopedCosts.length : 0;
+  const lowMarginProducts = scopedCosts.filter(c => c.profit_margin < 15);
+  const highCostProducts = scopedCosts.filter(c => c.total_cost > c.sale_price * 0.8);
 
   return {
-    costs, loading, refetch: fetchCosts, createCost, updateCost, deleteCost, calculateCost,
-    avgMargin, totalRevenue, totalCostSum, lowMarginProducts, highCostProducts,
+    costs: scopedCosts, loading, refetch: fetchCosts, createCost, updateCost, deleteCost, calculateCost,
+    avgMargin, lowMarginProducts, highCostProducts,
   };
 }
