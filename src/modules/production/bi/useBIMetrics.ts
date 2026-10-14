@@ -67,12 +67,7 @@ export function useBIMetrics(periodDays: number) {
   const totalEstimated = orders.reduce((s, o) => s + o.estimated_time_minutes, 0);
   const totalRealized = orders.reduce((s, o) => s + o.realized_time_minutes, 0);
   const totalProduced = orders.reduce((s, o) => s + o.produced_quantity, 0);
-  const totalTarget = orders.filter(o => ['completed', 'in_progress'].includes(o.status)).reduce((s, o) => s + o.quantity, 0);
   const totalRejected = orders.reduce((s, o) => s + o.rejected_quantity, 0);
-  const availability = totalEstimated > 0 ? Math.min(totalRealized / totalEstimated, 1) : 0;
-  const performance = totalTarget > 0 ? Math.min(totalProduced / totalTarget, 1) : 0;
-  const quality = totalProduced > 0 ? (totalProduced - totalRejected) / totalProduced : 1;
-  const oee = availability * performance * quality * 100;
 
   const productionTrend = useMemo(() => {
     const days: Record<string, { produced: number; rejected: number; hours: number }> = {};
@@ -146,7 +141,6 @@ export function useBIMetrics(periodDays: number) {
   return {
     costs, avgMargin, totalRevenue, totalCostSum, lowMarginProducts, highCostProducts,
     orders, profitByProduct, paretoData, costBySector,
-    availability, performance, quality, oee,
     totalProduced, totalRejected,
     productionTrend,
     onTimePct, onTime, completedOPs, lateOPs,

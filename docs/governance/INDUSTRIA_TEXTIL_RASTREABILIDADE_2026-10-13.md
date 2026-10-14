@@ -166,3 +166,7 @@ A migration `20261014130000_freeze_routes_referenced_by_ops.sql` propõe: OP com
 ## Incremento local após `8e7800a9` — OPs omitidas do PCP e falso estado saudável
 
 `MRPService` passou a exigir ficha candidata **única e completa** para a OP e a emitir alerta explícito quando OPs ficam fora da projeção por ficha ausente, ambígua ou inválida; PCP e simulação passam as fichas ao gerador de sugestões. `PCPIntelligencePanel` não chama mais a ausência de alertas de «PCP saudável» nem afirma materiais disponíveis/capacidade adequada. Removido o `summary.oee` calculado artificialmente a partir de tempo estimado/real e quantidades — sem disponibilidade de máquina e velocidade ideal auditadas não é OEE. Teste Vitest 3/3, estático 1/1, typecheck e lint CI 0 avisos reportáveis. **Não há prova de KPI real, E2E ou banco; OEE em outros módulos ainda precisa auditoria.** Sem migration.
+
+## Incremento local após `8e7800a9` — OEE no BI industrial
+
+Removido de `useBIMetrics()` o suposto OEE calculado por razões tempo realizado/estimado e produzido/planejado sem períodos, disponibilidade e velocidade ideal de máquina medidos. Scorecard exibe «— / não apurado»; aba BI descreve a ausência da base e direciona aos registros por empresa do painel OEE, que continuam sujeitos à auditoria de origem, calibração e janela e **não** compõem OEE global. Teste estático 1/1, typecheck e lint CI aprovados. Sem ensaio de banco; outros indicadores financeiros/estratégicos não foram homologados neste incremento.
