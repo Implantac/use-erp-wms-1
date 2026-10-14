@@ -32,6 +32,7 @@ export interface CapacityLike {
 }
 export interface SupplyLike {
   code?: string;
+  unit?: string;
   name?: string;
   current_quantity?: number;
   unit_cost?: number;
@@ -81,9 +82,9 @@ export interface MaterialNeed {
   inStock: number;
   deficit: number;
   coveragePct: number;
+  coverageKnown: boolean;
   relatedOPs: string[];
-  status: 'ok' | 'partial' | 'critical';
-  unitCost: number;
+  status: 'ok' | 'partial' | 'critical' | 'unverified';
 }
 
 export interface SimulationScenario {

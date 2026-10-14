@@ -91,14 +91,15 @@ export class SimulationService {
 
     // Material impact comparison
     const materialImpact = simNeeds.map(sn => {
-      const orig = originalNeeds.find(on => on.materialCode === sn.materialCode);
+      const orig = originalNeeds.find(on => on.materialCode === sn.materialCode && on.unit === sn.unit);
+      if (!orig?.coverageKnown || !sn.coverageKnown) return null;
       return {
         materialName: sn.materialName,
-        originalDeficit: orig?.deficit || 0,
+        originalDeficit: orig.deficit,
         newDeficit: sn.deficit,
-        change: sn.deficit - (orig?.deficit || 0),
+        change: sn.deficit - orig.deficit,
       };
-    }).filter(m => m.change !== 0);
+    }).filter((m): m is NonNullable<typeof m> => m !== null && m.change !== 0);
 
     // KPIs
     const delayedInSim = affectedOPs.filter(o => o.daysImpact > 0).length;
