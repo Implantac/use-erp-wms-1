@@ -170,3 +170,7 @@ A migration `20261014130000_freeze_routes_referenced_by_ops.sql` propõe: OP com
 ## Incremento local após `8e7800a9` — OEE no BI industrial
 
 Removido de `useBIMetrics()` o suposto OEE calculado por razões tempo realizado/estimado e produzido/planejado sem períodos, disponibilidade e velocidade ideal de máquina medidos. Scorecard exibe «— / não apurado»; aba BI descreve a ausência da base e direciona aos registros por empresa do painel OEE, que continuam sujeitos à auditoria de origem, calibração e janela e **não** compõem OEE global. Teste estático 1/1, typecheck e lint CI aprovados. Sem ensaio de banco; outros indicadores financeiros/estratégicos não foram homologados neste incremento.
+
+## Incremento local após `8e7800a9` — BI financeiro sem receita fictícia
+
+`useBIMetrics()` deixava soma de preços/custos **unitários cadastrados** virar «Receita Total», «Lucro Bruto», «Custo Médio por Peça», «Valor Agregado/Hora» e custo monetário de refugo. Estes valores passam a «— / não apurado» nas telas BI; gráfico por produto mostra diferença **unitária** entre preço e custo cadastrado, não lucro realizado. Pareto ABC por soma dessas diferenças deixa de ser exibido, por faltar volume de vendas/custos efetivos comparáveis. Percentual de pontualidade sem OP com data agora mostra «—». Teste estático 1/1, typecheck, lint CI aprovados; não houve ensaio financeiro, transações reais ou banco de homologação. `useProductCosts` e demais telas consumidoras fora do BI ainda requerem revisão própria.

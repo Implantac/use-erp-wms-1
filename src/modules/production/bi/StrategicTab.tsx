@@ -3,16 +3,15 @@ import { Activity, AlertTriangle, DollarSign, Target } from 'lucide-react';
 import { Badge } from '@/ui/base/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
-import { formatBRL } from '@/lib/formatters';
 import type { BIMetrics } from './useBIMetrics';
 
 export function StrategicTab({ metrics }: { metrics: BIMetrics }) {
-  const { strategicIndicators, totalRejected, onTimePct, onTime, completedOPs, lateOPs } = metrics;
+  const { onTimePct, onTime, completedOPs, lateOPs } = metrics;
   const items = [
     { label: 'MTTR (Tempo Reparo)', value: '—', desc: 'Requer dados de manutenção', icon: <Activity className="h-6 w-6 text-primary" /> },
-    { label: 'Custo de Não-Qualidade', value: formatBRL(strategicIndicators.scrapCostEstimate), desc: `${totalRejected} peças × ${formatBRL(strategicIndicators.costPerPiece)}/peça`, icon: <AlertTriangle className="h-6 w-6 text-destructive" /> },
-    { label: 'Valor Agregado/Hora', value: formatBRL(strategicIndicators.revenuePerHour), desc: 'Receita por hora produtiva', icon: <DollarSign className="h-6 w-6 text-success" /> },
-    { label: 'On-Time Delivery', value: `${onTimePct.toFixed(0)}%`, desc: `${onTime} de ${completedOPs.length} OPs no prazo`, icon: <Target className="h-6 w-6 text-primary" /> },
+    { label: 'Custo de Não-Qualidade', value: '—', desc: 'Requer custo real de perda por lote', icon: <AlertTriangle className="h-6 w-6 text-destructive" /> },
+    { label: 'Valor Agregado/Hora', value: '—', desc: 'Requer receita realizada e horas compatíveis', icon: <DollarSign className="h-6 w-6 text-success" /> },
+    { label: 'On-Time Delivery', value: completedOPs.length ? `${onTimePct.toFixed(0)}%` : '—', desc: `${onTime} de ${completedOPs.length} OPs no prazo`, icon: <Target className="h-6 w-6 text-primary" /> },
   ];
   return (
     <div className="space-y-4">

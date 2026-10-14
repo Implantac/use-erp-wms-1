@@ -13,7 +13,7 @@ export function ProfitTab({ metrics }: { metrics: BIMetrics }) {
     <div className="space-y-4">
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Lucro por Produto (Top 15)</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Diferença unitária entre preço e custo cadastrado (Top 15)</CardTitle></CardHeader>
           <CardContent>
             {profitByProduct.length > 0 ? (
               <ResponsiveContainer width="100%" height={400}>
@@ -22,7 +22,7 @@ export function ProfitTab({ metrics }: { metrics: BIMetrics }) {
                   <XAxis type="number" fontSize={11} tickFormatter={v => `R$${v}`} />
                   <YAxis dataKey="product" type="category" width={120} fontSize={11} />
                   <Tooltip formatter={(v: number) => formatBRL(v)} />
-                  <Bar dataKey="profit" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="unitDifference" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]}>
                     {profitByProduct.map((entry, i) => (
                       <Cell key={i} fill={entry.margin < 10 ? 'hsl(var(--destructive))' : entry.margin < 20 ? 'hsl(var(--chart-3))' : 'hsl(var(--primary))'} />
                     ))}
@@ -34,7 +34,7 @@ export function ProfitTab({ metrics }: { metrics: BIMetrics }) {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Receita × Custo × Lucro</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Preço de venda × Custo cadastrado (por unidade)</CardTitle></CardHeader>
           <CardContent>
             {profitByProduct.length > 0 ? (
               <ResponsiveContainer width="100%" height={400}>
@@ -44,8 +44,8 @@ export function ProfitTab({ metrics }: { metrics: BIMetrics }) {
                   <YAxis dataKey="product" type="category" width={120} fontSize={11} />
                   <Tooltip formatter={(v: number) => formatBRL(v)} />
                   <Legend />
-                  <Bar dataKey="revenue" name="Receita" fill="hsl(var(--chart-2))" stackId="a" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="cost" name="Custo" fill="hsl(var(--destructive))" stackId="b" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="price" name="Preço unitário" fill="hsl(var(--chart-2))" stackId="a" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="cost" name="Custo unitário" fill="hsl(var(--destructive))" stackId="b" radius={[0, 0, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <p className="text-center text-muted-foreground py-8">Sem dados</p>}
@@ -55,7 +55,7 @@ export function ProfitTab({ metrics }: { metrics: BIMetrics }) {
 
       {lowMarginProducts.length > 0 && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning" /> Produtos com Margem Crítica</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning" /> Produtos com margem cadastrada abaixo do limite</CardTitle></CardHeader>
           <CardContent>
             <Table>
               <TableHeader><TableRow>

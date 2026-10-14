@@ -6,7 +6,7 @@ import { useTimeEntries } from '@/hooks/system/useTimeEntries';
 import { useProductionCapacity } from '@/hooks/production/useProductionCapacity';
 
 export function useBIMetrics(periodDays: number) {
-  const { costs, avgMargin, totalRevenue, totalCostSum, lowMarginProducts, highCostProducts } = useProductCosts();
+  const { costs, avgMargin, lowMarginProducts, highCostProducts } = useProductCosts();
   const { orders } = useProductionOrders();
   const { entries } = useTimeEntries();
   const { capacities } = useProductionCapacity();
@@ -16,30 +16,13 @@ export function useBIMetrics(periodDays: number) {
     .map(c => ({
       product: c.product_name.length > 20 ? c.product_name.slice(0, 20) + '…' : c.product_name,
       fullName: c.product_name,
-      revenue: c.sale_price,
+      price: c.sale_price,
       cost: c.total_cost,
-      profit: c.sale_price - c.total_cost,
+      unitDifference: c.sale_price - c.total_cost,
       margin: c.profit_margin,
     }))
-    .sort((a, b) => b.profit - a.profit)
+    .sort((a, b) => b.unitDifference - a.unitDifference)
     .slice(0, 15), [costs]);
-
-  const paretoData = useMemo(() => {
-    const sorted = costs.filter(c => c.sale_price > 0).sort((a, b) => (b.sale_price - b.total_cost) - (a.sale_price - a.total_cost));
-    const totalProfit = sorted.reduce((s, c) => s + Math.max(0, c.sale_price - c.total_cost), 0);
-    let cumulative = 0;
-    return sorted.slice(0, 20).map(c => {
-      const profit = Math.max(0, c.sale_price - c.total_cost);
-      cumulative += profit;
-      const cumPct = totalProfit > 0 ? (cumulative / totalProfit) * 100 : 0;
-      return {
-        product: c.product_name.length > 15 ? c.product_name.slice(0, 15) + '…' : c.product_name,
-        profit,
-        cumPct: +cumPct.toFixed(1),
-        class: cumPct <= 80 ? 'A' : cumPct <= 95 ? 'B' : 'C',
-      };
-    });
-  }, [costs]);
 
   const costBySector = useMemo(() => {
     const sectorMap: Record<string, { laborMin: number; produced: number; orders: number; rejected: number; estMin: number }> = {};
@@ -65,7 +48,6 @@ export function useBIMetrics(periodDays: number) {
   }, [orders]);
 
   const totalEstimated = orders.reduce((s, o) => s + o.estimated_time_minutes, 0);
-  const totalRealized = orders.reduce((s, o) => s + o.realized_time_minutes, 0);
   const totalProduced = orders.reduce((s, o) => s + o.produced_quantity, 0);
   const totalRejected = orders.reduce((s, o) => s + o.rejected_quantity, 0);
 
@@ -124,23 +106,13 @@ export function useBIMetrics(periodDays: number) {
     return brackets;
   }, [costs]);
 
-  const strategicIndicators = useMemo(() => {
-    const totalGrossProfit = totalRevenue - totalCostSum;
-    const costPerPiece = totalProduced > 0 ? totalCostSum / totalProduced : 0;
-    const revenuePerHour = totalRealized > 0 ? totalRevenue / (totalRealized / 60) : 0;
-    const scrapCostEstimate = totalRejected * costPerPiece;
-    return {
-      grossProfit: totalGrossProfit,
-      costPerPiece,
-      revenuePerHour,
-      scrapCostEstimate,
-      scrapRate: totalProduced > 0 ? (totalRejected / (totalProduced + totalRejected)) * 100 : 0,
-    };
-  }, [totalRevenue, totalCostSum, totalProduced, totalRejected, totalRealized]);
+  const strategicIndicators = useMemo(() => ({
+    scrapRate: (totalProduced + totalRejected) > 0 ? (totalRejected / (totalProduced + totalRejected)) * 100 : null,
+  }), [totalProduced, totalRejected]);
 
   return {
-    costs, avgMargin, totalRevenue, totalCostSum, lowMarginProducts, highCostProducts,
-    orders, profitByProduct, paretoData, costBySector,
+    costs, avgMargin, lowMarginProducts, highCostProducts,
+    orders, profitByProduct, costBySector,
     totalProduced, totalRejected,
     productionTrend,
     onTimePct, onTime, completedOPs, lateOPs,

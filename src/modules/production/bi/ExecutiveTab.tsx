@@ -1,7 +1,6 @@
 import { Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
 import { cn } from '@/lib/utils';
-import { formatBRL } from '@/lib/formatters';
 import type { BIMetrics } from './useBIMetrics';
 
 interface ExecutiveTabProps {
@@ -18,21 +17,21 @@ export function ExecutiveTab({ metrics, period, periodDays }: ExecutiveTabProps)
         <Card>
           <CardContent className="pt-6 text-center space-y-2">
             <p className="text-sm text-muted-foreground">Receita por Hora Trabalhada</p>
-            <p className="text-4xl font-black text-primary">{formatBRL(strategicIndicators.revenuePerHour)}</p>
-            <p className="text-xs text-muted-foreground">Eficiência monetária da produção</p>
+            <p className="text-4xl font-black text-primary">—</p>
+            <p className="text-xs text-muted-foreground">Não apurada: preços cadastrados não são receita realizada</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center space-y-2">
             <p className="text-sm text-muted-foreground">Custo Médio por Peça</p>
-            <p className="text-4xl font-black">{formatBRL(strategicIndicators.costPerPiece)}</p>
-            <p className="text-xs text-muted-foreground">Considerando custo total</p>
+            <p className="text-4xl font-black">—</p>
+            <p className="text-xs text-muted-foreground">Não apurado: custos de catálogo não são custos de OP</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center space-y-2">
             <p className="text-sm text-muted-foreground">Taxa de Refugo</p>
-            <p className={cn('text-4xl font-black', strategicIndicators.scrapRate > 5 ? 'text-destructive' : 'text-success')}>{strategicIndicators.scrapRate.toFixed(1)}%</p>
+            <p className={cn('text-4xl font-black', strategicIndicators.scrapRate !== null && strategicIndicators.scrapRate > 5 ? 'text-destructive' : '')}>{strategicIndicators.scrapRate === null ? '—' : `${strategicIndicators.scrapRate.toFixed(1)}%`}</p>
             <p className="text-xs text-muted-foreground">{totalRejected} peças rejeitadas de {totalProduced + totalRejected}</p>
           </CardContent>
         </Card>
