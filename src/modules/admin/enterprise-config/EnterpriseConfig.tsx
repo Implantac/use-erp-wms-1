@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { INDUSTRIAL_PROFILES, INDUSTRIAL_STAGES, parseIndustrialPlanning, type IndustrialProfile, type IndustrialStage, type StageMode } from "@/config/industrialProfile";
+import { INDUSTRIAL_PROFILES, INDUSTRIAL_STAGES, INDUSTRIAL_PROCESS_FAMILIES, INDUSTRIAL_FAMILY_DISCOVERY, parseIndustrialPlanning, type IndustrialProfile, type IndustrialStage, type IndustrialProcessFamily, type StageMode } from "@/config/industrialProfile";
 import { PageContainer } from "@/shared/components/PageContainer";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/ui/base/card";
@@ -148,8 +148,30 @@ export default function EnterpriseConfig() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Perfil industrial</Label>
-                <Select value={industrial.profile ?? 'none'} onValueChange={value => setIndustrial({ profile: value === 'none' ? null : value as IndustrialProfile, stages: {} })}>
+                <Label>Processos industriais da empresa (planejamento)</Label>
+                <p className="text-xs text-muted-foreground">Selecione todos os processos aplicáveis. Isso não libera OPs, receitas, requisitos regulatórios, qualidade ou movimentação de estoque.</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {Object.entries(INDUSTRIAL_PROCESS_FAMILIES).map(([key, label]) => {
+                    const family = key as IndustrialProcessFamily;
+                    return <div key={key} className="flex items-center justify-between rounded-md border p-3">
+                      <Label htmlFor={`process-${key}`}>{label}</Label>
+                      <Switch id={`process-${key}`} checked={industrial.families.includes(family)}
+                        onCheckedChange={checked => setIndustrial(prev => ({ ...prev, families: checked
+                          ? [...prev.families, family] : prev.families.filter(f => f !== family) }))} />
+                    </div>;
+                  })}
+                </div>
+              </div>
+              {industrial.families.length > 0 && <div className="space-y-2 rounded-md border p-3" role="note">
+                <p className="font-medium text-sm">Pontos para levantamento por processo — não homologados</p>
+                {industrial.families.map(family => <div key={family} className="text-sm">
+                  <p className="font-medium">{INDUSTRIAL_PROCESS_FAMILIES[family]}</p>
+                  <p className="text-muted-foreground">{INDUSTRIAL_FAMILY_DISCOVERY[family].join(' · ')}</p>
+                </div>)}
+              </div>}
+              <div className="space-y-2">
+                <Label>Perfil têxtil (opcional)</Label>
+                <Select value={industrial.profile ?? 'none'} onValueChange={value => setIndustrial(prev => ({ ...prev, profile: value === 'none' ? null : value as IndustrialProfile, stages: {} }))}>
                   <SelectTrigger><SelectValue placeholder="Selecione um perfil" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Não configurado</SelectItem>
