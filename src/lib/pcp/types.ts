@@ -122,11 +122,9 @@ export interface PCPMetrics {
   delayRate: number;
   delayedCount: number;
   onTimeRate: number;
-  efficiency: number;
   throughput: number;
   leadTimeSampleSize: number;
   dueDateSampleSize: number;
-  completedSampleSize: number;
 }
 
 export interface ScheduleSlot {

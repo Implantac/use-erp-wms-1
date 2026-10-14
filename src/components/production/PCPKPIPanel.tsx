@@ -49,9 +49,8 @@ export default function PCPKPIPanel({ orders, timeEntries, capacities, sheets, s
           accentColor={metrics.delayRate <= 10 ? 'success' : metrics.delayRate <= 30 ? 'warning' : 'danger'} index={1}
           numericValue={metrics.delayRate}
           status={metrics.delayRate <= 10 ? 'healthy' : metrics.delayRate <= 30 ? 'warn' : 'critical'} source="PCP" />
-        <KPICard title="Produzido / planejado" value={metrics.completedSampleSize ? `${metrics.efficiency}%` : "—"} subtitle="Somente OPs concluídas" icon={<Gauge className="h-5 w-5" />}
-          accentColor={metrics.efficiency >= 90 ? 'success' : 'warning'} index={2}
-          numericValue={metrics.efficiency} progress={metrics.efficiency} source="PCP" />
+        <KPICard title="OPs concluídas hoje" value={metrics.completedToday} subtitle="Contagem de OPs, sem somar quantidades" icon={<Gauge className="h-5 w-5" />}
+          accentColor="primary" index={2} numericValue={metrics.completedToday} source="PCP" />
         <KPICard title="OPs concluídas (30 dias)" value={metrics.throughput} icon={<TrendingUp className="h-5 w-5" />}
           accentColor="primary" index={3} numericValue={metrics.throughput} source="PCP" />
 

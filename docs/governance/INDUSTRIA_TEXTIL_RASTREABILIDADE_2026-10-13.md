@@ -194,3 +194,7 @@ A antiga aba «Custo por Processo» misturava quantidades de diferentes produtos
 ## Incremento local após `8e7800a9` — não somar quantidades sem unidade no BI
 
 O resumo executivo não calcula mais refugo global pela soma de quantidades de OPs potencialmente em unidades distintas. A série de apontamentos deixou de somar produção/refugo e derivar peças/h ou rendimento de registros sem unidade verificada. Ela agora informa somente **número de apontamentos concluídos com intervalo válido** e **tempo decorrido bruto** entre início e término, que pode incluir pausas e NÃO é hora produtiva. Sem apontamentos, duração aparece desconhecida. Testes de tendência 3/3, setor 2/2, estático 1/1, typecheck e lint CI aprovados. Não houve teste em banco nem homologação da unidade de produto, pausas, recortes ou revisão dos outros módulos que exibem esses valores.
+
+## Incremento local após `8e7800a9` — painel PCP sem «eficiência» entre unidades
+
+`PCPMetricsService` deixa de somar quantidades produzidas/planejadas de OPs heterogêneas para afirmar eficiência. O cartão correspondente passa a contar OPs concluídas hoje (sem soma de quantidades). Verificação estática 1/1, typecheck e lint CI aprovados; não houve homologação de datas, banco nem índice real de eficiência produtiva.

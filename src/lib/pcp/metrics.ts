@@ -36,11 +36,6 @@ export class PCPMetricsService {
       return new Date() > new Date(o.due_date) && o.status !== 'completed';
     });
 
-    // Efficiency
-    const totalProduced = completedOPs.reduce((s, o) => s + o.produced_quantity, 0);
-    const totalPlanned = completedOPs.reduce((s, o) => s + o.quantity, 0);
-    const efficiency = totalPlanned > 0 ? (totalProduced / totalPlanned) * 100 : 0;
-
     // Throughput (completed OPs in last 30 days)
     const last30 = completedOPs.filter(o => {
       if (!o.completed_date) return false;
@@ -58,11 +53,9 @@ export class PCPMetricsService {
       delayRate: withDueDate.length > 0 ? Math.round((delayed.length / withDueDate.length) * 100) : 0,
       delayedCount: delayed.length,
       onTimeRate: withDueDate.length > 0 ? Math.round(((withDueDate.length - delayed.length) / withDueDate.length) * 100) : 0,
-      efficiency: Math.round(efficiency),
       throughput,
       leadTimeSampleSize: leadTimes.length,
       dueDateSampleSize: withDueDate.length,
-      completedSampleSize: totalPlanned > 0 ? completedOPs.length : 0,
     };
   }
 }
