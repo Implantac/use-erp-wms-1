@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 
 export interface ProductionRouteStep {
   id: string;
@@ -34,24 +35,29 @@ export interface ProductionRouteRow {
 }
 
 export function useProductionRoutes() {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
   const [routes, setRoutes] = useState<ProductionRouteRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetch = useCallback(async () => {
+    if (!companyId) { setRoutes([]); setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('production_routes')
       .select('*')
+      .eq('company_id', companyId)
       .order('code');
     if (error) { console.error(error); toast.error('Erro ao carregar rotas'); }
     else setRoutes(data || []);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
   const create = async (item: Partial<ProductionRouteRow>) => {
-    const { error } = await supabase.from('production_routes').insert(item as TablesInsert<'production_routes'>);
+    if (!companyId) { toast.error('Selecione a empresa para cadastrar o roteiro'); return false; }
+    const { error } = await supabase.from('production_routes').insert({ ...item, company_id: companyId } as TablesInsert<'production_routes'>);
     if (error) { toast.error('Erro ao criar rota'); return false; }
     toast.success('Rota cadastrada');
     await fetch();
@@ -59,17 +65,19 @@ export function useProductionRoutes() {
   };
 
   const update = async (id: string, updates: Partial<ProductionRouteRow>) => {
-    const { error } = await supabase.from('production_routes').update({ ...updates, updated_at: new Date().toISOString() } as TablesUpdate<'production_routes'>).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar rota'); return false; }
+    if (!companyId) { toast.error('Selecione a empresa para alterar o roteiro'); return false; }
+    const { data, error } = await supabase.from('production_routes').update({ ...updates, company_id: companyId, updated_at: new Date().toISOString() } as TablesUpdate<'production_routes'>).eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao atualizar rota'); return false; }
     toast.success('Rota atualizada');
     await fetch();
     return true;
   };
 
   const remove = async (id: string) => {
+    if (!companyId) { toast.error('Selecione a empresa para excluir o roteiro'); return false; }
     // The route_steps FK has ON DELETE CASCADE: delete the parent in one
     // database statement. Never delete children before the parent succeeds.
-    const { data, error } = await supabase.from('production_routes').delete().eq('id', id).select('id');
+    const { data, error } = await supabase.from('production_routes').delete().eq('id', id).eq('company_id', companyId).select('id');
     if (error || !data?.length) {
       toast.error('Rota não excluída. Pode estar vinculada a uma OP ou faltar permissão.');
       return false;
@@ -83,16 +91,18 @@ export function useProductionRoutes() {
 }
 
 export function useProductionRouteSteps(routeId?: string) {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
   const [steps, setSteps] = useState<ProductionRouteStep[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetch = useCallback(async () => {
-    if (!routeId) { setSteps([]); setLoading(false); return; }
+    if (!routeId || !companyId) { setSteps([]); setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('production_route_steps')
       .select('*, production_sectors(name), production_resources(name)')
-      .eq('route_id', routeId)
+      .eq('route_id', routeId).eq('company_id', companyId)
       .order('sequence');
     if (error) { console.error(error); }
     else setSteps((data || []).map((d) => ({
@@ -101,12 +111,13 @@ export function useProductionRouteSteps(routeId?: string) {
       resource_name: d.production_resources?.name,
     })));
     setLoading(false);
-  }, [routeId]);
+  }, [routeId, companyId]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
   const addStep = async (step: Partial<ProductionRouteStep>) => {
-    const { error } = await supabase.from('production_route_steps').insert({ ...step, route_id: routeId } as TablesInsert<'production_route_steps'>);
+    if (!routeId || !companyId) { toast.error('Selecione a empresa e o roteiro'); return false; }
+    const { error } = await supabase.from('production_route_steps').insert({ ...step, route_id: routeId, company_id: companyId } as TablesInsert<'production_route_steps'>);
     if (error) { toast.error('Erro ao adicionar etapa'); return false; }
     toast.success('Etapa adicionada');
     await fetch();
@@ -116,25 +127,27 @@ export function useProductionRouteSteps(routeId?: string) {
   };
 
   const updateStep = async (id: string, updates: Partial<ProductionRouteStep>) => {
-    const { error } = await supabase.from('production_route_steps').update(updates as TablesUpdate<'production_route_steps'>).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar etapa'); return; }
+    if (!companyId) { toast.error('Selecione a empresa para alterar a etapa'); return; }
+    const { data, error } = await supabase.from('production_route_steps').update(updates as TablesUpdate<'production_route_steps'>).eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao atualizar etapa'); return; }
     await fetch();
     await recalcTotalTime();
   };
 
   const removeStep = async (id: string) => {
-    const { error } = await supabase.from('production_route_steps').delete().eq('id', id);
-    if (error) { toast.error('Erro ao excluir etapa'); return; }
+    if (!companyId) { toast.error('Selecione a empresa para excluir a etapa'); return; }
+    const { data, error } = await supabase.from('production_route_steps').delete().eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao excluir etapa'); return; }
     toast.success('Etapa removida');
     await fetch();
     await recalcTotalTime();
   };
 
   const recalcTotalTime = async () => {
-    if (!routeId) return;
-    const { data } = await supabase.from('production_route_steps').select('setup_time_minutes, operation_time_minutes').eq('route_id', routeId);
+    if (!routeId || !companyId) return;
+    const { data } = await supabase.from('production_route_steps').select('setup_time_minutes, operation_time_minutes').eq('route_id', routeId).eq('company_id', companyId);
     const total = (data || []).reduce((s: number, r: { setup_time_minutes: number | null; operation_time_minutes: number | null }) => s + (r.setup_time_minutes || 0) + (r.operation_time_minutes || 0), 0);
-    await supabase.from('production_routes').update({ total_time_minutes: total, updated_at: new Date().toISOString() } as TablesUpdate<'production_routes'>).eq('id', routeId);
+    await supabase.from('production_routes').update({ total_time_minutes: total, updated_at: new Date().toISOString() } as TablesUpdate<'production_routes'>).eq('id', routeId).eq('company_id', companyId);
   };
 
   return { steps, loading, refetch: fetch, addStep, updateStep, removeStep };

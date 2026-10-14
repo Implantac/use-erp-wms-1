@@ -12,15 +12,23 @@ import { toSafeNumber } from '@/lib/numericValidation';
 import { useProductionRouteSteps, ProductionRouteStep } from '@/hooks/production/useProductionRoutes';
 import { useProductionSectors } from '@/hooks/production/useProductionSectors';
 import { useProductionResources } from '@/hooks/production/useProductionResources';
+import { useProductionSteps } from '@/hooks/production/useProductionSteps';
 
 export function RouteStepsPanel({ routeId, onClose }: { routeId: string; onClose: () => void }) {
   const { steps, loading, addStep, removeStep } = useProductionRouteSteps(routeId);
   const { activeSectors } = useProductionSectors();
   const { resources } = useProductionResources();
+  const { steps: registeredOperations } = useProductionSteps();
+  const activeNameCounts = registeredOperations.filter(op => op.is_active).reduce((counts, op) => {
+    counts.set(op.name, (counts.get(op.name) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const selectableOperations = registeredOperations.filter(op => op.is_active && activeNameCounts.get(op.name) === 1);
   const [showAdd, setShowAdd] = useState(false);
   const [newStep, setNewStep] = useState<Partial<ProductionRouteStep>>({ step_name: '', sequence: 1, sector_id: null, resource_id: null, setup_time_minutes: 0, operation_time_minutes: 0 });
 
   const handleAdd = async () => {
+    if (!selectableOperations.some(op => op.name === newStep.step_name)) return;
     const ok = await addStep({ ...newStep, sequence: steps.length + 1 });
     if (ok) {
       setShowAdd(false);
@@ -62,7 +70,13 @@ export function RouteStepsPanel({ routeId, onClose }: { routeId: string; onClose
               Nova Etapa
             </p>
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="space-y-1"><Label className="text-xs">Nome da Etapa *</Label><Input value={newStep.step_name || ''} onChange={e => setNewStep({ ...newStep, step_name: e.target.value })} placeholder="Usinagem" /></div>
+              <div className="space-y-1"><Label className="text-xs">Operação cadastrada *</Label>
+                <Select value={newStep.step_name || ''} onValueChange={name => setNewStep({ ...newStep, step_name: name })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione uma operação ativa" /></SelectTrigger>
+                  <SelectContent>{selectableOperations.map(op => <SelectItem key={op.id} value={op.name}>{op.name}</SelectItem>)}</SelectContent>
+                </Select>
+                {selectableOperations.length === 0 && <p className="text-xs text-warning">Cadastre uma operação ativa com nome único para esta empresa antes de adicionar etapas.</p>}
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs">Setor</Label>
                 <Select value={newStep.sector_id || ''} onValueChange={v => setNewStep({ ...newStep, sector_id: v })}>
@@ -83,7 +97,7 @@ export function RouteStepsPanel({ routeId, onClose }: { routeId: string; onClose
               <div className="space-y-1"><Label className="text-xs">Operação (min)</Label><Input type="number" value={newStep.operation_time_minutes || 0} onChange={e => setNewStep({ ...newStep, operation_time_minutes: toSafeNumber(e.target.value) })} /></div>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={handleAdd} disabled={!newStep.step_name}>Adicionar</Button>
+              <Button size="sm" onClick={handleAdd} disabled={!selectableOperations.some(op => op.name === newStep.step_name)}>Adicionar</Button>
               <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>Cancelar</Button>
             </div>
           </div>

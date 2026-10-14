@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 
 export interface ProductionStep {
   id: string;
@@ -38,24 +39,29 @@ export interface ProductionOrderStep {
 }
 
 export function useProductionSteps() {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
   const [steps, setSteps] = useState<ProductionStep[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchSteps = useCallback(async () => {
+    if (!companyId) { setSteps([]); setLoading(false); return; }
     setLoading(true);
     const { data, error } = await supabase
       .from('production_steps')
       .select('*')
+      .eq('company_id', companyId)
       .order('sequence', { ascending: true });
     if (error) { console.error(error); toast.error('Erro ao carregar etapas'); }
     else setSteps(data || []);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { fetchSteps(); }, [fetchSteps]);
 
   const createStep = async (step: Partial<ProductionStep>) => {
-    const { error } = await supabase.from('production_steps').insert(step as TablesInsert<'production_steps'>);
+    if (!companyId) { toast.error('Selecione a empresa para cadastrar a operação'); return false; }
+    const { error } = await supabase.from('production_steps').insert({ ...step, company_id: companyId } as TablesInsert<'production_steps'>);
     if (error) { toast.error('Erro ao criar etapa'); return false; }
     toast.success('Etapa criada');
     await fetchSteps();
@@ -63,15 +69,17 @@ export function useProductionSteps() {
   };
 
   const updateStep = async (id: string, updates: Partial<ProductionStep>) => {
-    const { error } = await supabase.from('production_steps').update({ ...updates, updated_at: new Date().toISOString() } as TablesUpdate<'production_steps'>).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar etapa'); return; }
+    if (!companyId) { toast.error('Selecione a empresa para alterar a operação'); return; }
+    const { data, error } = await supabase.from('production_steps').update({ ...updates, company_id: companyId, updated_at: new Date().toISOString() } as TablesUpdate<'production_steps'>).eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao atualizar etapa'); return; }
     toast.success('Etapa atualizada');
     await fetchSteps();
   };
 
   const deleteStep = async (id: string) => {
-    const { error } = await supabase.from('production_steps').delete().eq('id', id);
-    if (error) { toast.error('Erro ao excluir etapa'); return; }
+    if (!companyId) { toast.error('Selecione a empresa para excluir a operação'); return; }
+    const { data, error } = await supabase.from('production_steps').delete().eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao excluir etapa'); return; }
     toast.success('Etapa excluída');
     await fetchSteps();
   };
