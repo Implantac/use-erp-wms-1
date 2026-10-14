@@ -27,6 +27,8 @@ describe('MRP compartilhado com PCP', () => {
     const two = { ...sheet, materials: [...sheet.materials!, { code: 'FIO', quantity: 1, unit: 'm' }] };
     expect(MRPService.calculateNeeds([op], [two], [supply('kg', 20)])).toHaveLength(2);
     expect(MRPService.calculateNeeds([op], [sheet, { ...sheet }], [supply('kg', 20)])).toEqual([]);
+    const suggestions = MRPService.generateSuggestions([], [op], [], [sheet, { ...sheet }]);
+    expect(suggestions.some(s => s.title.includes('sem ficha única e completa'))).toBe(true);
     expect(MRPService.calculateNeeds([op], [{ ...sheet, materials: [{ code: 'FIO', quantity: 2 }] }], [supply('kg', 20)])).toEqual([]);
   });
 });

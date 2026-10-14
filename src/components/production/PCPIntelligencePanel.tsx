@@ -43,8 +43,8 @@ export default function PCPIntelligencePanel({ suggestions, summary, compact = f
       <Card>
         <CardContent className="py-8 text-center">
           <Brain className="h-10 w-10 mx-auto text-success/40 mb-3" />
-          <p className="text-sm font-medium text-success">Nenhum alerta — PCP saudável</p>
-          <p className="text-xs text-muted-foreground mt-1">Materiais disponíveis, OPs no prazo, capacidade ok</p>
+          <p className="text-sm font-medium text-success">Nenhum alerta calculado</p>
+          <p className="text-xs text-muted-foreground mt-1">Ausência de alertas não comprova disponibilidade de materiais, capacidade ou qualidade.</p>
         </CardContent>
       </Card>
     );

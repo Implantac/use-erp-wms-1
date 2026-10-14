@@ -105,7 +105,7 @@ export class SimulationService {
     const delayedInSim = affectedOPs.filter(o => o.daysImpact > 0).length;
     const totalActive = activeOPs.filter(o => o.due_date).length;
 
-    const suggestions = MRPService.generateSuggestions(simNeeds, activeOPs, simCapacities);
+    const suggestions = MRPService.generateSuggestions(simNeeds, activeOPs, simCapacities, sheets);
 
     return {
       scenario: scenario.name,

@@ -23,7 +23,7 @@ export default function PCPKPIPanel({ orders, timeEntries, capacities, sheets, s
     if (!sheets || !supplies) return [];
     const activeOPs = orders.filter(o => ['planned', 'in_progress', 'paused'].includes(o.status));
     const needs = MRPService.calculateNeeds(activeOPs, sheets, supplies);
-    return MRPService.generateSuggestions(needs, activeOPs, capacities);
+    return MRPService.generateSuggestions(needs, activeOPs, capacities, sheets);
   }, [orders, sheets, supplies, capacities]);
 
   const leadTimeData = [

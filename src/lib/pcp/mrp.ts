@@ -5,6 +5,22 @@ import type {
   SimulationResult, ActionSuggestion, PCPMetrics, ScheduleSlot,
 } from './types';
 
+/** No implicit revision choice: an OP needs one complete candidate sheet. */
+export function getUniqueUsableSheet(op: OrderLike, sheets: SheetLike[]): SheetLike | null {
+  const candidates = sheets.filter(s => (op.product_id && s.product_id === op.product_id)
+    || (op.product_code && s.product_code === op.product_code));
+  if (candidates.length !== 1 || !Array.isArray(candidates[0].materials) || !candidates[0].materials.length) return null;
+  const materials = candidates[0].materials;
+  const valid = materials.every(mat => {
+    const code = (mat.code || mat.componentCode || mat.material_code || '').trim();
+    const quantity = mat.quantity ?? mat.qty;
+    const waste = mat.waste_pct ?? mat.wastePercentage ?? 0;
+    return !!code && !!mat.unit?.trim() && Number.isFinite(quantity) && (quantity ?? 0) > 0
+      && Number.isFinite(waste) && waste >= 0;
+  });
+  return valid ? candidates[0] : null;
+}
+
 export class MRPService {
   /**
    * Calculate material needs from production orders and technical sheets
@@ -17,19 +33,11 @@ export class MRPService {
     const needsMap = new Map<string, { materialCode: string; totalRequired: number; relatedOPs: string[]; unit: string; name: string }>();
 
     for (const op of activeOPs) {
-      const candidates = sheets.filter(s => (op.product_id && s.product_id === op.product_id)
-        || (op.product_code && s.product_code === op.product_code));
-      if (candidates.length !== 1 || !Array.isArray(candidates[0].materials) || !candidates[0].materials.length) continue;
-      const materials = candidates[0].materials;
-      const valid = materials.every(mat => {
-        const code = (mat.code || mat.componentCode || mat.material_code || '').trim();
-        const quantity = mat.quantity ?? mat.qty;
-        const waste = mat.waste_pct ?? mat.wastePercentage ?? 0;
-        return !!code && !!mat.unit?.trim() && Number.isFinite(quantity) && (quantity ?? 0) > 0
-          && Number.isFinite(waste) && waste >= 0;
-      });
+      const sheet = getUniqueUsableSheet(op, sheets);
+      if (!sheet) continue;
+      const materials = sheet.materials!;
       const remaining = op.quantity - op.produced_quantity;
-      if (!valid || !Number.isFinite(remaining) || remaining <= 0) continue;
+      if (!Number.isFinite(remaining) || remaining <= 0) continue;
       for (const mat of materials) {
         const code = (mat.code || mat.componentCode || mat.material_code || '').trim();
         const unit = mat.unit!.trim();
@@ -74,9 +82,20 @@ export class MRPService {
   static generateSuggestions(
     needs: MaterialNeed[],
     activeOPs: OrderLike[],
-    capacities: CapacityLike[]
+    capacities: CapacityLike[],
+    sheets?: SheetLike[]
   ): ActionSuggestion[] {
     const suggestions: ActionSuggestion[] = [];
+
+    if (sheets) {
+      const excluded = activeOPs.filter(op => !getUniqueUsableSheet(op, sheets)
+        || !Number.isFinite(op.quantity - op.produced_quantity) || op.quantity - op.produced_quantity < 0);
+      if (excluded.length) suggestions.push({
+        type: 'alert', severity: 'warning',
+        title: `${excluded.length} OP(s) sem ficha única e completa`,
+        description: `Fora da projeção de materiais: ${excluded.slice(0, 3).map(op => op.order_number).join(', ')}. Revise ficha, unidade e versão antes de decidir.`,
+      });
+    }
 
     const unverified = needs.filter(n => !n.coverageKnown);
     if (unverified.length) suggestions.push({

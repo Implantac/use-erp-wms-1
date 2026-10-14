@@ -9,7 +9,6 @@ import { useTechnicalSheets } from '@/hooks/production/useTechnicalSheets';
 import { useSupplyStock } from '@/hooks/inventory/useSupplyStock';
 import { useTimeEntries } from '@/hooks/system/useTimeEntries';
 import { MRPService, SchedulingService, PCPMetricsService, type ActionSuggestion, type PCPMetrics, type MaterialNeed, type ScheduleSlot } from '@/lib/pcpServices';
-import { differenceInDays, differenceInMinutes } from 'date-fns';
 
 export interface PCPIntelligence {
   /** Proactive suggestions sorted by severity */
@@ -28,8 +27,6 @@ export interface PCPIntelligence {
     opsAtRisk: number;
     opsLate: number;
     bottleneckSectors: number;
-    oee: number;
-    onTimePct: number;
   };
   loading: boolean;
 }
@@ -54,8 +51,8 @@ export function usePCPIntelligence(): PCPIntelligence {
   );
 
   const suggestions = useMemo(() =>
-    MRPService.generateSuggestions(materialNeeds, activeOPs, capacities),
-    [materialNeeds, activeOPs, capacities]
+    MRPService.generateSuggestions(materialNeeds, activeOPs, capacities, sheets),
+    [materialNeeds, activeOPs, capacities, sheets]
   );
 
   const scheduledSlots = useMemo(() =>
@@ -82,23 +79,8 @@ export function usePCPIntelligence(): PCPIntelligence {
     const opsAtRisk = scheduledSlots.filter(s => s.willBeLate && !s.isLate).length;
     const bottleneckSectors = resourceLoad.filter(r => r.isOverloaded).length;
 
-    // OEE
-    const totalTarget = orders.filter(o => ['completed', 'in_progress'].includes(o.status)).reduce((s, o) => s + o.quantity, 0);
-    const totalProduced = orders.reduce((s, o) => s + o.produced_quantity, 0);
-    const totalRejected = orders.reduce((s, o) => s + o.rejected_quantity, 0);
-    const totalEst = orders.reduce((s, o) => s + o.estimated_time_minutes, 0);
-    const totalReal = orders.reduce((s, o) => s + o.realized_time_minutes, 0);
-    const avail = totalEst > 0 ? Math.min(totalReal / totalEst, 1) : 0;
-    const perf = totalTarget > 0 ? Math.min(totalProduced / totalTarget, 1) : 0;
-    const qual = totalProduced > 0 ? (totalProduced - totalRejected) / totalProduced : 1;
-    const oee = avail * perf * qual * 100;
-
-    const completedWithDates = orders.filter(o => o.status === 'completed' && o.completed_date && o.due_date);
-    const onTimeCount = completedWithDates.filter(o => new Date(o.completed_date!) <= new Date(o.due_date!)).length;
-    const onTimePct = completedWithDates.length > 0 ? (onTimeCount / completedWithDates.length) * 100 : 0;
-
-    return { criticalAlerts, warningAlerts, materialsInDeficit, opsAtRisk, opsLate, bottleneckSectors, oee, onTimePct };
-  }, [suggestions, materialNeeds, activeOPs, scheduledSlots, resourceLoad, orders]);
+    return { criticalAlerts, warningAlerts, materialsInDeficit, opsAtRisk, opsLate, bottleneckSectors };
+  }, [suggestions, materialNeeds, activeOPs, scheduledSlots, resourceLoad]);
 
   return { suggestions, materialNeeds, scheduledSlots, metrics, summary, loading };
 }
