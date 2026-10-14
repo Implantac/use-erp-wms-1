@@ -22,7 +22,7 @@ export function WarModeDialog({ open, onOpenChange, result, loading, onConfirm }
             <Swords className="h-5 w-5" /> Modo Guerra — Resultado da Análise
           </DialogTitle>
           <DialogDescription>
-            Revisão completa de prioridades, movimentações sugeridas e alertas críticos.
+            Prévia sem gravação. A confirmação altera prioridades; movimentações no Kanban são apenas sugestões. Se houver falha, confira as OPs antes de tentar novamente.
           </DialogDescription>
         </DialogHeader>
         {result && (
@@ -94,7 +94,7 @@ export function WarModeDialog({ open, onOpenChange, result, loading, onConfirm }
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={loading || !result?.priorityChanges?.length}>
+          <Button variant="destructive" onClick={onConfirm} disabled={loading || !result?.snapshot || !result?.priorityChanges?.length}>
             <Swords className="h-4 w-4 mr-1" />
             {loading ? 'Aplicando...' : 'Confirmar e Aplicar'}
           </Button>

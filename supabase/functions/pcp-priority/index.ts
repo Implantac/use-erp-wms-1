@@ -55,6 +55,7 @@ const handler = async (req: Request): Promise<Response> => {
     const parsed = await parseJson(req, v.object({
       action: v.optional(v.string({ enum: ["recalculate", "war_mode"] as const })),
       confirm: v.optional(v.boolean()),
+      expectedSnapshot: v.optional(v.string({ min: 64, max: 64 })),
     }));
     if (!parsed.ok) return parsed.response;
     const body = parsed.data;
@@ -121,12 +122,14 @@ const handler = async (req: Request): Promise<Response> => {
       // Update priority_score on all active OPs
       let updated = 0;
       for (const s of scores) {
-        const { error } = await supabase
+        const { data: written, error } = await supabase
           .from("production_orders")
           .update({ priority_score: s.score, updated_at: new Date().toISOString() })
           .eq("id", s.id)
-          .eq("company_id", callerCompany);
-        if (!error) updated++;
+          .eq("company_id", callerCompany)
+          .select("id");
+        if (error || !written?.length) throw error ?? new Error("OP não atualizada durante recálculo");
+        updated++;
       }
 
       return new Response(
@@ -141,44 +144,43 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (action === "war_mode") {
-      // War mode: recalculate + suggest priority changes + persist scores
-      const changes: any[] = [];
-      for (const s of scores) {
-        let newPriority = "low";
-        if (s.score >= 50) newPriority = "urgent";
-        else if (s.score >= 30) newPriority = "high";
-        else if (s.score >= 15) newPriority = "medium";
+      // Preview must be read-only. Include version and computed score in the
+      // fingerprint so a later confirmation cannot silently apply a changed plan.
+      const snapshotInput = JSON.stringify(allOrders.map((o: any) => [
+        o.id, o.updated_at, o.priority, o.status, o.due_date, o.quantity,
+        o.produced_quantity, scores.find(s => s.id === o.id)?.score,
+      ]).sort((a: any[], b: any[]) => String(a[0]).localeCompare(String(b[0]))));
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(snapshotInput));
+      const snapshot = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
 
-        if (newPriority !== s.currentPriority) {
-          changes.push({
-            id: s.id,
-            order_number: s.order_number,
-            oldPriority: s.currentPriority,
-            newPriority,
-            score: s.score,
-            factors: s.factors,
+      const changes = scores.flatMap(s => {
+        const newPriority = s.score >= 50 ? "urgent" : s.score >= 30 ? "high" : s.score >= 15 ? "medium" : "low";
+        return newPriority === s.currentPriority ? [] : [{
+          id: s.id,
+          order_number: s.order_number,
+          oldPriority: s.currentPriority,
+          newPriority,
+          score: s.score,
+          factors: s.factors,
+        }];
+      });
+
+      if (body.confirm === true) {
+        if (!body.expectedSnapshot || body.expectedSnapshot !== snapshot) {
+          return new Response(JSON.stringify({ error: "Prévia desatualizada. Simule novamente antes de confirmar." }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409,
           });
         }
-
-        // Always update score
-        await supabase
-          .from("production_orders")
-          .update({
+        for (const s of scores) {
+          const change = changes.find(c => c.id === s.id);
+          const version = allOrders.find((o: any) => o.id === s.id)?.updated_at;
+          const { data: written, error } = await supabase.from("production_orders").update({
             priority_score: s.score,
+            ...(change ? { priority: change.newPriority } : {}),
             updated_at: new Date().toISOString(),
-          })
-          .eq("id", s.id)
-          .eq("company_id", callerCompany);
-      }
-
-      // Apply priority changes if confirm flag
-      if (body.confirm === true) {
-        for (const c of changes) {
-          await supabase
-            .from("production_orders")
-            .update({ priority: c.newPriority, updated_at: new Date().toISOString() })
-            .eq("id", c.id)
-            .eq("company_id", callerCompany);
+          }).eq("id", s.id).eq("company_id", callerCompany).eq("updated_at", version).select("id");
+          if (error || !written?.length) throw error ?? new Error("Plano de prioridade alterado durante a confirmação");
+          // Other OPs may have been updated already: this loop is NOT atomic.
         }
       }
 
@@ -186,9 +188,10 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({
           action: "war_mode",
           confirmed: body.confirm === true,
+          snapshot,
           ordersAnalyzed: scores.length,
           priorityChanges: changes,
-          summary: `Modo Guerra: ${scores.length} OPs, ${changes.length} repriorização(ões)${body.confirm ? ' — APLICADO' : ' — simulação'}`,
+          summary: `Modo Guerra: ${scores.length} OPs, ${changes.length} repriorização(ões)${body.confirm ? ' — APLICADO' : ' — prévia sem gravação'}`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );

@@ -10,6 +10,7 @@ import { PriorityEngineService } from './priority';
 import { SchedulingService } from './scheduling';
 export interface WarModeResult {
   timestamp: string;
+  snapshot?: string; // Server-side version of the priority preview.
   ordersAnalyzed: number;
   priorityChanges: { opId: string; opNumber: string; oldPriority: string; newPriority: string; score: number; factors: string[] }[];
   kanbanReorg: { opNumber: string; suggestedStatus: string; reason: string }[];
@@ -48,8 +49,9 @@ export class WarModeService {
     // OPs waiting_material that have materials available → suggest moving to planned/in_progress
     activeOPs.filter(o => o.status === 'waiting_material').forEach(o => {
       const hasCritical = materialNeeds.some(m => m.status === 'critical' && m.relatedOPs.includes(o.order_number));
-      if (!hasCritical) {
-        kanbanReorg.push({ opNumber: o.order_number, suggestedStatus: 'in_progress', reason: 'Material disponível — iniciar produção' });
+      const related = materialNeeds.filter(m => m.relatedOPs.includes(o.order_number));
+      if (!hasCritical && related.length > 0 && related.every(m => m.coverageKnown && m.deficit === 0)) {
+        kanbanReorg.push({ opNumber: o.order_number, suggestedStatus: 'in_progress', reason: 'Projeção bruta sem déficit; valide reservas e lotes antes de iniciar' });
       }
     });
 

@@ -103,12 +103,15 @@ export function useKanbanActions(params: {
     try {
       const localResult = WarModeService.execute(orders, intelligence.materialNeeds, capacities);
       const { data, error } = await supabase.functions.invoke('pcp-priority', { body: { action: 'war_mode', confirm: false } });
-      if (error) throw error;
+      if (error || !data?.snapshot) throw error ?? new Error('Prévia do servidor sem versão');
       setWarModeResult({
         ...data,
+        priorityChanges: (data.priorityChanges || []).map((change: { id: string; order_number: string; oldPriority: string; newPriority: string; score: number; factors: string[] }) => ({
+          ...change, opId: change.id, opNumber: change.order_number,
+        })),
         kanbanReorg: localResult.kanbanReorg,
         criticalAlerts: localResult.criticalAlerts,
-        summary: localResult.summary,
+        summary: `${data.summary}. Movimentações do Kanban são apenas sugestões.`,
       });
       setWarModeOpen(true);
     } catch (e) {
@@ -120,16 +123,18 @@ export function useKanbanActions(params: {
   };
 
   const handleConfirmWarMode = async () => {
+    const expectedSnapshot = warModeResult?.snapshot;
+    if (!expectedSnapshot) { toast.error('Prévia sem versão. Simule novamente.'); return; }
     setWarModeLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('pcp-priority', { body: { action: 'war_mode', confirm: true } });
+      const { data, error } = await supabase.functions.invoke('pcp-priority', { body: { action: 'war_mode', confirm: true, expectedSnapshot } });
       if (error) throw error;
       toast.success(`Modo Guerra aplicado: ${data.priorityChanges?.length || 0} OPs repriorizadas`);
       setWarModeOpen(false);
       setWarModeResult(null);
       await refetch();
     } catch {
-      toast.error('Erro ao aplicar Modo Guerra');
+      toast.error('Falha ou prévia desatualizada. Confira as OPs e simule novamente; aplicação parcial ainda é possível.');
     } finally {
       setWarModeLoading(false);
     }
