@@ -19,5 +19,11 @@ describe('apresentação contextual por ramo, sem conceder permissão', () => {
     expect(canPresentNicheRoute('chemicals', '/vertical/pharma')).toBe(false);
     expect(canPresentNicheRoute('laundry', '/vertical/unknown')).toBe(false);
     expect(canPresentNicheRoute('retail', '/estoque/produtos')).toBe(true);
+    expect(canPresentNicheRoute('industry', '/vertical/spinning', ['spinning'])).toBe(true);
+    expect(canPresentNicheRoute('industry', '/vertical/weaving', ['spinning'])).toBe(false);
+    expect(canPresentNicheRoute('industry', '/vertical/weaving', ['weaving'])).toBe(true);
+    expect(canPresentNicheRoute('industry', '/vertical/food-feed', ['animal_feed'])).toBe(true);
+    expect(canPresentNicheRoute('retail', '/vertical/spinning', ['spinning'])).toBe(false);
+    expect(canPresentNicheRoute('industry', '/vertical/pharma', ['chemicals'])).toBe(false);
   });
 });

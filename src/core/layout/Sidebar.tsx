@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/system/useAuth';
 import { useEnterprise } from '../auth/EnterpriseContext';
 import { SEGMENTS } from '@/config/adaptive';
 import { canPresentNicheRoute } from '@/config/nichePresentation';
+import { parseIndustrialPlanning } from '@/config/industrialProfile';
 
 import { getNavigationForContext } from '@/config/navigation';
 import { TooltipProvider } from '@/ui/base/tooltip';
@@ -26,7 +27,8 @@ export function Sidebar() {
   const isMobile = useIsMobile();
   const sidebarCollapsed = isMobile ? false : rawCollapsed;
   const { signOut } = useAuth({ initialize: false });
-  const { segment, activeUnitType, activeChannel, scope, role, permissions } = useEnterprise();
+  const { segment, currentCompany, activeUnitType, activeChannel, scope, role, permissions } = useEnterprise();
+  const families = useMemo(() => parseIndustrialPlanning((currentCompany?.settings as Record<string, unknown> | null)?.industrial).families, [currentCompany?.settings]);
 
   const contextualSections = useMemo(() => getNavigationForContext({
     unitType: activeUnitType,
@@ -50,8 +52,8 @@ export function Sidebar() {
     const query = searchQuery.toLowerCase().trim();
     return contextualSections.map(section => {
       const items = section.items.flatMap(item => {
-        if (!canPresentNicheRoute(segment, item.href)) return [];
-        const children = item.children?.filter(child => canPresentNicheRoute(segment, child.href));
+        if (!canPresentNicheRoute(segment, item.href, families)) return [];
+        const children = item.children?.filter(child => canPresentNicheRoute(segment, child.href, families));
         const visibleItem = children ? { ...item, children } : item;
         if (!query) return [visibleItem];
         const matches = item.title.toLowerCase().includes(query) || item.href.toLowerCase().includes(query)
@@ -60,7 +62,7 @@ export function Sidebar() {
       });
       return items.length ? { ...section, items } : null;
     }).filter((section): section is (typeof contextualSections)[number] => section !== null);
-  }, [contextualSections, searchQuery, segment]);
+  }, [contextualSections, searchQuery, segment, families]);
 
   const flatItems = useMemo(() => {
     const items: any[] = [];
@@ -204,7 +206,7 @@ export function Sidebar() {
             // No configured niche means no operational sections, never all sections.
             const isVisible = segment !== 'unconfigured' && !!section.label && (
               section.label === 'Pacotes Verticais'
-                ? section.items.some(item => canPresentNicheRoute(segment, item.href))
+                ? section.items.some(item => canPresentNicheRoute(segment, item.href, families))
                 : SEGMENTS[segment].allowedSections.includes(section.label)
             );
 

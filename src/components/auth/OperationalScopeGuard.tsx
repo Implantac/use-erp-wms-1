@@ -3,6 +3,7 @@ import { ShieldAlert } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useEnterprise } from '@/core/auth/EnterpriseContext';
 import { canPresentNicheRoute, isNicheSensitivePath } from '@/config/nichePresentation';
+import { parseIndustrialPlanning } from '@/config/industrialProfile';
 import { evaluateContextAccess, getRouteContextCriteria } from '@/core/auth/contextAccess';
 import { EmptyState } from '@/shared/components/EmptyState';
 
@@ -16,12 +17,13 @@ const REASON_MESSAGES = {
 
 export function OperationalScopeGuard({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const { activeUnitType, activeChannel, scope, role, permissions, isReady, segment } = useEnterprise();
+  const { activeUnitType, activeChannel, scope, role, permissions, isReady, segment, currentCompany } = useEnterprise();
+  const families = parseIndustrialPlanning((currentCompany?.settings as Record<string, unknown> | null)?.industrial).families;
   const criteria = getRouteContextCriteria(pathname);
 
   if (isNicheSensitivePath(pathname)) {
     if (!isReady) return <div role="status" className="py-10">Aguardando perfil da empresa...</div>;
-    if (!canPresentNicheRoute(segment, pathname)) return (
+    if (!canPresentNicheRoute(segment, pathname, families)) return (
       <EmptyState icon={ShieldAlert} title="Área indisponível para este ramo"
         description="O ramo da empresa não inclui esta tela. Configuração visual não substitui permissão ou homologação." />
     );

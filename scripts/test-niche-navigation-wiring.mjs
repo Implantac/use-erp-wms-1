@@ -6,9 +6,9 @@ test('menu search and direct route guard share the same niche presentation rule'
   const sidebar = read('core/layout/Sidebar.tsx');
   const guard = read('components/auth/OperationalScopeGuard.tsx');
   const onboarding = read('pages/Onboarding.tsx');
-  assert.match(sidebar, /if \(!canPresentNicheRoute\(segment, item.href\)\) return \[\]/);
-  assert.match(sidebar, /children = item.children\?\.filter\(child => canPresentNicheRoute\(segment, child.href\)\)/);
-  assert.match(guard, /if \(!canPresentNicheRoute\(segment, pathname\)\)/);
+  assert.match(sidebar, /if \(!canPresentNicheRoute\(segment, item.href, families\)\) return \[\]/);
+  assert.match(sidebar, /children = item.children\?\.filter\(child => canPresentNicheRoute\(segment, child.href, families\)\)/);
+  assert.match(guard, /if \(!canPresentNicheRoute\(segment, pathname, families\)\)/);
   for (const value of ['textile', 'fio', 'tecelagem', 'dyeing', 'laundry', 'animal_feed', 'food_factory', 'chemicals']) {
     assert.ok(onboarding.includes(`value: '${value}'`), value);
   }

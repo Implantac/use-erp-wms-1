@@ -96,7 +96,7 @@ export default function EnterpriseConfig() {
         .select('id');
 
       if (error || !data?.length) throw error || new Error('Atualização não autorizada ou não persistida');
-      toast.success("Configuração empresarial atualizada com sucesso");
+      toast.success("Configuração salva. Recarregue a página para atualizar o menu por ramo/processos.");
     } catch (error) {
       console.error(error);
       toast.error("Erro ao salvar configuração empresarial");
