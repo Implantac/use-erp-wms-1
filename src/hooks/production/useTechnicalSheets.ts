@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 
 export interface TechnicalSheetStep {
   name?: string;
@@ -37,22 +38,30 @@ export interface TechnicalSheetRow {
 }
 
 export function useTechnicalSheets() {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
+  const companyIdRef = useRef(companyId);
+  companyIdRef.current = companyId;
   const [sheets, setSheets] = useState<TechnicalSheetRow[]>([]);
+  const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
+    if (!companyId) { setSheets([]); setLoading(false); return false; }
     setLoading(true);
-    const { data, error } = await supabase.from('product_technical_sheets').select('*').order('product_name');
+    const { data, error } = await supabase.from('product_technical_sheets').select('*').eq('company_id', companyId).order('product_name');
+    if (companyIdRef.current !== companyId) return false;
     if (error) { console.error(error); toast.error('Erro ao carregar fichas técnicas'); setLoading(false); return false; }
-    else setSheets((data || []) as unknown as TechnicalSheetRow[]);
+    else { setSheets((data || []) as unknown as TechnicalSheetRow[]); setLoadedCompanyId(companyId); }
     setLoading(false);
     return true;
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const create = async (item: Partial<TechnicalSheetRow>) => {
-    const { error } = await supabase.from('product_technical_sheets').insert(item as TablesInsert<'product_technical_sheets'>);
+    if (!companyId) { toast.error('Selecione a empresa para cadastrar a ficha'); return false; }
+    const { error } = await supabase.from('product_technical_sheets').insert({ ...item, company_id: companyId } as TablesInsert<'product_technical_sheets'>);
     if (error) { toast.error('Erro ao criar ficha técnica'); return false; }
     toast.success('Ficha técnica criada');
     await fetchData();
@@ -60,18 +69,20 @@ export function useTechnicalSheets() {
   };
 
   const update = async (id: string, updates: Partial<TechnicalSheetRow>) => {
-    const { error } = await supabase.from('product_technical_sheets').update({ ...updates, updated_at: new Date().toISOString() } as TablesUpdate<'product_technical_sheets'>).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar'); return; }
+    if (!companyId) { toast.error('Selecione a empresa para alterar a ficha'); return; }
+    const { data, error } = await supabase.from('product_technical_sheets').update({ ...updates, company_id: companyId, updated_at: new Date().toISOString() } as TablesUpdate<'product_technical_sheets'>).eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao atualizar'); return; }
     toast.success('Ficha atualizada');
     await fetchData();
   };
 
   const remove = async (id: string) => {
-    const { error } = await supabase.from('product_technical_sheets').delete().eq('id', id);
-    if (error) { toast.error('Erro ao excluir'); return; }
+    if (!companyId) { toast.error('Selecione a empresa para excluir a ficha'); return; }
+    const { data, error } = await supabase.from('product_technical_sheets').delete().eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao excluir'); return; }
     toast.success('Ficha excluída');
     await fetchData();
   };
 
-  return { sheets, loading, refetch: fetchData, create, update, remove };
+  return { sheets: loadedCompanyId === companyId ? sheets : [], loading, refetch: fetchData, create, update, remove };
 }

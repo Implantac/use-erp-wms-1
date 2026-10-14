@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 
 export interface SupplyItem {
   id: string;
@@ -42,28 +43,39 @@ export interface SupplyMovement {
 }
 
 export function useSupplyStock() {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
+  const companyIdRef = useRef(companyId);
+  companyIdRef.current = companyId;
   const [supplies, setSupplies] = useState<SupplyItem[]>([]);
+  const [loadedSuppliesCompanyId, setLoadedSuppliesCompanyId] = useState<string | null>(null);
+  const [loadedMovementsCompanyId, setLoadedMovementsCompanyId] = useState<string | null>(null);
   const [movements, setMovements] = useState<SupplyMovement[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchSupplies = useCallback(async () => {
+    if (!companyId) { setSupplies([]); setLoading(false); return false; }
     setLoading(true);
-    const { data, error } = await supabase.from('supply_stock').select('*').order('name');
+    const { data, error } = await supabase.from('supply_stock').select('*').eq('company_id', companyId).order('name');
+    if (companyIdRef.current !== companyId) return false;
     if (error) { console.error(error); toast.error('Erro ao carregar insumos'); setLoading(false); return false; }
-    else setSupplies((data || []) as SupplyItem[]);
+    else { setSupplies((data || []) as SupplyItem[]); setLoadedSuppliesCompanyId(companyId); }
     setLoading(false);
     return true;
-  }, []);
+  }, [companyId]);
 
   const fetchMovements = useCallback(async () => {
-    const { data, error } = await supabase.from('supply_movements').select('*').order('created_at', { ascending: false }).limit(200);
+    if (!companyId) { setMovements([]); return; }
+    const { data, error } = await supabase.from('supply_movements').select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(200);
+    if (companyIdRef.current !== companyId) return;
     if (error) console.error(error);
-    else setMovements((data || []) as SupplyMovement[]);
-  }, []);
+    else { setMovements((data || []) as SupplyMovement[]); setLoadedMovementsCompanyId(companyId); }
+  }, [companyId]);
 
   useEffect(() => { fetchSupplies(); fetchMovements(); }, [fetchSupplies, fetchMovements]);
 
   const createSupply = async (supply: Partial<SupplyItem>) => {
+    if (!companyId) { toast.error('Selecione a empresa para cadastrar o insumo'); return false; }
     if (supply.current_quantity !== undefined && supply.current_quantity !== 0) {
       toast.error('Saldo inicial indisponível: registre a entrada transacional antes de usar o estoque.');
       return false;
@@ -71,6 +83,7 @@ export function useSupplyStock() {
     // Explicitly override caller-supplied balance and valuation fields.
     const { error } = await supabase.from('supply_stock').insert({
       ...supply,
+      company_id: companyId,
       code: supply.code!,
       name: supply.name!,
       unit: supply.unit!,
@@ -84,12 +97,13 @@ export function useSupplyStock() {
   };
 
   const updateSupply = async (id: string, updates: Partial<SupplyItem>) => {
+    if (!companyId) { toast.error('Selecione a empresa para alterar o insumo'); return false; }
     if (updates.current_quantity !== undefined || updates.total_value !== undefined) {
       toast.error('Alteração direta de saldo indisponível; use movimentação transacional homologada.');
       return false;
     }
-    const { error } = await supabase.from('supply_stock').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar insumo'); return; }
+    const { data, error } = await supabase.from('supply_stock').update({ ...updates, company_id: companyId, updated_at: new Date().toISOString() }).eq('id', id).eq('company_id', companyId).select('id');
+    if (error || !data?.length) { toast.error('Erro ao atualizar insumo'); return; }
     await fetchSupplies();
   };
 
@@ -100,7 +114,9 @@ export function useSupplyStock() {
     return false;
   };
 
-  const lowStockItems = supplies.filter(s => s.current_quantity <= s.min_quantity && s.status === 'active');
+  const visibleSupplies = loadedSuppliesCompanyId === companyId ? supplies : [];
+  const visibleMovements = loadedMovementsCompanyId === companyId ? movements : [];
+  const lowStockItems = visibleSupplies.filter(s => s.current_quantity <= s.min_quantity && s.status === 'active');
 
-  return { supplies, movements, loading, refetch: fetchSupplies, createSupply, updateSupply, registerMovement, lowStockItems };
+  return { supplies: visibleSupplies, movements: visibleMovements, loading, refetch: fetchSupplies, createSupply, updateSupply, registerMovement, lowStockItems };
 }
