@@ -144,7 +144,7 @@ export function useKanbanActions(params: {
     setSequenceLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('pcp-schedule', { body: { action: 'suggest' } });
-      if (error) throw error;
+      if (error || !data?.snapshot || data.sequence?.length !== data.totalOrders) throw error ?? new Error('Prévia da sequência incompleta');
       setSequenceResult(data);
       setSequenceOpen(true);
     } catch (e) {
@@ -156,16 +156,18 @@ export function useKanbanActions(params: {
   };
 
   const handleApplySequence = async () => {
+    const expectedSnapshot = sequenceResult?.snapshot;
+    if (!expectedSnapshot) { toast.error('Prévia sem versão. Recalcule a sequência.'); return; }
     setApplyingSequence(true);
     try {
-      const { data, error } = await supabase.functions.invoke('pcp-schedule', { body: { action: 'apply' } });
+      const { data, error } = await supabase.functions.invoke('pcp-schedule', { body: { action: 'apply', expectedSnapshot } });
       if (error) throw error;
       toast.success(`Sequência aplicada: ${data.ordersUpdated} OPs atualizadas`);
       setSequenceOpen(false);
       setSequenceResult(null);
       await refetch();
     } catch {
-      toast.error('Erro ao aplicar sequência');
+      toast.error('Falha ou sequência desatualizada. Confira as OPs e recalcule; aplicação parcial ainda é possível.');
     } finally {
       setApplyingSequence(false);
     }

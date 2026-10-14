@@ -51,11 +51,14 @@ const handler = async (req: Request): Promise<Response> => {
     if (moduleDenied) return moduleDenied;
     const scope = branchScope(ctx);
 
-    const body = await req.json().catch(() => ({}));
+    const { v, parseJson } = await import("../_shared/validation.ts");
+    const parsed = await parseJson(req, v.object({
+      action: v.optional(v.string({ enum: ["suggest", "apply"] as const })),
+      expectedSnapshot: v.optional(v.string({ min: 64, max: 64 })),
+    }));
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const action = body.action || "suggest";
-    if (!["suggest","apply"].includes(action)) {
-      return new Response(JSON.stringify({ error: "Ação inválida" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
 
     // Fetch active production orders for caller's company + branch scope
     let ordersQ = supabase
@@ -212,42 +215,54 @@ const handler = async (req: Request): Promise<Response> => {
     const setupChanges = sequence.filter((s) => s.setup_change).length;
     const totalGroups = sortedGroupKeys.length;
 
+    // No plan can be applied unless all its OPs were present in the preview.
+    if (sequence.length > 100) {
+      return new Response(JSON.stringify({ error: "Mais de 100 OPs: prévia incompleta; divida o planejamento antes de aplicar." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409,
+      });
+    }
+    const snapshotInput = JSON.stringify(sequence.map(s => [
+      s.id, allOrders.find((o: any) => o.id === s.id)?.updated_at,
+      s.sequence, s.sequence_score, s.priority,
+    ]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(snapshotInput));
+    const snapshot = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+
     if (action === "suggest") {
-      // Return suggestion only — do NOT apply
       return new Response(
         JSON.stringify({
-          action: "suggest",
+          action: "suggest", snapshot,
           totalOrders: sequence.length,
           totalGroups,
           setupChanges,
-          setupReduction: allOrders.length > 0
-            ? `${Math.round(((allOrders.length - 1 - setupChanges) / Math.max(allOrders.length - 1, 1)) * 100)}%`
-            : "0%",
-          summary: `Sequência otimizada: ${sequence.length} OPs em ${totalGroups} grupos, ${setupChanges} trocas de setup`,
-          sequence: sequence.slice(0, 100), // limit response size
+          summary: `Sugestão heurística: ${sequence.length} OPs em ${totalGroups} grupos, ${setupChanges} mudanças de grupo. Sem medição de tempo de setup.`,
+          sequence,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 
     if (action === "apply") {
-      // Apply the sequence_order to production_orders
+      if (!body.expectedSnapshot || body.expectedSnapshot !== snapshot) {
+        return new Response(JSON.stringify({ error: "Prévia desatualizada. Recalcule antes de aplicar." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409,
+        });
+      }
       let updated = 0;
       for (const s of sequence) {
-        const { error } = await supabase
+        const version = allOrders.find((o: any) => o.id === s.id)?.updated_at;
+        const { data: written, error } = await supabase
           .from("production_orders")
           .update({ sequence_order: s.sequence, updated_at: new Date().toISOString() })
-          .eq("id", s.id)
-          .eq("company_id", callerCompany);
-        if (!error) updated++;
+          .eq("id", s.id).eq("company_id", callerCompany).eq("updated_at", version).select("id");
+        if (error || !written?.length) throw error ?? new Error("OP mudou durante aplicação da sequência");
+        updated++;
+        // This loop is not transactional. A later error may leave partial writes.
       }
 
       return new Response(
         JSON.stringify({
-          action: "apply",
-          ordersUpdated: updated,
-          totalGroups,
-          setupChanges,
+          action: "apply", ordersUpdated: updated, totalGroups, setupChanges,
           summary: `Sequência aplicada: ${updated} OPs atualizadas`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }

@@ -25,7 +25,7 @@ export function SequenceDialog({ open, onOpenChange, result, applying, onApply }
             <ListOrdered className="h-5 w-5 text-primary" /> Sequência Otimizada — Sugestão
           </DialogTitle>
           <DialogDescription>
-            Agrupamento por similaridade de produto para reduzir trocas de setup.
+            Sugestão heurística de agrupamento; não mede tempo ou economia de setup.
           </DialogDescription>
         </DialogHeader>
         {result && (
@@ -46,8 +46,8 @@ export function SequenceDialog({ open, onOpenChange, result, applying, onApply }
                 </Card>
                 <Card className="border-warning/30 bg-warning/5">
                   <CardContent className="py-3 px-4 text-center">
-                    <p className="text-2xl font-bold text-warning">{result.setupReduction}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Redução Setup</p>
+                    <p className="text-2xl font-bold text-warning">{result.setupChanges ?? "—"}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mudanças de grupo</p>
                   </CardContent>
                 </Card>
               </div>
@@ -90,7 +90,7 @@ export function SequenceDialog({ open, onOpenChange, result, applying, onApply }
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
-          <Button onClick={onApply} disabled={applying || !result?.sequence?.length}>
+          <Button onClick={onApply} disabled={applying || !result?.snapshot || !result?.sequence?.length}>
             <ListOrdered className="h-4 w-4 mr-1" />
             {applying ? 'Aplicando...' : 'Aplicar Sequência'}
           </Button>

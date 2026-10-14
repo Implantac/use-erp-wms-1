@@ -17,7 +17,8 @@ export interface SequenceItem {
 export interface SequenceResult {
   totalOrders?: number;
   totalGroups?: number;
-  setupReduction?: string | number;
+  snapshot?: string;
+  setupChanges?: number;
   summary?: string;
   sequence?: SequenceItem[];
 }
