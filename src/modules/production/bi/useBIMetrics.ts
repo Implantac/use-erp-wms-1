@@ -28,8 +28,6 @@ export function useBIMetrics(periodDays: number) {
 
   const sectorActivity = useMemo(() => aggregateSectorActivity(orders), [orders]);
 
-  const totalProduced = orders.reduce((s, o) => s + o.produced_quantity, 0);
-  const totalRejected = orders.reduce((s, o) => s + o.rejected_quantity, 0);
 
   const productionTrend = useMemo(() => buildProductionTrend(entries, periodDays), [entries, periodDays]);
 
@@ -67,18 +65,13 @@ export function useBIMetrics(periodDays: number) {
     return brackets;
   }, [costs]);
 
-  const strategicIndicators = useMemo(() => ({
-    scrapRate: (totalProduced + totalRejected) > 0 ? (totalRejected / (totalProduced + totalRejected)) * 100 : null,
-  }), [totalProduced, totalRejected]);
-
   return {
     costs, avgMargin, lowMarginProducts, highCostProducts,
     orders, profitByProduct, sectorActivity,
-    totalProduced, totalRejected,
     productionTrend,
     onTimePct, onTime, completedOPs, lateOPs,
     avgLeadTime, capacityUtilization,
-    marginDist, strategicIndicators,
+    marginDist,
   };
 }
 
