@@ -20,8 +20,9 @@ export default function BIIndustrialPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="📊 BI Industrial — Enterprise" description="Business Intelligence estratégico: Pareto, indicadores, custos e eficiência produtiva">
+      <PageHeader title="📊 BI Industrial — Enterprise" description="Projeções de cadastro e OPs; índices não comprovados ficam não apurados">
         <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Janela apenas das tendências:</span>
           <Select value={period} onValueChange={v => setPeriod(v as '7' | '30' | '90')}>
             <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -33,14 +34,15 @@ export default function BIIndustrialPage() {
         </div>
       </PageHeader>
 
+      <p className="text-xs text-muted-foreground mb-3">Demais cartões e abas usam os registros carregados, sem recorte por essa janela. Não use os totais como indicadores do período.</p>
       <BIScorecards metrics={metrics} />
 
       <Tabs defaultValue="executive" className="space-y-4">
         <TabsList className="flex-wrap">
           <TabsTrigger value="executive">📈 Executivo</TabsTrigger>
-          <TabsTrigger value="pareto">🏆 Pareto ABC</TabsTrigger>
-          <TabsTrigger value="profit">💰 Lucro por Produto</TabsTrigger>
-          <TabsTrigger value="cost">🏭 Custo por Processo</TabsTrigger>
+          <TabsTrigger value="pareto">🏆 Pareto não apurado</TabsTrigger>
+          <TabsTrigger value="profit">💰 Preço × Custo Cadastrado</TabsTrigger>
+          <TabsTrigger value="cost">🏭 Apontamentos por Setor</TabsTrigger>
           <TabsTrigger value="oee">⚙️ OEE</TabsTrigger>
           <TabsTrigger value="trend">📊 Tendências</TabsTrigger>
           <TabsTrigger value="strategic">🎯 Indicadores Estratégicos</TabsTrigger>

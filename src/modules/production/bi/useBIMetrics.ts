@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
-import { differenceInDays, differenceInMinutes, format, parseISO, subDays } from 'date-fns';
+import { differenceInDays, parseISO } from 'date-fns';
 import { useProductCosts } from '@/hooks/production/useProductCosts';
 import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { useTimeEntries } from '@/hooks/system/useTimeEntries';
 import { useProductionCapacity } from '@/hooks/production/useProductionCapacity';
+import { buildProductionTrend } from './productionTrend';
 
 export function useBIMetrics(periodDays: number) {
   const { costs, avgMargin, lowMarginProducts, highCostProducts } = useProductCosts();
@@ -51,26 +52,7 @@ export function useBIMetrics(periodDays: number) {
   const totalProduced = orders.reduce((s, o) => s + o.produced_quantity, 0);
   const totalRejected = orders.reduce((s, o) => s + o.rejected_quantity, 0);
 
-  const productionTrend = useMemo(() => {
-    const days: Record<string, { produced: number; rejected: number; hours: number }> = {};
-    for (let i = periodDays - 1; i >= 0; i--) {
-      const d = format(subDays(new Date(), i), 'dd/MM');
-      days[d] = { produced: 0, rejected: 0, hours: 0 };
-    }
-    entries.filter(e => e.status === 'completed' && e.end_time).forEach(e => {
-      const d = format(new Date(e.start_time), 'dd/MM');
-      if (days[d]) {
-        days[d].produced += e.produced_quantity;
-        days[d].rejected += e.rejected_quantity;
-        days[d].hours += differenceInMinutes(new Date(e.end_time!), new Date(e.start_time)) / 60;
-      }
-    });
-    return Object.entries(days).map(([day, v]) => ({
-      day, ...v,
-      pcsH: v.hours > 0 ? +(v.produced / v.hours).toFixed(1) : 0,
-      yieldRate: (v.produced + v.rejected) > 0 ? +(v.produced / (v.produced + v.rejected) * 100).toFixed(1) : 100,
-    }));
-  }, [entries, periodDays]);
+  const productionTrend = useMemo(() => buildProductionTrend(entries, periodDays), [entries, periodDays]);
 
   const completedOPs = orders.filter(o => o.status === 'completed' && o.completed_date && o.due_date);
   const onTime = completedOPs.filter(o => new Date(o.completed_date!) <= new Date(o.due_date!)).length;

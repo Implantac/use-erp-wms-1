@@ -39,7 +39,7 @@ export function ExecutiveTab({ metrics, period, periodDays }: ExecutiveTabProps)
 
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Produção & Qualidade ({period} dias)</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Apontamentos concluídos ({period} dias)</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <ComposedChart data={productionTrend}>
@@ -50,7 +50,7 @@ export function ExecutiveTab({ metrics, period, periodDays }: ExecutiveTabProps)
                 <Tooltip />
                 <Legend />
                 <Bar yAxisId="left" dataKey="produced" name="Produzido" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
-                <Line yAxisId="right" type="monotone" dataKey="yieldRate" name="Yield %" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
+                <Line yAxisId="right" type="monotone" dataKey="yieldRate" name="Rendimento registrado %" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
