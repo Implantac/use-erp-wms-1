@@ -5,6 +5,7 @@ import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { useTimeEntries } from '@/hooks/system/useTimeEntries';
 import { useProductionCapacity } from '@/hooks/production/useProductionCapacity';
 import { buildProductionTrend } from './productionTrend';
+import { aggregateSectorActivity } from './sectorActivity';
 
 export function useBIMetrics(periodDays: number) {
   const { costs, avgMargin, lowMarginProducts, highCostProducts } = useProductCosts();
@@ -25,30 +26,8 @@ export function useBIMetrics(periodDays: number) {
     .sort((a, b) => b.unitDifference - a.unitDifference)
     .slice(0, 15), [costs]);
 
-  const costBySector = useMemo(() => {
-    const sectorMap: Record<string, { laborMin: number; produced: number; orders: number; rejected: number; estMin: number }> = {};
-    orders.forEach(o => {
-      const sector = o.sector || o.work_center || 'Geral';
-      if (!sectorMap[sector]) sectorMap[sector] = { laborMin: 0, produced: 0, orders: 0, rejected: 0, estMin: 0 };
-      sectorMap[sector].laborMin += o.realized_time_minutes;
-      sectorMap[sector].produced += o.produced_quantity;
-      sectorMap[sector].orders += 1;
-      sectorMap[sector].rejected += o.rejected_quantity;
-      sectorMap[sector].estMin += o.estimated_time_minutes;
-    });
-    return Object.entries(sectorMap).map(([sector, v]) => ({
-      sector,
-      laborHours: +(v.laborMin / 60).toFixed(1),
-      produced: v.produced,
-      costPerUnit: v.produced > 0 ? +(v.laborMin / v.produced).toFixed(2) : 0,
-      orders: v.orders,
-      rejected: v.rejected,
-      rejectRate: v.produced > 0 ? +((v.rejected / (v.produced + v.rejected)) * 100).toFixed(1) : 0,
-      efficiency: v.estMin > 0 ? +((v.estMin / Math.max(v.laborMin, 1)) * 100).toFixed(1) : 0,
-    })).sort((a, b) => b.laborHours - a.laborHours);
-  }, [orders]);
+  const sectorActivity = useMemo(() => aggregateSectorActivity(orders), [orders]);
 
-  const totalEstimated = orders.reduce((s, o) => s + o.estimated_time_minutes, 0);
   const totalProduced = orders.reduce((s, o) => s + o.produced_quantity, 0);
   const totalRejected = orders.reduce((s, o) => s + o.rejected_quantity, 0);
 
@@ -61,12 +40,12 @@ export function useBIMetrics(periodDays: number) {
 
   const avgLeadTime = useMemo(() => {
     const completed = orders.filter(o => o.status === 'completed' && o.start_date && o.completed_date);
-    if (completed.length === 0) return 0;
+    if (completed.length === 0) return null;
     return completed.reduce((s, o) => s + differenceInDays(new Date(o.completed_date!), new Date(o.start_date)), 0) / completed.length;
   }, [orders]);
 
   const capacityUtilization = useMemo(() => {
-    if (capacities.length === 0) return 0;
+    if (capacities.length === 0) return null;
     return capacities.reduce((s, c) => s + c.current_load_pct, 0) / capacities.length;
   }, [capacities]);
 
@@ -94,7 +73,7 @@ export function useBIMetrics(periodDays: number) {
 
   return {
     costs, avgMargin, lowMarginProducts, highCostProducts,
-    orders, profitByProduct, costBySector,
+    orders, profitByProduct, sectorActivity,
     totalProduced, totalRejected,
     productionTrend,
     onTimePct, onTime, completedOPs, lateOPs,

@@ -186,3 +186,7 @@ Gráficos diários agora agregam apontamentos concluídos pela **data de términ
 ## Incremento local após `8e7800a9` — empresa ativa em OPs/capacidade
 
 `useProductionOrders` e `useProductionCapacity` agora filtram leituras por `company_id`, recusam escritas sem empresa, atribuem empresa em cadastro e qualificam updates/deletes por ID **e** empresa; mudanças sem linha afetada falham. Durante troca de empresa, não expõem listas antigas e ignoram respostas de leitura fora do contexto. A conclusão direta de OP continua bloqueada. Teste estático 3/3, Vitest MRP/BI 6/6, typecheck e lint CI aprovados. **Client-side não é RLS; não houve verificação de políticas ou dados isolados, nem ensaio de concorrência de escritas em troca de contexto.** Sem migrations.
+
+## Incremento local após `8e7800a9` — atividade por setor sem custo/eficiência presumidos
+
+A antiga aba «Custo por Processo» misturava quantidades de diferentes produtos e unidades, rotulava minutos/peça de custo e estimativa/realização de eficiência, além de aplicar meta fixa de 5% de refugo sem parâmetro aprovado. Ela agora expõe apenas quantidade de OPs e horas realizadas positivas informadas por setor; ausência de horas é «—», não zero medido. Os cards distinguem margem de cadastro, carga **informada** e amostras ausentes de pontualidade/lead time. Testes setoriais 2/2, estático 1/1, MRP/BI prévios 6/6, typecheck e lint CI aprovados. **Ainda restam agregações sem unidade validada no resumo executivo e na série de apontamentos.** Não houve teste de banco, metas de cliente ou migration.
