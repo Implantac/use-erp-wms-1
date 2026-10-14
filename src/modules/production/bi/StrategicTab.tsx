@@ -1,4 +1,4 @@
-import { differenceInDays, format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { Activity, AlertTriangle, DollarSign, Target } from 'lucide-react';
 import { Badge } from '@/ui/base/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
@@ -11,7 +11,7 @@ export function StrategicTab({ metrics }: { metrics: BIMetrics }) {
     { label: 'MTTR (Tempo Reparo)', value: '—', desc: 'Requer dados de manutenção', icon: <Activity className="h-6 w-6 text-primary" /> },
     { label: 'Custo de Não-Qualidade', value: '—', desc: 'Requer custo real de perda por lote', icon: <AlertTriangle className="h-6 w-6 text-destructive" /> },
     { label: 'Valor Agregado/Hora', value: '—', desc: 'Requer receita realizada e horas compatíveis', icon: <DollarSign className="h-6 w-6 text-success" /> },
-    { label: 'On-Time Delivery', value: completedOPs.length ? `${onTimePct.toFixed(0)}%` : '—', desc: `${onTime} de ${completedOPs.length} OPs no prazo`, icon: <Target className="h-6 w-6 text-primary" /> },
+    { label: 'On-Time Delivery', value: onTimePct === null ? '—' : `${onTimePct.toFixed(0)}%`, desc: `${onTime} de ${completedOPs.length} OPs no prazo`, icon: <Target className="h-6 w-6 text-primary" /> },
   ];
   return (
     <div className="space-y-4">
@@ -42,7 +42,7 @@ export function StrategicTab({ metrics }: { metrics: BIMetrics }) {
                     <TableCell className="font-mono">{o.order_number}</TableCell>
                     <TableCell>{o.product_name}</TableCell>
                     <TableCell>{format(new Date(o.due_date!), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell className="text-right text-destructive font-bold">{differenceInDays(new Date(), parseISO(o.due_date!))}d</TableCell>
+                    <TableCell className="text-right text-destructive font-bold">{Math.max(1, Math.ceil((Date.now() - new Date(o.due_date!).getTime()) / 86_400_000))}d</TableCell>
                     <TableCell><Badge variant={o.priority === 'urgent' ? 'destructive' : 'outline'}>{o.priority}</Badge></TableCell>
                   </TableRow>
                 ))}

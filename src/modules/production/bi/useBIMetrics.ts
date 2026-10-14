@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { differenceInDays, parseISO } from 'date-fns';
 import { useProductCosts } from '@/hooks/production/useProductCosts';
 import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { useTimeEntries } from '@/hooks/system/useTimeEntries';
 import { useProductionCapacity } from '@/hooks/production/useProductionCapacity';
 import { buildProductionTrend } from './productionTrend';
 import { aggregateSectorActivity } from './sectorActivity';
+import { calculateOrderDateMetrics } from './orderDateMetrics';
 
 export function useBIMetrics(periodDays: number) {
   const { costs, avgMargin, lowMarginProducts, highCostProducts } = useProductCosts();
@@ -31,16 +31,8 @@ export function useBIMetrics(periodDays: number) {
 
   const productionTrend = useMemo(() => buildProductionTrend(entries, periodDays), [entries, periodDays]);
 
-  const completedOPs = orders.filter(o => o.status === 'completed' && o.completed_date && o.due_date);
-  const onTime = completedOPs.filter(o => new Date(o.completed_date!) <= new Date(o.due_date!)).length;
-  const onTimePct = completedOPs.length > 0 ? (onTime / completedOPs.length) * 100 : 0;
-  const lateOPs = orders.filter(o => o.due_date && !['completed', 'cancelled'].includes(o.status) && differenceInDays(new Date(), parseISO(o.due_date)) > 0);
-
-  const avgLeadTime = useMemo(() => {
-    const completed = orders.filter(o => o.status === 'completed' && o.start_date && o.completed_date);
-    if (completed.length === 0) return null;
-    return completed.reduce((s, o) => s + differenceInDays(new Date(o.completed_date!), new Date(o.start_date)), 0) / completed.length;
-  }, [orders]);
+  const { completedOPs, onTime, onTimePct, lateOPs, avgLeadTime, leadTimeSampleSize } =
+    useMemo(() => calculateOrderDateMetrics(orders), [orders]);
 
   const capacityUtilization = useMemo(() => {
     if (capacities.length === 0) return null;
@@ -70,7 +62,7 @@ export function useBIMetrics(periodDays: number) {
     orders, profitByProduct, sectorActivity,
     productionTrend,
     onTimePct, onTime, completedOPs, lateOPs,
-    avgLeadTime, capacityUtilization,
+    avgLeadTime, leadTimeSampleSize, capacityUtilization,
     marginDist,
   };
 }
