@@ -27,3 +27,9 @@ O catálogo `INDUSTRIAL_PROCESS_FAMILIES` é múltiplo por empresa e retrocompat
 ## Aceite individual
 
 Para cada empresa: inventário de DF-e e regras fiscais **reais**, base limpa, operações mapeadas e roteiro configurado; RLS A/B; migrações aplicadas e auditadas em Supabase **isolado**; testes E2E persistidos de compra/recepção→OP→consumo→qualidade→estoque→expedição, inclusive falha, concorrência e reprovação; conferência do ledger/lotação e aprovação do responsável. Até isso, status é **não comprovado**. Não ativar produção por mera seleção de perfil ou compilação.
+
+## Apresentação por ramo escolhido na contratação (incremento local)
+
+O onboarding passou a oferecer ramos mais específicos (têxtil, fiação, tecelagem, tinturaria, lavanderia, confecção, ração, alimentos, químicos/limpeza, além dos legados), mantendo aliases antigos. A função `canPresentNicheRoute` é usada tanto na construção do menu (inclusive pesquisa/atalhos) quanto na guarda de URLs `/producao` e `/vertical`: perfis não industriais não veem PCP; vertical de outro ramo não aparece e acesso direto é barrado na interface. Empresa não configurada falha fechada para essas rotas. O ramo principal é distinto das famílias de processos múltiplos em `companies.settings.industrial`.
+
+**Cobertura atual deliberadamente parcial:** esta política cobre apenas rotas `/producao` e `/vertical`, não classifica todas as telas compartilhadas, WMS/fiscal ou pacotes por funcionalidade. Tinturaria, lavanderia e químicos não têm dashboard vertical dedicado comprovado; o cadastro não fabrica uma tela operacional para eles. Nenhum ajuste de menu autoriza APIs, RLS, OPs ou faturamento. Antes de dizer «somente telas inerentes» é necessário inventariar cada rota/filho, dependências e permissões por empresa/unidade/usuário, aplicar o mesmo contrato na API e provar A/B em banco isolado. Uma empresa integrada precisa poder configurar várias famílias sem liberar automaticamente processos não homologados.

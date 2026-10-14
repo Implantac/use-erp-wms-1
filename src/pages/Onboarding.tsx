@@ -21,7 +21,7 @@ const phoneRegex = /^[\d\s()+-]{8,20}$/;
 const onboardingSchema = z.object({
   company_name: z.string().trim().min(2, 'Razão social muito curta').max(150, 'Razão social muito longa'),
   cnpj: z.string().trim().regex(cnpjRegex, 'CNPJ inválido (use formato 00.000.000/0000-00)'),
-  segment: z.enum(['confeccao', 'industria', 'distribuicao', 'varejo', 'servicos', 'outro']),
+  segment: z.enum(['textile', 'fio', 'tecelagem', 'dyeing', 'laundry', 'confeccao', 'animal_feed', 'food_factory', 'chemicals', 'industria', 'distribuicao', 'varejo', 'servicos', 'outro']),
   phone: z.string().trim().regex(phoneRegex, 'Telefone inválido').max(20).optional().or(z.literal('')),
   address_street: z.string().trim().min(2, 'Informe o logradouro real').max(150),
   address_number: z.string().trim().min(1, 'Informe o número ou S/N, se aplicável').max(20),
@@ -32,6 +32,14 @@ const onboardingSchema = z.object({
 });
 
 const SEGMENTS = [
+  { value: 'textile', label: 'Têxtil integrada' },
+  { value: 'fio', label: 'Fiação' },
+  { value: 'tecelagem', label: 'Tecelagem' },
+  { value: 'dyeing', label: 'Tinturaria' },
+  { value: 'laundry', label: 'Lavanderia industrial' },
+  { value: 'animal_feed', label: 'Indústria de ração animal' },
+  { value: 'food_factory', label: 'Indústria de alimentos' },
+  { value: 'chemicals', label: 'Indústria química e de limpeza' },
   { value: 'confeccao', label: 'Confecção / Moda' },
   { value: 'industria', label: 'Indústria / Manufatura' },
   { value: 'distribuicao', label: 'Distribuição / Atacado' },

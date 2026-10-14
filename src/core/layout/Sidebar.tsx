@@ -6,7 +6,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { useAuth } from '@/hooks/system/useAuth';
 import { useEnterprise } from '../auth/EnterpriseContext';
 import { SEGMENTS } from '@/config/adaptive';
-import { canViewVertical } from '@/config/verticalAccess';
+import { canPresentNicheRoute } from '@/config/nichePresentation';
 
 import { getNavigationForContext } from '@/config/navigation';
 import { TooltipProvider } from '@/ui/base/tooltip';
@@ -47,30 +47,20 @@ export function Sidebar() {
   };
 
   const filteredSections = useMemo(() => {
-    if (!searchQuery.trim()) return contextualSections;
-
     const query = searchQuery.toLowerCase().trim();
-    
     return contextualSections.map(section => {
-      const filteredItems = section.items.filter(item => {
-        const matchesTitle = item.title.toLowerCase().includes(query);
-        const matchesHref = item.href.toLowerCase().includes(query);
-        const matchesChildren = item.children?.some(child => 
-          child.title.toLowerCase().includes(query) || 
-          child.href.toLowerCase().includes(query)
-        );
-        
-        return matchesTitle || matchesHref || matchesChildren;
+      const items = section.items.flatMap(item => {
+        if (!canPresentNicheRoute(segment, item.href)) return [];
+        const children = item.children?.filter(child => canPresentNicheRoute(segment, child.href));
+        const visibleItem = children ? { ...item, children } : item;
+        if (!query) return [visibleItem];
+        const matches = item.title.toLowerCase().includes(query) || item.href.toLowerCase().includes(query)
+          || children?.some(child => child.title.toLowerCase().includes(query) || child.href.toLowerCase().includes(query));
+        return matches ? [visibleItem] : [];
       });
-
-      if (filteredItems.length === 0) return null;
-      
-      return {
-        ...section,
-        items: filteredItems
-      };
-    }).filter(Boolean) as typeof contextualSections;
-  }, [contextualSections, searchQuery]);
+      return items.length ? { ...section, items } : null;
+    }).filter((section): section is (typeof contextualSections)[number] => section !== null);
+  }, [contextualSections, searchQuery, segment]);
 
   const flatItems = useMemo(() => {
     const items: any[] = [];
@@ -214,7 +204,7 @@ export function Sidebar() {
             // No configured niche means no operational sections, never all sections.
             const isVisible = segment !== 'unconfigured' && !!section.label && (
               section.label === 'Pacotes Verticais'
-                ? section.items.some(item => canViewVertical(segment, item.href))
+                ? section.items.some(item => canPresentNicheRoute(segment, item.href))
                 : SEGMENTS[segment].allowedSections.includes(section.label)
             );
 
@@ -237,15 +227,7 @@ export function Sidebar() {
                 )}
 
                 <ul className="space-y-1">
-                  {(section.items || []).filter((item) => {
-                    if (!item) return false;
-                    
-                    if (section.label === 'Pacotes Verticais') {
-                      return canViewVertical(segment, item.href);
-                    }
-
-                    return true;
-                  }).map((item) => (
+                  {(section.items || []).map((item) => (
                     <NavItemComponent
                       key={item.title}
                       item={item}

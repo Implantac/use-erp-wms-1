@@ -14,7 +14,10 @@ export type Segment =
   | 'retail_chain' 
   | 'franchise' 
   | 'holding' 
-  | 'apparel';
+  | 'apparel'
+  | 'dyeing'
+  | 'laundry'
+  | 'chemicals';
 
 /** Legacy onboarding values are persisted in companies.segment; never cast an unknown value into a valid niche. */
 export function normalizeSegment(value: string | null | undefined): Segment | null {
@@ -53,6 +56,21 @@ export const SEGMENTS: Record<Segment, SegmentConfig> = {
     label: 'Tecelagem',
     allowedSections: ['Executivo & IA', 'Operacional & PCP', 'Supply Chain & WMS', 'Controladoria & Fiscal', 'Gestão & Admin', 'Pacotes Verticais', 'Rede & Distribuição'],
     recommendedModules: ['PCP', 'Urdimento', 'Tingimento', 'Tecelagem']
+  },
+  dyeing: {
+    label: 'Tinturaria Industrial',
+    allowedSections: ['Executivo & IA', 'Operacional & PCP', 'Supply Chain & WMS', 'Comercial & Vendas', 'Controladoria & Fiscal', 'Gestão & Admin'],
+    recommendedModules: ['PCP', 'Receitas', 'Qualidade']
+  },
+  laundry: {
+    label: 'Lavanderia Industrial',
+    allowedSections: ['Executivo & IA', 'Operacional & PCP', 'Supply Chain & WMS', 'Comercial & Vendas', 'Controladoria & Fiscal', 'Gestão & Admin'],
+    recommendedModules: ['PCP', 'Receitas', 'Qualidade']
+  },
+  chemicals: {
+    label: 'Químicos e Produtos de Limpeza',
+    allowedSections: ['Executivo & IA', 'Operacional & PCP', 'Supply Chain & WMS', 'Comercial & Vendas', 'Controladoria & Fiscal', 'Gestão & Admin'],
+    recommendedModules: ['PCP', 'Formulações', 'Qualidade']
   },
   pharma: {
     label: 'Farmacêutico',
