@@ -730,17 +730,16 @@ const ERP_TOOLS = [
   {
     type: "function",
     function: {
-      name: "executar_acao",
-      description: "Executa ações operacionais: registrar pagamentos, alterar status, ajustar estoque",
+      name: "sugerir_acao",
+      description: "Propõe próximos passos nos módulos, sem executar pagamentos, estoque, pedidos ou produção",
       parameters: {
         type: "object",
         properties: {
-          acao: { type: "string", enum: ["registrar_pagamento", "adiar_vencimento", "criar_conta_pagar", "criar_conta_receber", "alterar_status_pedido", "alterar_status_op", "priorizar_op", "ajustar_estoque"], description: "Ação a executar" },
-          modulo: { type: "string", enum: ["financeiro", "comercial", "producao", "estoque"], description: "Módulo da ação" },
-          parametros: { type: "object", description: "Parâmetros da ação (ex: {id, valor, novo_status})" },
-          confirmado: { type: "boolean", description: "Confirmação do usuário" },
+          acao: { type: "string", enum: ["registrar_pagamento", "adiar_vencimento", "criar_conta_pagar", "criar_conta_receber", "alterar_status_pedido", "alterar_status_op", "priorizar_op", "ajustar_estoque"] },
+          modulo: { type: "string", enum: ["financeiro", "comercial", "producao", "estoque"] },
+          parametros: { type: "object", description: "Dados para revisão humana; não executados" },
         },
-        required: ["acao", "modulo", "parametros", "confirmado"],
+        required: ["acao", "modulo", "parametros"],
       },
     },
   },
@@ -944,11 +943,11 @@ async function executeConsultaProducao(supabase: any, args: any, user_id?: strin
       return { ordens_atrasadas: data || [] };
     }
     case "eficiencia": {
-      const { data } = await query("production_orders").eq("status", "completed").limit(200);
-      const ops = data || [];
-      const planned = ops.reduce((s: number, o: any) => s + (o.planned_quantity || 0), 0);
-      const produced = ops.reduce((s: number, o: any) => s + (o.produced_quantity || 0), 0);
-      return { eficiencia_geral: planned > 0 ? +((produced / planned) * 100).toFixed(1) : 0, ordens_analisadas: ops.length };
+      const { count, error } = await supabase.from("production_orders").select("id", { count: "exact", head: true })
+        .eq("company_id", company_id).eq("status", "completed");
+      if (error) return { erro: "Não foi possível consultar as OPs." };
+      return { eficiencia_geral: null, ordens_analisadas: count ?? 0,
+        observacao: "Eficiência não apurada: unidades de OP e tempos de máquina não foram validados." };
     }
     default: return { resumo: "Dados não encontrados" };
   }
@@ -966,7 +965,8 @@ async function executeConsultaEstoque(supabase: any, args: any, user_id?: string
     case "resumo": {
       const { data } = await query("products").eq("status", "active").limit(500);
       const prods = data || [];
-      return { total_produtos: prods.length, abaixo_minimo: prods.filter((p: any) => p.stock_current <= p.stock_min).length, valor_estoque_total: +prods.reduce((s: number, p: any) => s + ((p.stock_current || 0) * (p.cost || p.price || 0)), 0).toFixed(2) };
+      return { total_produtos: prods.length, abaixo_minimo: prods.filter((p: any) => p.stock_current <= p.stock_min).length,
+        valor_estoque_total: null, observacao: "Valor do estoque não apurado: preço de catálogo não é custo de lote validado." };
     }
     case "baixo_estoque": {
       const { data } = await query("products").eq("status", "active").limit(500);
@@ -986,149 +986,21 @@ async function executeConsultaEstoque(supabase: any, args: any, user_id?: string
   }
 }
 
-async function executeAcao(supabase: any, args: any, user_id?: string, company_id?: string) {
-  if (!args.confirmado) {
-    return {
-      status: "aguardando_confirmacao",
-      mensagem: `⚠️ **Ação pendente de confirmação**`,
-      acao: args.acao,
-      modulo: args.modulo,
-      detalhes: args.parametros,
-      instrucao: "Responda **'sim, confirmo'** para executar ou **'cancelar'** para desistir.",
-    };
+async function suggestAction(_supabase: any, args: any, _user_id?: string, company_id?: string) {
+  if (!company_id) return { erro: "Empresa não identificada para a sessão." };
+  const allowed = new Set([
+    "registrar_pagamento", "adiar_vencimento", "criar_conta_pagar", "criar_conta_receber",
+    "alterar_status_pedido", "alterar_status_op", "priorizar_op", "ajustar_estoque",
+  ]);
+  if (!allowed.has(args?.acao) || !["financeiro", "comercial", "producao", "estoque"].includes(args?.modulo)) {
+    return { erro: "Ação não reconhecida para sugestão." };
   }
-  // Tenant guard — qualquer mutação exige escopo de empresa resolvido
-  if (!company_id) {
-    return { erro: "Empresa não identificada para a sessão. Faça login novamente." };
-  }
-  const params = args.parametros || {};
-  const failSafe = (op: string, err: unknown) => {
-    console.error(`[ai-executive] ${op} failed:`, err);
-    return { erro: "Operação não pôde ser concluída. Verifique os dados e tente novamente." };
+  return {
+    status: "sugestao_nao_executada",
+    acao: args.acao,
+    modulo: args.modulo,
+    mensagem: "Nenhum dado foi alterado. Revise e aprove a operação no módulo responsável, com suas validações e permissões próprias.",
   };
-  const logAction = async (actionName: string, result: string) => {
-    if (user_id) {
-      try {
-        await supabase.from("ai_action_logs").insert({
-          user_id,
-          company_id,
-          action_type: "execution",
-          module: args.modulo,
-          action_name: actionName,
-          parameters: params,
-          context: JSON.stringify({ modulo: args.modulo }),
-          result,
-        });
-      } catch { /* ignore */ }
-    }
-  };
-
-
-  switch (args.acao) {
-    case "registrar_pagamento": {
-      if (!params.id) return { erro: "ID da conta não informado" };
-      const table = params.tipo === "receber" ? "accounts_receivable" : "accounts_payable";
-      let q = supabase.from(table).update({ status: "paid", payment_date: new Date().toISOString().split("T")[0], paid_amount: params.valor }).eq("id", params.id);
-      q = q.eq("company_id", company_id);
-      const { error } = await q;
-      if (error) return failSafe(args.acao, error);
-      await logAction("registrar_pagamento", "sucesso");
-      return { status: "sucesso", mensagem: "✅ Pagamento registrado com sucesso." };
-    }
-    case "adiar_vencimento": {
-      if (!params.id || !params.nova_data) return { erro: "ID e nova data são obrigatórios" };
-      const table = params.tipo === "receber" ? "accounts_receivable" : "accounts_payable";
-      let q = supabase.from(table).update({ due_date: params.nova_data }).eq("id", params.id);
-      q = q.eq("company_id", company_id);
-      const { error } = await q;
-      if (error) return failSafe(args.acao, error);
-      await logAction("adiar_vencimento", "sucesso");
-      return { status: "sucesso", mensagem: `✅ Vencimento adiado para ${params.nova_data}.` };
-    }
-    case "criar_conta_pagar": {
-      const { error } = await supabase.from("accounts_payable").insert({
-        company_id,
-        description: params.descricao || "Conta via IA",
-        supplier: params.fornecedor || "N/A",
-        amount: params.valor || 0,
-        due_date: params.vencimento || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
-        category: params.categoria || "Geral",
-        status: "pending",
-      });
-      if (error) return failSafe(args.acao, error);
-      await logAction("criar_conta_pagar", "sucesso");
-      return { status: "sucesso", mensagem: `✅ Conta a pagar criada: R$ ${(params.valor || 0).toLocaleString("pt-BR")} para ${params.fornecedor || "N/A"}.` };
-    }
-    case "criar_conta_receber": {
-      const { error } = await supabase.from("accounts_receivable").insert({
-        company_id,
-        description: params.descricao || "Conta via IA",
-        client_name: params.cliente || "N/A",
-        amount: params.valor || 0,
-        due_date: params.vencimento || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
-        category: params.categoria || "Vendas",
-        status: "pending",
-      });
-      if (error) return failSafe(args.acao, error);
-      await logAction("criar_conta_receber", "sucesso");
-      return { status: "sucesso", mensagem: `✅ Conta a receber criada: R$ ${(params.valor || 0).toLocaleString("pt-BR")} de ${params.cliente || "N/A"}.` };
-    }
-    case "alterar_status_pedido": {
-      if (!params.id || !params.novo_status) return { erro: "ID e novo status obrigatórios" };
-      let q = supabase.from("orders").update({ status: params.novo_status }).eq("id", params.id);
-      q = q.eq("company_id", company_id);
-      const { error } = await q;
-      if (error) return failSafe(args.acao, error);
-      await logAction("alterar_status_pedido", "sucesso");
-      return { status: "sucesso", mensagem: `✅ Pedido atualizado para "${params.novo_status}".` };
-    }
-    case "alterar_status_op": {
-      if (!params.id || !params.novo_status) return { erro: "ID e novo status obrigatórios" };
-      let q = supabase.from("production_orders").update({ status: params.novo_status }).eq("id", params.id);
-      q = q.eq("company_id", company_id);
-      const { error } = await q;
-      if (error) return failSafe(args.acao, error);
-      await logAction("alterar_status_op", "sucesso");
-      return { status: "sucesso", mensagem: `✅ OP atualizada para "${params.novo_status}".` };
-    }
-    case "priorizar_op": {
-      if (!params.id) return { erro: "ID da OP não informado" };
-      let q = supabase.from("production_orders").update({ priority: params.prioridade || "urgent" }).eq("id", params.id);
-      q = q.eq("company_id", company_id);
-      const { error } = await q;
-      if (error) return failSafe(args.acao, error);
-      await logAction("priorizar_op", "sucesso");
-      return { status: "sucesso", mensagem: `✅ OP priorizada como "${params.prioridade || "urgent"}".` };
-    }
-    case "ajustar_estoque": {
-      if (!params.product_id || params.quantidade == null) return { erro: "ID do produto e quantidade obrigatórios" };
-      let q = supabase.from("products").select("id, name, code, stock_current").eq("id", params.product_id);
-      q = q.eq("company_id", company_id);
-      const { data: prod } = await q.single();
-      if (!prod) return { erro: "Produto não encontrado" };
-      const newStock = (prod.stock_current || 0) + (params.quantidade || 0);
-      let qu = supabase.from("products").update({ stock_current: newStock }).eq("id", params.product_id);
-      qu = qu.eq("company_id", company_id);
-      const { error } = await qu;
-      if (error) return failSafe(args.acao, error);
-      await supabase.from("stock_movements").insert({
-        company_id,
-        document_number: `IA-ADJ-${Date.now()}`,
-        product_id: prod.id,
-        product_code: prod.code,
-        product_name: prod.name,
-        type: "adjustment",
-        direction: params.quantidade > 0 ? "in" : "out",
-        quantity: Math.abs(params.quantidade),
-        operator: "IA Executiva",
-        source: "erp",
-        notes: params.motivo || "Ajuste via IA Executiva",
-      });
-      await logAction("ajustar_estoque", "sucesso");
-      return { status: "sucesso", mensagem: `✅ Estoque de "${prod.name}" ajustado: ${prod.stock_current} → ${newStock} unidades.` };
-    }
-    default: return { erro: "Ação não implementada" };
-  }
 }
 
 async function executeAnaliseEstrategica(supabase: any, args: any, user_id?: string, company_id?: string) {
@@ -1229,13 +1101,14 @@ async function executeConsultaFiscal(supabase: any, args: any, user_id?: string,
 
 // TOOL_EXECUTORS are called with (supabase, args, user_id) — see tool call loop below
 const TOOL_EXECUTORS: Record<string, (supabase: any, args: any, user_id?: string, company_id?: string) => Promise<any>> = {
-  analise_historica: async (supabase, args) => {
+  analise_historica: async (supabase, args, _user_id, company_id) => {
+    if (!company_id) return { erro: "Empresa não identificada para consulta histórica." };
     // Busca agregados históricos de dois períodos para comparação
     const { periodo_a, periodo_b } = args;
     const fetchStats = async (date: string) => {
       const start = new Date(date);
       const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
-      const { data } = await supabase.from("orders").select("total, status").gte("created_at", start.toISOString()).lte("created_at", end.toISOString()).in("status", ["completed", "invoiced", "shipped", "delivered"]);
+      const { data } = await supabase.from("orders").select("total, status").eq("company_id", company_id).gte("created_at", start.toISOString()).lte("created_at", end.toISOString()).in("status", ["completed", "invoiced", "shipped", "delivered"]);
       return (data || []).reduce((s: number, o: any) => s + (o.total || 0), 0);
     };
     const [revA, revB] = await Promise.all([fetchStats(periodo_a), fetchStats(periodo_b)]);
@@ -1247,7 +1120,7 @@ const TOOL_EXECUTORS: Record<string, (supabase: any, args: any, user_id?: string
   consultar_estoque: executeConsultaEstoque,
   consultar_fiscal: executeConsultaFiscal,
   consultar_nps: executeConsultaNPS,
-  executar_acao: executeAcao,
+  sugerir_acao: suggestAction,
   analise_estrategica: executeAnaliseEstrategica,
 };
 
