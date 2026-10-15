@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getSystemPrompt } from "../_shared/ai-prompts.ts";
-import { resolveContextByIds, branchScope, requireModule } from "../_shared/tenant.ts";
+import { resolveContextByIds, branchScope, requireModule, requirePermission } from "../_shared/tenant.ts";
 import { instrument, contextFromAuth } from "../_shared/observability.ts";
 
 const corsHeaders = {
@@ -53,13 +53,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { v, parseJson } = await import("../_shared/validation.ts");
     const parsed = await parseJson(req, v.object({
-      action: v.optional(v.string({ enum: ["recalculate", "war_mode"] as const })),
+      action: v.string({ enum: ["recalculate", "war_mode"] as const }),
       confirm: v.optional(v.boolean()),
       expectedSnapshot: v.optional(v.string({ min: 64, max: 64 })),
     }));
     if (!parsed.ok) return parsed.response;
     const body = parsed.data;
-    const action = body.action || "recalculate";
+    const action = body.action;
+    if (action === "recalculate" || (action === "war_mode" && body.confirm === true)) {
+      const denied = await requirePermission(ctx, 'production.orders', 'write');
+      if (denied) return denied;
+    }
 
     // Fetch active production orders for caller's company + branch scope
     let ordersQ = supabase
@@ -119,18 +123,17 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (action === "recalculate") {
-      // Update priority_score on all active OPs
-      let updated = 0;
-      for (const s of scores) {
-        const { data: written, error } = await supabase
-          .from("production_orders")
-          .update({ priority_score: s.score, updated_at: new Date().toISOString() })
-          .eq("id", s.id)
-          .eq("company_id", callerCompany)
-          .select("id");
-        if (error || !written?.length) throw error ?? new Error("OP não atualizada durante recálculo");
-        updated++;
-      }
+      // One database transaction; a stale row rolls the whole plan back.
+      const plan = scores.map(s => ({
+        id: s.id,
+        updated_at: allOrders.find((o: any) => o.id === s.id)?.updated_at,
+        priority_score: s.score,
+        priority: s.currentPriority,
+      }));
+      const { data: updated, error } = await supabase.rpc('apply_pcp_preview', {
+        p_company_id: callerCompany, p_kind: 'priority', p_updates: plan, p_branch_ids: scope,
+      });
+      if (error || updated !== plan.length) throw error ?? new Error('Incomplete priority transaction');
 
       return new Response(
         JSON.stringify({
@@ -171,17 +174,16 @@ const handler = async (req: Request): Promise<Response> => {
             headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409,
           });
         }
-        for (const s of scores) {
-          const change = changes.find(c => c.id === s.id);
-          const version = allOrders.find((o: any) => o.id === s.id)?.updated_at;
-          const { data: written, error } = await supabase.from("production_orders").update({
-            priority_score: s.score,
-            ...(change ? { priority: change.newPriority } : {}),
-            updated_at: new Date().toISOString(),
-          }).eq("id", s.id).eq("company_id", callerCompany).eq("updated_at", version).select("id");
-          if (error || !written?.length) throw error ?? new Error("Plano de prioridade alterado durante a confirmação");
-          // Other OPs may have been updated already: this loop is NOT atomic.
-        }
+        const plan = scores.map(s => ({
+          id: s.id,
+          updated_at: allOrders.find((o: any) => o.id === s.id)?.updated_at,
+          priority_score: s.score,
+          priority: changes.find(c => c.id === s.id)?.newPriority ?? s.currentPriority,
+        }));
+        const { data: updated, error } = await supabase.rpc('apply_pcp_preview', {
+          p_company_id: callerCompany, p_kind: 'priority', p_updates: plan, p_branch_ids: scope,
+        });
+        if (error || updated !== plan.length) throw error ?? new Error('Incomplete war mode transaction');
       }
 
       return new Response(

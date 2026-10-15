@@ -134,7 +134,7 @@ export function useKanbanActions(params: {
       setWarModeResult(null);
       await refetch();
     } catch {
-      toast.error('Falha ou prévia desatualizada. Confira as OPs e simule novamente; aplicação parcial ainda é possível.');
+      toast.error('Falha ou prévia desatualizada. Nenhuma alteração deve ser aplicada pela operação transacional; confira a instalação da função no banco.');
     } finally {
       setWarModeLoading(false);
     }
@@ -167,7 +167,7 @@ export function useKanbanActions(params: {
       setSequenceResult(null);
       await refetch();
     } catch {
-      toast.error('Falha ou sequência desatualizada. Confira as OPs e recalcule; aplicação parcial ainda é possível.');
+      toast.error('Falha ou sequência desatualizada. Nenhuma alteração deve ser aplicada pela operação transacional; confira a instalação da função no banco.');
     } finally {
       setApplyingSequence(false);
     }

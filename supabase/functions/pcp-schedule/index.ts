@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { getSystemPrompt } from "../_shared/ai-prompts.ts";
-import { resolveContextByIds, branchScope, requireModule } from "../_shared/tenant.ts";
+import { resolveContextByIds, branchScope, requireModule, requirePermission } from "../_shared/tenant.ts";
 import { instrument, contextFromAuth } from "../_shared/observability.ts";
 
 const corsHeaders = {
@@ -59,6 +59,10 @@ const handler = async (req: Request): Promise<Response> => {
     if (!parsed.ok) return parsed.response;
     const body = parsed.data;
     const action = body.action || "suggest";
+    if (action === "apply") {
+      const denied = await requirePermission(ctx, 'production.orders', 'write');
+      if (denied) return denied;
+    }
 
     // Fetch active production orders for caller's company + branch scope
     let ordersQ = supabase
@@ -248,17 +252,15 @@ const handler = async (req: Request): Promise<Response> => {
           headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 409,
         });
       }
-      let updated = 0;
-      for (const s of sequence) {
-        const version = allOrders.find((o: any) => o.id === s.id)?.updated_at;
-        const { data: written, error } = await supabase
-          .from("production_orders")
-          .update({ sequence_order: s.sequence, updated_at: new Date().toISOString() })
-          .eq("id", s.id).eq("company_id", callerCompany).eq("updated_at", version).select("id");
-        if (error || !written?.length) throw error ?? new Error("OP mudou durante aplicação da sequência");
-        updated++;
-        // This loop is not transactional. A later error may leave partial writes.
-      }
+      const plan = sequence.map(s => ({
+        id: s.id,
+        updated_at: allOrders.find((o: any) => o.id === s.id)?.updated_at,
+        sequence_order: s.sequence,
+      }));
+      const { data: updated, error } = await supabase.rpc('apply_pcp_preview', {
+        p_company_id: callerCompany, p_kind: 'schedule', p_updates: plan, p_branch_ids: scope,
+      });
+      if (error || updated !== plan.length) throw error ?? new Error('Incomplete schedule transaction');
 
       return new Response(
         JSON.stringify({

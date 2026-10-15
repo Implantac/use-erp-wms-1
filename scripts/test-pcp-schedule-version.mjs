@@ -8,8 +8,9 @@ test('sequence preview must contain every OP; apply rejects stale preview and wr
   assert.match(server, /if \(sequence\.length > 100\)/);
   assert.match(server, /action: "suggest", snapshot/);
   assert.match(server, /body\.expectedSnapshot !== snapshot/);
-  assert.match(server, /\.eq\("updated_at", version\)\.select\("id"\)/);
-  assert.match(server, /if \(error \|\| !written\?\.length\)/);
+  assert.match(server, /supabase\.rpc\('apply_pcp_preview'/);
+  assert.doesNotMatch(server, /\.update\(/);
+  assert.match(server, /requirePermission\(ctx, 'production.orders', 'write'\)/);
   assert.doesNotMatch(server, /sequence: sequence\.slice\(0, 100\)|setupReduction:/);
   assert.match(hook, /data\.sequence\?\.length !== data\.totalOrders/);
   assert.match(hook, /action: 'apply', expectedSnapshot/);

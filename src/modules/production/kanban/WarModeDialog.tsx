@@ -22,7 +22,7 @@ export function WarModeDialog({ open, onOpenChange, result, loading, onConfirm }
             <Swords className="h-5 w-5" /> Modo Guerra — Resultado da Análise
           </DialogTitle>
           <DialogDescription>
-            Prévia sem gravação. A confirmação altera prioridades; movimentações no Kanban são apenas sugestões. Se houver falha, confira as OPs antes de tentar novamente.
+            Prévia sem gravação. A confirmação altera prioridades; movimentações no Kanban são apenas sugestões. A aplicação requer a função transacional no banco; falhas devem reverter todas as OPs.
           </DialogDescription>
         </DialogHeader>
         {result && (

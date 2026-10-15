@@ -9,8 +9,9 @@ test('war mode preview cannot write and confirm requires matching plan version',
   assert.doesNotMatch(block.split('if (body.confirm === true) {')[0], /\.update\(/);
   assert.match(block, /body\.expectedSnapshot !== snapshot/);
   assert.match(block, /status: 409/);
-  assert.match(block, /\.eq\("updated_at", version\)\.select\("id"\)/);
-  assert.match(block, /if \(error \|\| !written\?\.length\)/);
+  assert.match(block, /supabase\.rpc\('apply_pcp_preview'/);
+  assert.doesNotMatch(block, /\.update\(/);
+  assert.match(backend, /requirePermission\(ctx, 'production.orders', 'write'\)/);
   assert.match(frontend, /confirm: true, expectedSnapshot/);
   assert.match(frontend, /!data\?\.snapshot/);
 });
