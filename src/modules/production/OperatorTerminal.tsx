@@ -3,7 +3,6 @@ import { PageContainer } from '@/shared/components/PageContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
 import { Input } from '@/ui/base/input';
 import { User } from 'lucide-react';
-import { differenceInMinutes, differenceInSeconds } from 'date-fns';
 import { toast } from 'sonner';
 
 import { useTimeEntries } from '@/hooks/system/useTimeEntries';
@@ -31,7 +30,6 @@ export default function OperatorTerminalPage() {
   const [selectedMachineId, setSelectedMachineId] = useState('');
   const [producedQty, setProducedQty] = useState(0);
   const [rejectedQty, setRejectedQty] = useState(0);
-  const [now, setNow] = useState(new Date());
   const [problemOpen, setProblemOpen] = useState(false);
   const [problemDesc, setProblemDesc] = useState('');
   const [problemCategory, setProblemCategory] = useState('machine_stop');
@@ -40,11 +38,6 @@ export default function OperatorTerminalPage() {
   useEffect(() => {
     if (operatorName) localStorage.setItem('operator_name', operatorName);
   }, [operatorName]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const activeOrders = useMemo(() => {
     const pMap: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
@@ -68,15 +61,8 @@ export default function OperatorTerminalPage() {
     ? orders.find((o) => o.id === selectedOrderId)
     : null;
 
-  const elapsedSec =
-    currentEntry && currentEntry.status === 'started'
-      ? differenceInSeconds(now, new Date(currentEntry.start_time)) - ((currentEntry.paused_time || 0) * 60)
-      : 0;
-  const elapsedMin = Math.floor(elapsedSec / 60);
-
-  const productivity =
-    currentEntry && elapsedMin > 0 ? (currentEntry.produced_quantity / (elapsedMin / 60)).toFixed(1) : '0';
-
+  // Pauses have no persisted start/end events. Do not present elapsed time
+  // or an hourly productivity as measured until that lifecycle is implemented.
   const pct =
     currentOrder && currentOrder.quantity > 0
       ? ((currentOrder.produced_quantity + (currentEntry?.produced_quantity || 0)) / currentOrder.quantity) * 100
@@ -88,7 +74,7 @@ export default function OperatorTerminalPage() {
     if (!order) return;
     const stepName = steps.find((s) => s.id === selectedStep)?.name || order.work_center || 'Produção';
     const machine = activeMachines.find((m) => m.id === selectedMachineId);
-    await create({
+    const created = await create({
       production_order_id: selectedOrderId,
       order_number: order.order_number,
       operation_id: selectedStep || null,
@@ -105,6 +91,7 @@ export default function OperatorTerminalPage() {
       machine_id: machine?.id || null,
       machine_name: machine?.name || null,
     });
+    if (!created) return;
     if (order.status === 'planned') {
       await updateOrder(order.id, { status: 'in_progress', start_date: new Date().toISOString() });
     }
@@ -112,28 +99,29 @@ export default function OperatorTerminalPage() {
 
   const handlePause = async () => {
     if (!myActiveEntry) return;
-    await update(myActiveEntry.id, { status: 'paused' });
+    if (!await update(myActiveEntry.id, { status: 'paused' })) return;
     toast.info('Produção pausada');
   };
 
   const handleResume = async () => {
     if (!myPausedEntry) return;
-    await update(myPausedEntry.id, { status: 'started' });
+    if (!await update(myPausedEntry.id, { status: 'started' })) return;
     toast.success('Produção retomada');
   };
 
   const handleFinish = async () => {
     if (!currentEntry) return;
-    if (producedQty <= 0) {
-      toast.error('Informe a quantidade produzida');
+    if (!Number.isFinite(producedQty) || producedQty <= 0 || !Number.isFinite(rejectedQty) || rejectedQty < 0) {
+      toast.error('Informe quantidades válidas, com produção maior que zero');
       return;
     }
-    await update(currentEntry.id, {
+    const finished = await update(currentEntry.id, {
       status: 'completed',
       end_time: new Date().toISOString(),
       produced_quantity: producedQty,
       rejected_quantity: rejectedQty,
     });
+    if (!finished) return;
     if (currentEntry.production_order_id) {
       const order = orders.find((o) => o.id === currentEntry.production_order_id);
       if (order) {
@@ -142,7 +130,6 @@ export default function OperatorTerminalPage() {
         const updates: Partial<ProductionOrderRow> = {
           produced_quantity: newProduced,
           rejected_quantity: newRejected,
-          realized_time_minutes: order.realized_time_minutes + elapsedMin,
         };
         // A finished time entry is not a completed OP. Quality and stock must
         // be reconciled by a separately homologated transactional workflow.
@@ -154,7 +141,7 @@ export default function OperatorTerminalPage() {
     }
     setProducedQty(0);
     setRejectedQty(0);
-    toast.success('Apontamento finalizado');
+    toast.info('Apontamento enviado; confira OP, estoque e qualidade antes da conciliação.');
   };
 
   const handleReportProblem = async () => {
@@ -180,7 +167,7 @@ export default function OperatorTerminalPage() {
         toast.error('Empresa não identificada. Selecione uma empresa.');
         return;
       }
-      await supabase.from('industrial_alerts').insert({
+      const { error: alertError } = await supabase.from('industrial_alerts').insert({
         company_id: companyId,
         alert_type: problemCategory,
         severity: problemCategory === 'machine_stop' ? 'critical' : 'high',
@@ -191,10 +178,17 @@ export default function OperatorTerminalPage() {
         entity_id: currentEntry?.production_order_id || null,
         status: 'active',
       });
-      if (currentEntry && currentEntry.status === 'started') {
-        await update(currentEntry.id, { status: 'paused' });
+      if (alertError) {
+        toast.error('Falha ao registrar alerta; problema não confirmado. Tente novamente ou avise a supervisão.');
+        return;
       }
-      toast.success('Problema reportado com sucesso. Supervisão notificada.');
+      if (currentEntry && currentEntry.status === 'started') {
+        if (!await update(currentEntry.id, { status: 'paused' })) {
+          toast.error('Alerta registrado, mas o apontamento NÃO foi pausado. Avise a supervisão.');
+          return;
+        }
+      }
+      toast.success('Alerta registrado. Confirme o recebimento com a supervisão; parada estruturada ainda não disponível.');
       setProblemOpen(false);
       setProblemDesc('');
     } catch {
@@ -209,17 +203,6 @@ export default function OperatorTerminalPage() {
   const todayEntries = entries.filter(
     (e) => e.operator === operatorName && e.status === 'completed' && new Date(e.start_time).toDateString() === today
   );
-  const todayProduced = todayEntries.reduce((s, e) => s + e.produced_quantity, 0);
-  const todayRejected = todayEntries.reduce((s, e) => s + e.rejected_quantity, 0);
-  const todayMinutes = todayEntries.reduce((s, e) => {
-    if (e.end_time) return s + differenceInMinutes(new Date(e.end_time), new Date(e.start_time)) - (e.paused_time || 0);
-    return s;
-  }, 0);
-  const todayPcsH = todayMinutes > 0 ? (todayProduced / (todayMinutes / 60)).toFixed(1) : '0';
-  const qualityRate =
-    todayProduced + todayRejected > 0
-      ? ((todayProduced / (todayProduced + todayRejected)) * 100).toFixed(0)
-      : '100';
 
   return (
     <PageContainer loading={loading}>
@@ -263,9 +246,7 @@ export default function OperatorTerminalPage() {
           <ActiveProductionCard
             entry={currentEntry}
             order={currentOrder}
-            elapsedSec={elapsedSec}
             progressPct={pct}
-            productivity={productivity}
             producedQty={producedQty}
             rejectedQty={rejectedQty}
             onChangeProduced={setProducedQty}
@@ -291,10 +272,6 @@ export default function OperatorTerminalPage() {
 
         <ShiftSummaryCard
           activities={todayEntries.length}
-          produced={todayProduced}
-          rejected={todayRejected}
-          piecesPerHour={todayPcsH}
-          qualityRate={qualityRate}
         />
       </div>
     </PageContainer>

@@ -23,9 +23,7 @@ type Order = {
 type Props = {
   entry: Entry;
   order: Order | null | undefined;
-  elapsedSec: number;
   progressPct: number;
-  productivity: string;
   producedQty: number;
   rejectedQty: number;
   onChangeProduced: (v: number) => void;
@@ -36,15 +34,8 @@ type Props = {
   onReportProblem: () => void;
 };
 
-const formatTime = (sec: number) => {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-};
-
 export function ActiveProductionCard({
-  entry, order, elapsedSec, progressPct, productivity,
+  entry, order, progressPct,
   producedQty, rejectedQty, onChangeProduced, onChangeRejected,
   onPause, onResume, onFinish, onReportProblem,
 }: Props) {
@@ -72,12 +63,8 @@ export function ActiveProductionCard({
         </div>
 
         <div className="text-center py-6 rounded-xl bg-card border">
-          <p className={cn('text-6xl font-mono font-extrabold tabular-nums tracking-wide', started ? 'text-success' : 'text-warning')}>
-            {formatTime(started ? elapsedSec : 0)}
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            {started ? 'Tempo de produção' : '⏸ Produção pausada'}
-          </p>
+          <p className="text-lg font-semibold">Tempo líquido não mensurado</p>
+          <p className="text-sm text-muted-foreground mt-2">Pausas ainda não possuem início/fim persistidos.</p>
         </div>
 
         {order && (
@@ -94,16 +81,11 @@ export function ActiveProductionCard({
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          <QtyStepper label="✅ Peças Boas" value={producedQty} onChange={onChangeProduced} />
-          <QtyStepper label="❌ Refugo" value={rejectedQty} onChange={onChangeRejected} />
+          <QtyStepper label="✅ Quantidade boa" value={producedQty} onChange={onChangeProduced} />
+          <QtyStepper label="❌ Quantidade refugada" value={rejectedQty} onChange={onChangeRejected} />
         </div>
 
-        <div className="p-3 rounded-xl bg-primary/10 text-center">
-          <p className="text-sm text-muted-foreground">Produtividade atual</p>
-          <p className="text-3xl font-extrabold">
-            {productivity} <span className="text-base font-normal">peças/h</span>
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">Unidade conforme a OP: {order?.unit || 'não informada'}. Produtividade não mensurada.</p>
 
         <div className="grid grid-cols-2 gap-3">
           {started ? (
