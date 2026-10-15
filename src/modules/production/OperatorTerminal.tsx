@@ -10,7 +10,7 @@ import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { useProductionSteps } from '@/hooks/production/useProductionSteps';
 import { useProductionMachines } from '@/hooks/production/useProductionMachines';
 import { supabase } from '@/integrations/supabase/client';
-import { useEnterpriseStore } from '@/core/stores/useEnterpriseStore';
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 
 import { SuggestionCard } from './operator-terminal/SuggestionCard';
 import { StartProductionCard } from './operator-terminal/StartProductionCard';
@@ -19,6 +19,7 @@ import { ProblemDialog } from './operator-terminal/ProblemDialog';
 import { ShiftSummaryCard } from './operator-terminal/ShiftSummaryCard';
 
 export default function OperatorTerminalPage() {
+  const { company } = useActiveTenant();
   const { entries, loading, create, update } = useTimeEntries();
   const { orders, update: updateOrder } = useProductionOrders();
   const { steps } = useProductionSteps();
@@ -69,11 +70,15 @@ export default function OperatorTerminalPage() {
       : 0;
 
   const handleStart = async () => {
-    if (!operatorName || !selectedOrderId) return;
+    if (!company?.id || !operatorName.trim() || !selectedOrderId || currentEntry) return;
     const order = orders.find((o) => o.id === selectedOrderId);
     if (!order) return;
     const stepName = steps.find((s) => s.id === selectedStep)?.name || order.work_center || 'Produção';
-    const machine = activeMachines.find((m) => m.id === selectedMachineId);
+    const machine = activeMachines.find((m) => m.id === selectedMachineId && m.status === 'available');
+    if (selectedMachineId && !machine) {
+      toast.error('Equipamento não disponível na empresa selecionada. Atualize a seleção.');
+      return;
+    }
     const created = await create({
       production_order_id: selectedOrderId,
       order_number: order.order_number,
@@ -93,7 +98,9 @@ export default function OperatorTerminalPage() {
     });
     if (!created) return;
     if (order.status === 'planned') {
-      await updateOrder(order.id, { status: 'in_progress', start_date: new Date().toISOString() });
+      if (!await updateOrder(order.id, { status: 'in_progress', start_date: new Date().toISOString() })) {
+        toast.error('Apontamento criado, mas a OP não avançou; avise a supervisão antes de continuar.');
+      }
     }
   };
 
@@ -142,14 +149,11 @@ export default function OperatorTerminalPage() {
         material_shortage: 'Falta de Material',
         safety: 'Segurança',
       };
-      const { data: { user } } = await supabase.auth.getUser();
-      let companyId = useEnterpriseStore.getState().activeCompanyId;
-      if (!companyId && user) {
-        const { data: profile } = await supabase.from('profiles').select('company_id').eq('id', user.id).maybeSingle();
-        companyId = profile?.company_id ?? null;
-      }
+      // Never fall back to a profile company when the selected tenant is absent.
+      // A profile can belong to a different company than the active operation.
+      const companyId = company?.id;
       if (!companyId) {
-        toast.error('Empresa não identificada. Selecione uma empresa.');
+        toast.error('Empresa ativa não identificada. Selecione uma empresa antes de reportar.');
         return;
       }
       const { error: alertError } = await supabase.from('industrial_alerts').insert({
@@ -199,10 +203,12 @@ export default function OperatorTerminalPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="text-xs text-muted-foreground mb-2">Nome informado manualmente; não confirma identidade nem autorização. Durante um apontamento, o nome fica bloqueado nesta tela.</p>
             <Input
               placeholder="Seu nome..."
               value={operatorName}
               onChange={(e) => setOperatorName(e.target.value)}
+              disabled={!!currentEntry || reportingProblem}
               className="text-lg h-14 text-center font-semibold"
             />
           </CardContent>
