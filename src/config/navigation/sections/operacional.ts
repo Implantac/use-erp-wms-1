@@ -25,6 +25,7 @@ export const operacionalSection: NavSection = {
         { title: 'Painel PCP Industrial', href: '/producao/pcp', icon: 'BarChart3' },
         { title: 'Ordens de Produção', href: '/producao/ordens', icon: 'ClipboardCheck' },
         { title: 'Kanban de Produção', href: '/producao/kanban', icon: 'Columns' },
+        { title: 'Equipamentos', href: '/producao/maquinas', icon: 'Factory' },
         { title: 'Terminal Operador', href: '/producao/terminal', icon: 'Smartphone' },
         { title: '🔍 Rastreabilidade', href: '/producao/rastreabilidade', icon: 'Search' },
         { title: '📦 MRP & Insumos', href: '/producao/mrp', icon: 'Package' },

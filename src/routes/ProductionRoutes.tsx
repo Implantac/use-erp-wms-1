@@ -15,6 +15,7 @@ const OperatorTerminalPage = lazy(() => import("../modules/production/OperatorTe
 const ShopFloorDashboardPage = lazy(() => import("../modules/production/ShopFloorDashboard"));
 const ProductionKanbanPage = lazy(() => import("../modules/production/ProductionKanban"));
 const TechnicalSheetsPage = lazy(() => import("../modules/production/TechnicalSheets"));
+const ProductionMachinesPage = lazy(() => import("../modules/production/ProductionMachinesPage"));
 const ProductionCapacityPage = lazy(() => import("../modules/production/ProductionCapacity"));
 const ProductionTraceabilityPage = lazy(() => import("../modules/production/ProductionTraceability"));
 const AIProductionPage = lazy(() => import("../modules/production/AIProductionPage"));
@@ -50,6 +51,7 @@ export const ProductionRoutes = [
   <Route key="prod-shop" path="chao-de-fabrica" element={<ShopFloorDashboardPage />} />,
   <Route key="prod-kanban" path="kanban" element={<ProductionKanbanPage />} />,
   <Route key="prod-tech" path="fichas" element={<TechnicalSheetsPage />} />,
+  <Route key="prod-machines" path="maquinas" element={<ProductionMachinesPage />} />,
   <Route key="prod-cap" path="capacidade" element={<ProductionCapacityPage />} />,
   <Route key="prod-trace" path="rastreabilidade" element={<ProductionTraceabilityPage />} />,
   <Route key="prod-ia" path="ia" element={<AIProductionPage />} />,
