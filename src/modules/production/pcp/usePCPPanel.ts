@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toastError } from '@/lib/toastHelpers';
+import { canChangeOPStatus } from '@/lib/pcp/orderTransitions';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
 import type { TimeEntryRow } from '@/hooks/system/useTimeEntries';
 import type { DbOrder } from '@/hooks/commercial/useOrders';
@@ -62,10 +63,10 @@ export function computeDerived(productionOrders: ProductionOrderRow[], salesOrde
 }
 
 export async function handleStatusChange(op: ProductionOrderRow, newStatus: string, update: UpdateOP) {
-  if (newStatus === 'completed') { toastError('Conclusão de OP bloqueada até validação transacional de qualidade e estoque'); return; }
+  if (!canChangeOPStatus(op.status, newStatus)) { toastError('Transição inválida ou conclusão bloqueada até validação transacional'); return; }
   await update(op.id, {
     status: newStatus,
-    ...(newStatus === 'in_progress' ? { start_date: new Date().toISOString() } : {}),
+    ...(newStatus === 'in_progress' && !op.start_date ? { start_date: new Date().toISOString() } : {}),
   });
 
 }

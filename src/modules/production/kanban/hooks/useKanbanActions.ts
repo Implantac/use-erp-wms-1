@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { WarModeService } from '@/lib/pcpServices';
 import { VALID_TRANSITIONS, STATUS_LABELS } from '../constants';
+import { canChangeOPStatus } from '@/lib/pcp/orderTransitions';
 import type { TablesUpdate } from '@/integrations/supabase/types';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
 import type { ProductionCapacityRow } from '@/hooks/production/useProductionCapacity';
@@ -37,6 +38,7 @@ export function useKanbanActions(params: {
   const moveOrder = useCallback(async (orderId: string, newStatus: string) => {
     if (newStatus === 'completed') { toast.error('Conclusão de OP indisponível até validação transacional'); return false; }
     const order = orders.find(o => o.id === orderId);
+    if (!order || !canChangeOPStatus(order.status, newStatus)) { toast.error('Transição de OP inválida'); return false; }
     const wcId = order && (order as { work_center_id?: string | null }).work_center_id;
     if (wcId && capacityLoad[wcId]) {
       const cl = capacityLoad[wcId];
@@ -48,8 +50,7 @@ export function useKanbanActions(params: {
     }
 
     const updates: TablesUpdate<'production_orders'> = { status: newStatus };
-    if (newStatus === 'in_progress' || newStatus === 'outsourced') updates.start_date = updates.start_date || new Date().toISOString();
-    if (newStatus === 'completed') updates.completed_date = new Date().toISOString();
+    if ((newStatus === 'in_progress' || newStatus === 'outsourced') && !order.start_date) updates.start_date = new Date().toISOString();
     return (await update(orderId, updates)) === true;
   }, [update, orders, capacityLoad]);
 

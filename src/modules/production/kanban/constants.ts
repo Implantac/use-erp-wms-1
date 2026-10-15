@@ -1,3 +1,4 @@
+import { VALID_OP_TRANSITIONS } from '@/lib/pcp/orderTransitions';
 import { Clock, Factory, CheckCircle, PackageX, Truck, Wrench } from 'lucide-react';
 
 export const KANBAN_COLUMNS = [
@@ -9,15 +10,7 @@ export const KANBAN_COLUMNS = [
   { key: 'completed', label: 'Concluído', icon: CheckCircle, gradient: 'from-emerald-500/10 to-green-600/5', border: 'border-emerald-500/40', badge: 'bg-emerald-500/20 text-emerald-300' },
 ];
 
-export const VALID_TRANSITIONS: Record<string, string[]> = {
-  planned: ['waiting_material', 'in_progress', 'outsourced'],
-  waiting_material: ['planned', 'in_progress'],
-  in_progress: ['paused', 'outsourced', 'finishing', 'completed'],
-  outsourced: ['in_progress', 'finishing'],
-  paused: ['in_progress'],
-  finishing: ['completed', 'in_progress'],
-  completed: [],
-};
+export const VALID_TRANSITIONS = VALID_OP_TRANSITIONS;
 
 export const STATUS_LABELS: Record<string, string> = (() => {
   const map: Record<string, string> = { paused: 'Pausada' };

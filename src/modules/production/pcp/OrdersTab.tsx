@@ -9,8 +9,8 @@ import { StatusBadge } from '@/shared/components/StatusBadge';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { productionStatusConfig } from '@/config/production';
 import { cn } from '@/lib/utils';
-import { format, differenceInDays, parseISO } from 'date-fns';
-import { Factory, Search, Play, Pause, CheckCircle, AlertTriangle } from 'lucide-react';
+import { format } from 'date-fns';
+import { Factory, Search, Play, Pause, AlertTriangle } from 'lucide-react';
 
 interface Props {
   filtered: ProductionOrderRow[];
@@ -53,25 +53,30 @@ export function OrdersTab({ filtered, search, setSearch, statusFilter, setStatus
             {filtered.length === 0 ? (
               <TableRow><TableCell colSpan={9} className="p-0"><EmptyState icon={Factory} title="Nenhuma OP encontrada" description="Crie ordens de produção ou ajuste os filtros." /></TableCell></TableRow>
             ) : filtered.map(o => {
-              const pct = o.quantity > 0 ? (o.produced_quantity / o.quantity) * 100 : 0;
-              const isDelayed = o.due_date && differenceInDays(today, parseISO(o.due_date)) > 0 && o.status !== 'completed' && o.status !== 'cancelled';
+              const pct = Number.isFinite(o.quantity) && o.quantity > 0 && Number.isFinite(o.produced_quantity)
+                && o.produced_quantity >= 0 && o.produced_quantity <= o.quantity
+                ? o.produced_quantity / o.quantity * 100 : null;
+              const due = o.due_date ? new Date(o.due_date) : null;
+              const hasValidDue = !!due && Number.isFinite(due.getTime());
+              const isDelayed = hasValidDue && ['planned', 'in_progress', 'paused', 'waiting_material', 'outsourced', 'finishing'].includes(o.status)
+                && due!.getTime() < today.getTime();
               return (
                 <TableRow key={o.id} className={cn(isDelayed && 'bg-destructive/5')}>
                   <TableCell className="font-mono font-medium">{o.order_number}</TableCell>
                   <TableCell>{o.product_name}</TableCell>
                   <TableCell>{o.quantity} {o.unit}</TableCell>
                   <TableCell>{o.produced_quantity} {o.unit}</TableCell>
-                  <TableCell><div className="flex items-center gap-2"><Progress value={pct} className="h-2 w-16" /><span className="text-xs">{pct.toFixed(0)}%</span></div></TableCell>
+                  <TableCell><div className="flex items-center gap-2">{pct === null ? <span className="text-xs">—</span> : <><Progress value={pct} className="h-2 w-16" /><span className="text-xs">{pct.toFixed(0)}%</span></>}</div></TableCell>
                   <TableCell><StatusBadge status={o.status} type="production" /></TableCell>
                   <TableCell><StatusBadge status={o.priority} type="priority" /></TableCell>
-                  <TableCell><div className="flex items-center gap-1">{o.due_date ? format(new Date(o.due_date), 'dd/MM/yyyy') : '-'}{isDelayed && <AlertTriangle className="h-3 w-3 text-destructive" />}</div></TableCell>
+                  <TableCell><div className="flex items-center gap-1">{hasValidDue ? format(due!, 'dd/MM/yyyy') : '—'}{isDelayed && <AlertTriangle className="h-3 w-3 text-destructive" />}</div></TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
                       {o.status === 'planned' && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onStatusChange(o, 'in_progress')}><Play className="h-3 w-3 mr-1" /> Iniciar</Button>}
                       {o.status === 'in_progress' && (
                         <>
                           <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onStatusChange(o, 'paused')}><Pause className="h-3 w-3 mr-1" /> Pausar</Button>
-                          <Button size="sm" className="h-7 text-xs" onClick={() => onStatusChange(o, 'completed')}><CheckCircle className="h-3 w-3 mr-1" /> Finalizar</Button>
+                          <span className="text-xs text-muted-foreground" title="Conclusão exige inspeção e estoque transacionais">Conclusão indisponível</span>
                         </>
                       )}
                       {o.status === 'paused' && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onStatusChange(o, 'in_progress')}><Play className="h-3 w-3 mr-1" /> Retomar</Button>}
