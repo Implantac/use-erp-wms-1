@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { differenceInDays, parseISO, differenceInMinutes } from 'date-fns';
 import { toastError } from '@/lib/toastHelpers';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
 import type { TimeEntryRow } from '@/hooks/system/useTimeEntries';
@@ -14,49 +13,53 @@ export function usePCPPanelState() {
   return { search, setSearch, statusFilter, setStatusFilter, generatingFor, setGeneratingFor };
 }
 
-export function computeDerived(productionOrders: ProductionOrderRow[], salesOrders: DbOrder[] = [], timeEntries: TimeEntryRow[] = []) {
+export function computeDerived(productionOrders: ProductionOrderRow[], salesOrders: DbOrder[] = [], timeEntries: TimeEntryRow[] = [], today = new Date()) {
   const statusCounts = productionOrders.reduce((acc: Record<string, number>, o) => {
     acc[o.status] = (acc[o.status] || 0) + 1;
     return acc;
   }, {});
 
-  const totalCapacity = productionOrders.length > 0
-    ? productionOrders.reduce((s, o) => s + (o.produced_quantity / Math.max(o.quantity, 1)), 0) / productionOrders.length * 100
-    : 0;
+  const activeStatuses = ['planned', 'in_progress', 'paused', 'waiting_material', 'outsourced', 'finishing'];
+  const validProgress = productionOrders.filter(o => activeStatuses.includes(o.status)
+    && Number.isFinite(o.quantity) && o.quantity > 0 && Number.isFinite(o.produced_quantity)
+    && o.produced_quantity >= 0 && o.produced_quantity <= o.quantity);
+  // Per-order ratios are dimensionless; never sum quantities across products.
+  const averageProgress = validProgress.length
+    ? validProgress.reduce((sum, o) => sum + o.produced_quantity / o.quantity, 0) / validProgress.length * 100
+    : null;
 
-  const ordersAwaitingProduction = (salesOrders || []).filter(o => o.status === 'awaiting_production' || o.status === 'confirmed');
-
-  const workCenterLoad = productionOrders
-    .filter(o => o.status === 'in_progress' || o.status === 'planned')
-    .reduce((acc: Record<string, { count: number; totalQty: number }>, o) => {
-      const wc = o.work_center || 'Sem setor';
-      if (!acc[wc]) acc[wc] = { count: 0, totalQty: 0 };
-      acc[wc].count++;
-      acc[wc].totalQty += o.quantity - o.produced_quantity;
+  const ordersAwaitingProduction = salesOrders.filter(o => o.status === 'awaiting_production' || o.status === 'confirmed');
+  const workCenterLoad = productionOrders.filter(o => activeStatuses.includes(o.status))
+    .reduce((acc: Record<string, number>, o) => {
+      const center = o.work_center?.trim() || 'Centro não informado';
+      acc[center] = (acc[center] || 0) + 1;
       return acc;
     }, {});
-  const workCenterData = Object.entries(workCenterLoad).map(([name, v]) => ({ name, ordens: (v as { count: number; totalQty: number }).count, pendente: (v as { count: number; totalQty: number }).totalQty }));
+  const workCenterData = Object.entries(workCenterLoad).map(([name, ordens]) => ({ name, ordens }));
 
-  const today = new Date();
+  const nowMs = today.getTime();
   const delayedOPs = productionOrders.filter(o => {
-    if (!o.due_date || o.status === 'completed' || o.status === 'cancelled') return false;
-    return differenceInDays(today, parseISO(o.due_date)) > 0;
+    if (!activeStatuses.includes(o.status) || !o.due_date || !Number.isFinite(nowMs)) return false;
+    const dueMs = new Date(o.due_date).getTime();
+    return Number.isFinite(dueMs) && dueMs < nowMs;
   });
 
-  const todayStr = new Date().toDateString();
-  const todayEntries = timeEntries.filter(e => new Date(e.start_time).toDateString() === todayStr);
-  const operators = [...new Set(todayEntries.map(e => e.operator))];
-  const operatorData = operators.map(op => {
-    const opEntries = todayEntries.filter(e => e.operator === op);
-    const produced = opEntries.reduce((s, e) => s + e.produced_quantity, 0);
-    const totalMin = opEntries.filter(e => e.end_time).reduce((s, e) => s + differenceInMinutes(new Date(e.end_time!), new Date(e.start_time)) - (e.paused_time || 0), 0);
-    const pcsH = totalMin > 0 ? (produced / (totalMin / 60)) : 0;
-    return { name: op.split(' ')[0], pcsH: Number(pcsH.toFixed(1)) };
-  }).sort((a, b) => b.pcsH - a.pcsH).slice(0, 10);
+  const entriesByOperator = new Map<string, number>();
+  for (const entry of timeEntries) {
+    if (entry.status !== 'completed' || !entry.end_time || !entry.operator?.trim()) continue;
+    const end = new Date(entry.end_time);
+    const start = new Date(entry.start_time);
+    if (!Number.isFinite(end.getTime()) || !Number.isFinite(start.getTime())
+      || end > today || end <= start || end.toDateString() !== today.toDateString()) continue;
+    const operator = entry.operator.trim();
+    entriesByOperator.set(operator, (entriesByOperator.get(operator) || 0) + 1);
+  }
+  const operatorData = [...entriesByOperator].map(([name, entries]) => ({ name, entries }))
+    .sort((a, b) => b.entries - a.entries).slice(0, 10);
 
-  return { statusCounts, totalCapacity, ordersAwaitingProduction, workCenterData, today, delayedOPs, operatorData };
+  return { statusCounts, averageProgress, progressSampleSize: validProgress.length,
+    ordersAwaitingProduction, workCenterData, today, delayedOPs, operatorData };
 }
-
 
 export async function handleStatusChange(op: ProductionOrderRow, newStatus: string, update: UpdateOP) {
   if (newStatus === 'completed') { toastError('Conclusão de OP bloqueada até validação transacional de qualidade e estoque'); return; }

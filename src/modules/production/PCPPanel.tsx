@@ -38,7 +38,7 @@ export default function PCPPanel() {
     return matchSearch && matchStatus;
   });
 
-  const { statusCounts, totalCapacity, ordersAwaitingProduction, workCenterData, today, delayedOPs, operatorData } =
+  const { statusCounts, averageProgress, progressSampleSize, ordersAwaitingProduction, workCenterData, today, delayedOPs, operatorData } =
     computeDerived(productionOrders, salesOrders || [], timeEntries);
 
   const statusPieData = Object.entries(statusCounts).map(([k, v]) => ({
@@ -56,7 +56,7 @@ export default function PCPPanel() {
         <KPICard title="Planejadas" value={statusCounts['planned'] || 0} icon={<Clock className="h-5 w-5" />} accentColor="warning" index={1} />
         <KPICard title="Em Produção" value={statusCounts['in_progress'] || 0} icon={<Factory className="h-5 w-5" />} accentColor="info" index={2} />
         <KPICard title="Finalizadas" value={statusCounts['completed'] || 0} icon={<CheckCircle className="h-5 w-5" />} accentColor="success" index={3} />
-        <KPICard title="Avanço médio das OPs" value={`${totalCapacity.toFixed(0)}%`} icon={<Gauge className="h-5 w-5" />} accentColor={totalCapacity >= 70 ? 'success' : 'warning'} index={4} />
+        <KPICard title="Avanço médio por OP ativa" value={averageProgress === null ? "—" : `${averageProgress.toFixed(0)}%`} subtitle={`${progressSampleSize} OPs com quantidades válidas`} icon={<Gauge className="h-5 w-5" />} accentColor={averageProgress !== null && averageProgress >= 70 ? 'success' : 'warning'} index={4} />
       </div>
 
       <Tabs defaultValue="orders">
@@ -64,8 +64,8 @@ export default function PCPPanel() {
           <TabsTrigger value="orders">Ordens de Produção</TabsTrigger>
           <TabsTrigger value="gantt"><GanttChart className="h-4 w-4 mr-1" /> Timeline</TabsTrigger>
           <TabsTrigger value="demand">Demanda Comercial ({ordersAwaitingProduction.length})</TabsTrigger>
-          <TabsTrigger value="capacity">Capacidade {delayedOPs.length > 0 && <Badge variant="destructive" className="ml-1 h-5 text-[10px]">{delayedOPs.length}</Badge>}</TabsTrigger>
-          <TabsTrigger value="productivity">Produtividade</TabsTrigger>
+          <TabsTrigger value="capacity">OPs por centro {delayedOPs.length > 0 && <Badge variant="destructive" className="ml-1 h-5 text-[10px]">{delayedOPs.length}</Badge>}</TabsTrigger>
+          <TabsTrigger value="productivity">Atividade</TabsTrigger>
           <TabsTrigger value="kpis">📊 KPIs & Sugestões</TabsTrigger>
           <TabsTrigger value="alerts">Alertas</TabsTrigger>
         </TabsList>

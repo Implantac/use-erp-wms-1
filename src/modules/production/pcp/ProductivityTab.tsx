@@ -8,13 +8,13 @@ export function ProductivityTab({ operatorData, statusPieData }: { operatorData:
   return (
     <div className="grid md:grid-cols-2 gap-6">
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Produtividade por Operador (peças/h)</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" /> Apontamentos concluídos hoje por operador</CardTitle></CardHeader>
         <CardContent>
           {operatorData.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={operatorData}>
                 <XAxis dataKey="name" fontSize={11} /><YAxis /><Tooltip />
-                <Bar dataKey="pcsH" fill="hsl(var(--primary))" name="Peças/h" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="entries" fill="hsl(var(--primary))" name="Apontamentos" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : <p className="text-center text-muted-foreground py-8">Sem apontamentos hoje</p>}
