@@ -6,7 +6,7 @@ import { User } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useTimeEntries } from '@/hooks/system/useTimeEntries';
-import { useProductionOrders, type ProductionOrderRow } from '@/hooks/production/useProductionOrders';
+import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { useProductionSteps } from '@/hooks/production/useProductionSteps';
 import { useProductionMachines } from '@/hooks/production/useProductionMachines';
 import { supabase } from '@/integrations/supabase/client';
@@ -99,13 +99,13 @@ export default function OperatorTerminalPage() {
 
   const handlePause = async () => {
     if (!myActiveEntry) return;
-    if (!await update(myActiveEntry.id, { status: 'paused' })) return;
+    if (!await update(myActiveEntry.id, { status: 'paused' }, 'started')) return;
     toast.info('Produção pausada');
   };
 
   const handleResume = async () => {
     if (!myPausedEntry) return;
-    if (!await update(myPausedEntry.id, { status: 'started' })) return;
+    if (!await update(myPausedEntry.id, { status: 'started' }, 'paused')) return;
     toast.success('Produção retomada');
   };
 
@@ -120,28 +120,13 @@ export default function OperatorTerminalPage() {
       end_time: new Date().toISOString(),
       produced_quantity: producedQty,
       rejected_quantity: rejectedQty,
-    });
+    }, currentEntry.status === 'paused' ? 'paused' : 'started');
     if (!finished) return;
-    if (currentEntry.production_order_id) {
-      const order = orders.find((o) => o.id === currentEntry.production_order_id);
-      if (order) {
-        const newProduced = order.produced_quantity + producedQty;
-        const newRejected = order.rejected_quantity + rejectedQty;
-        const updates: Partial<ProductionOrderRow> = {
-          produced_quantity: newProduced,
-          rejected_quantity: newRejected,
-        };
-        // A finished time entry is not a completed OP. Quality and stock must
-        // be reconciled by a separately homologated transactional workflow.
-        if (newProduced >= order.quantity) {
-          toast.info('Quantidade apontada; conclusão da OP pendente de qualidade e estoque.');
-        }
-        await updateOrder(order.id, updates);
-      }
-    }
+    // Do not mutate OP quantities here: the OP hook intentionally rejects
+    // quantity edits, and a separate client write cannot reconcile stock/quality.
+    toast.info('Apontamento concluído; quantidade da OP, estoque e qualidade aguardam conciliação transacional.');
     setProducedQty(0);
     setRejectedQty(0);
-    toast.info('Apontamento enviado; confira OP, estoque e qualidade antes da conciliação.');
   };
 
   const handleReportProblem = async () => {
@@ -183,7 +168,7 @@ export default function OperatorTerminalPage() {
         return;
       }
       if (currentEntry && currentEntry.status === 'started') {
-        if (!await update(currentEntry.id, { status: 'paused' })) {
+        if (!await update(currentEntry.id, { status: 'paused' }, 'started')) {
           toast.error('Alerta registrado, mas o apontamento NÃO foi pausado. Avise a supervisão.');
           return;
         }

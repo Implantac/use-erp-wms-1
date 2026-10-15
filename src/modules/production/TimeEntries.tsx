@@ -42,31 +42,21 @@ export default function TimeEntriesPage() {
   const activeCount = entries.filter(e => e.status === 'started').length;
   const pausedCount = entries.filter(e => e.status === 'paused').length;
   const completedToday = entries.filter(e => e.status === 'completed' && e.end_time && new Date(e.end_time).toDateString() === today).length;
-  const totalProduced = entries.filter(e => new Date(e.start_time).toDateString() === today).reduce((s, e) => s + e.produced_quantity, 0);
-  const totalRejected = entries.filter(e => new Date(e.start_time).toDateString() === today).reduce((s, e) => s + e.rejected_quantity, 0);
 
   const handlePause = async (entry: TimeEntryRow) => {
-    await update(entry.id, { status: 'paused' });
+    if (!await update(entry.id, { status: 'paused' }, 'started')) return;
     toast.info(`Apontamento pausado: ${entry.operation_name}`);
   };
 
   const handleResume = async (entry: TimeEntryRow) => {
-    await update(entry.id, { status: 'started' });
+    if (!await update(entry.id, { status: 'started' }, 'paused')) return;
     toast.success(`Apontamento retomado: ${entry.operation_name}`);
   };
 
   const handleComplete = async (entry: TimeEntryRow) => {
-    await update(entry.id, { status: 'completed', end_time: new Date().toISOString() });
-    if (entry.production_order_id && entry.produced_quantity > 0) {
-      const order = orders.find(o => o.id === entry.production_order_id);
-      if (order) {
-        await updateOrder(order.id, {
-          produced_quantity: order.produced_quantity + entry.produced_quantity,
-          rejected_quantity: order.rejected_quantity + entry.rejected_quantity,
-        });
-      }
-    }
-    toast.success(`Apontamento concluído: ${entry.operation_name}`);
+    if (entry.status !== 'started' && entry.status !== 'paused') return;
+    if (!await update(entry.id, { status: 'completed', end_time: new Date().toISOString() }, entry.status)) return;
+    toast.info(`Apontamento concluído: ${entry.operation_name}. Quantidade da OP pendente de conciliação.`);
   };
 
   const handleStartNew = async () => {
@@ -77,7 +67,7 @@ export default function TimeEntriesPage() {
     const order = orders.find(o => o.id === newEntry.orderId);
     if (!order) return;
 
-    await create({
+    const created = await create({
       production_order_id: newEntry.orderId,
       order_number: order.order_number,
       operation_id: null,
@@ -93,6 +83,7 @@ export default function TimeEntriesPage() {
       work_center: newEntry.workCenter || null,
     });
 
+    if (!created) return;
     if (order.status === 'planned') {
       await updateOrder(order.id, { status: 'in_progress', start_date: new Date().toISOString() });
     }
@@ -126,8 +117,6 @@ export default function TimeEntriesPage() {
         activeCount={activeCount}
         pausedCount={pausedCount}
         completedToday={completedToday}
-        totalProduced={totalProduced}
-        totalRejected={totalRejected}
       />
 
       <TimeEntriesFilters

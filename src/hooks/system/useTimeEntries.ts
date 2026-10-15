@@ -45,10 +45,15 @@ export function useTimeEntries() {
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  const update = async (id: string, updates: Partial<TimeEntryRow>) => {
+  const update = async (id: string, updates: Partial<TimeEntryRow>, expectedStatus?: 'started' | 'paused') => {
     if (!companyId) { toast.error('Selecione uma empresa'); return false; }
-    const { data, error } = await supabase.from('time_entries').update({ ...updates, company_id: companyId } as TablesUpdate<'time_entries'>).eq('id', id).eq('company_id', companyId).select('id');
-    if (error || !data?.length) { toast.error('Erro ao atualizar apontamento'); return false; }
+    if (expectedStatus && (updates.status === expectedStatus || !['started', 'paused', 'completed'].includes(updates.status || ''))) {
+      toast.error('Transição de apontamento inválida'); return false;
+    }
+    let query = supabase.from('time_entries').update({ ...updates, company_id: companyId } as TablesUpdate<'time_entries'>).eq('id', id).eq('company_id', companyId);
+    if (expectedStatus) query = query.eq('status', expectedStatus);
+    const { data, error } = await query.select('id');
+    if (error || !data?.length) { toast.error('Apontamento mudou ou não pôde ser atualizado; recarregue antes de tentar novamente'); await fetch(); return false; }
     await fetch();
     return true;
   };
