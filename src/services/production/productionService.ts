@@ -15,15 +15,6 @@ export class ProductionService {
     return data ?? [];
   }
 
-  async updateOrderStatus(id: string, status: string) {
-    if (status === 'completed') throw new Error('Conclusão de OP indisponível sem consumo e qualidade transacionais homologados');
-    const { error } = await supabase
-      .from('production_orders')
-      .update({ status })
-      .eq('id', id);
-    if (error) throw error;
-  }
-
   async getResources() {
     const { data, error } = await supabase
       .from('production_resources')

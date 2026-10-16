@@ -55,15 +55,17 @@ export function useProductionOrders() {
   const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
   const [orders, setOrders] = useState<ProductionOrderRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const fetch = useCallback(async () => {
-    if (!companyId) { setOrders([]); setLoadedCompanyId(null); setLoading(false); return false; }
+    if (!companyId) { setOrders([]); setLoadedCompanyId(null); setLoadError(false); setLoading(false); return false; }
     setLoading(true);
     const { data, error } = await supabase.from('production_orders').select('*').eq('company_id', companyId).order('created_at', { ascending: false });
     if (companyIdRef.current !== companyId) return false;
-    if (error) { console.error(error); toast.error('Erro ao carregar ordens de produção'); setOrders([]); setLoadedCompanyId(null); setLoading(false); return false; }
+    if (error) { console.error(error); toast.error('Erro ao carregar ordens de produção'); setOrders([]); setLoadedCompanyId(null); setLoadError(true); setLoading(false); return false; }
     setOrders((data || []) as ProductionOrderRow[]);
     setLoadedCompanyId(companyId);
+    setLoadError(false);
     setLoading(false);
     return true;
   }, [companyId]);
@@ -97,5 +99,5 @@ export function useProductionOrders() {
     return true;
   };
 
-  return { orders: loadedCompanyId === companyId ? orders : [], loading, refetch: fetch, update };
+  return { orders: loadedCompanyId === companyId ? orders : [], loading, loadError, hasCompany: !!companyId, refetch: fetch, update };
 }

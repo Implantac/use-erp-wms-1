@@ -1,18 +1,18 @@
 import { useState, useMemo } from 'react';
-import { useProduction } from '@/hooks/production/useProduction';
+import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { ExportButton } from '@/shared/components/ExportButton';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { KPICard } from '@/shared/components/KPICard';
 import { PlayCircle, Calendar, AlertTriangle, CheckCircle } from 'lucide-react';
-import { differenceInDays, parseISO } from 'date-fns';
+import { isOrderOverdue } from './productionOrders/orderPresentation';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
 import { OrdersFilters } from './productionOrders/OrdersFilters';
 import { OrdersTable } from './productionOrders/OrdersTable';
 import { OrderDetailDialog } from './productionOrders/OrderDetailDialog';
 
 export default function ProductionOrdersPage() {
-  const { orders, ordersLoading: loading, updateOrderStatus: updateOrder } = useProduction();
+  const { orders, loading, loadError, hasCompany, update: updateOrder } = useProductionOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -33,11 +33,12 @@ export default function ProductionOrdersPage() {
 
   const completedCount = orders.filter(o => o.status === 'completed').length;
   const inProgressCount = orders.filter(o => o.status === 'in_progress').length;
-  const lateCount = orders.filter(o => o.due_date && differenceInDays(new Date(), parseISO(o.due_date)) > 0 && !['completed', 'cancelled'].includes(o.status)).length;
-  const efficiency = orders.length > 0 ? ((completedCount / orders.length) * 100) : 0;
+  const lateCount = orders.filter(o => isOrderOverdue(o)).length;
 
   const handleView = (order: ProductionOrderRow) => { setSelectedOrder(order); setDetailsOpen(true); };
-  const setStatus = (order: ProductionOrderRow, status: string) => updateOrder({ id: order.id, status });
+  const setStatus = (order: ProductionOrderRow, status: string) => updateOrder(order.id, { status,
+    ...(status === 'in_progress' && !order.start_date ? { start_date: new Date().toISOString() } : {}),
+  });
 
   return (
     <PageContainer loading={loading}>
@@ -53,11 +54,14 @@ export default function ProductionOrdersPage() {
         />
       </PageHeader>
 
+      {!hasCompany && <p role="alert" className="text-sm text-muted-foreground">Selecione uma empresa para consultar OPs.</p>}
+      {loadError && <p role="alert" className="text-sm text-destructive">Falha na consulta de OPs; não é possível confirmar os totais.</p>}
+      {hasCompany && !loadError && <>
       <div className="grid gap-4 md:grid-cols-4">
         <KPICard title="Em Produção" value={inProgressCount} icon={<PlayCircle className="h-5 w-5" />} accentColor="primary" index={0} />
         <KPICard title="Na Fila" value={orders.filter(o => o.status === 'planned').length} icon={<Calendar className="h-5 w-5" />} accentColor="info" index={1} />
         <KPICard title="Atrasadas" value={lateCount} icon={<AlertTriangle className="h-5 w-5" />} accentColor="danger" index={2} />
-        <KPICard title="Eficiência" value={`${efficiency.toFixed(0)}%`} icon={<CheckCircle className="h-5 w-5" />} accentColor="success" index={3} />
+        <KPICard title="OPs concluídas" value={completedCount} icon={<CheckCircle className="h-5 w-5" />} accentColor="success" index={3} />
       </div>
 
       <OrdersFilters
@@ -73,6 +77,8 @@ export default function ProductionOrdersPage() {
         onPause={(o) => setStatus(o, 'paused')}
         onResume={(o) => setStatus(o, 'in_progress')}
       />
+
+      </>}
 
       <OrderDetailDialog order={selectedOrder} open={detailsOpen} onOpenChange={setDetailsOpen} />
     </PageContainer>
