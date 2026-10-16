@@ -20,7 +20,7 @@ export type KanbanColumn = {
 interface KanbanBoardProps {
   columns: KanbanColumn[];
   onDragEnd: (result: DropResult) => void;
-  onMove: (orderId: string, newStatus: string) => Promise<void>;
+  onMove: (orderId: string, newStatus: string) => Promise<unknown>;
   outsourcingByOP: Record<string, OutsourcingOrderRow[]>;
   timeLogs: ReturnType<typeof useProductionTimeLogs>;
 }

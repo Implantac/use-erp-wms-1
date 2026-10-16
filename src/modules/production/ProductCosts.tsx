@@ -19,7 +19,7 @@ import { toSafeNumber } from '@/lib/numericValidation';
 import { EmptyState } from '@/shared/components/EmptyState';
 
 export default function ProductCostsPage() {
-  const { costs, loading, createCost, updateCost, deleteCost, calculateCost, avgMargin, totalRevenue, totalCostSum, lowMarginProducts } = useProductCosts();
+  const { costs, loading, createCost, updateCost, deleteCost, calculateCost, avgMargin, lowMarginProducts } = useProductCosts();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCost, setEditingCost] = useState<ProductCost | null>(null);
@@ -71,8 +71,6 @@ export default function ProductCostsPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <KPICard title="Margem Média" value={`${avgMargin.toFixed(1)}%`} icon={<TrendingUp className="h-5 w-5" />} accentColor="success" index={0} />
-        <KPICard title="Receita Total" value={`${formatBRL(totalRevenue)}`} icon={<DollarSign className="h-5 w-5" />} accentColor="primary" index={1} />
-        <KPICard title="Custo Total" value={`${formatBRL(totalCostSum)}`} icon={<Calculator className="h-5 w-5" />} accentColor="info" index={2} />
         <KPICard title="Margem Baixa" value={lowMarginProducts.length} subtitle="produtos < 15%" icon={<AlertTriangle className="h-5 w-5" />} accentColor="warning" index={3} />
       </div>
 

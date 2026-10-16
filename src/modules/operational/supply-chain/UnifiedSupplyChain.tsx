@@ -161,7 +161,7 @@ export default function UnifiedSupplyChain() {
                         {/* Status Lifecycle Indicator */}
                         <div className="mt-4 flex items-center gap-1 w-full opacity-60">
                           {statusOrder.map((status, idx) => {
-                            const currentIdx = statusOrder.indexOf(m.status);
+                            const currentIdx = statusOrder.indexOf(m.status as (typeof statusOrder)[number]);
                             return (
                               <div key={status} className="flex items-center gap-1 flex-1">
                                 <div className={cn('h-1.5 flex-1 rounded-full transition-colors', idx <= currentIdx ? 'bg-primary' : 'bg-muted')} />

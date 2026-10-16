@@ -5,7 +5,7 @@ import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders'
 import type { TimeEntryRow } from '@/hooks/system/useTimeEntries';
 import type { DbOrder } from '@/hooks/commercial/useOrders';
 
-type UpdateOP = (id: string, updates: Partial<ProductionOrderRow>) => Promise<void> | void;
+type UpdateOP = (id: string, updates: Partial<ProductionOrderRow>) => Promise<unknown> | void;
 
 export function usePCPPanelState() {
   const [search, setSearch] = useState('');

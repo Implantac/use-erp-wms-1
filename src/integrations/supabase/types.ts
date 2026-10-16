@@ -3615,7 +3615,7 @@ export type Database = {
           address_state: string
           address_street: string
           address_zip_code: string
-          cnpj: string
+          cnpj: string | null
           company_size: string | null
           created_at: string
           data_retention_days: number
@@ -3623,6 +3623,7 @@ export type Database = {
           enterprise_group_id: string | null
           group_id: string | null
           id: string
+          is_demo: boolean
           is_headquarters: boolean
           municipal_registration: string | null
           name: string
@@ -3652,7 +3653,7 @@ export type Database = {
           address_state?: string
           address_street?: string
           address_zip_code?: string
-          cnpj: string
+          cnpj?: string | null
           company_size?: string | null
           created_at?: string
           data_retention_days?: number
@@ -3660,6 +3661,7 @@ export type Database = {
           enterprise_group_id?: string | null
           group_id?: string | null
           id?: string
+          is_demo?: boolean
           is_headquarters?: boolean
           municipal_registration?: string | null
           name: string
@@ -3689,7 +3691,7 @@ export type Database = {
           address_state?: string
           address_street?: string
           address_zip_code?: string
-          cnpj?: string
+          cnpj?: string | null
           company_size?: string | null
           created_at?: string
           data_retention_days?: number
@@ -3697,6 +3699,7 @@ export type Database = {
           enterprise_group_id?: string | null
           group_id?: string | null
           id?: string
+          is_demo?: boolean
           is_headquarters?: boolean
           municipal_registration?: string | null
           name?: string

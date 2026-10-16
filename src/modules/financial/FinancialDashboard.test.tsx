@@ -19,9 +19,9 @@ const view = () => render(<MemoryRouter><FinancialDashboard /></MemoryRouter>);
 
 beforeEach(() => {
   useEnterpriseStore.setState({ activeCompanyId: 'company-a' });
-  banks.mockReturnValue(query([{ active: true, balance: 150 }, { active: false, balance: 900 }]) as ReturnType<typeof useBankAccounts>);
-  payables.mockReturnValue(query([]) as ReturnType<typeof useAccountsPayable>);
-  receivables.mockReturnValue(query([]) as ReturnType<typeof useAccountsReceivable>);
+  banks.mockReturnValue(query([{ active: true, balance: 150 }, { active: false, balance: 900 }]) as unknown as ReturnType<typeof useBankAccounts>);
+  payables.mockReturnValue(query([]) as unknown as ReturnType<typeof useAccountsPayable>);
+  receivables.mockReturnValue(query([]) as unknown as ReturnType<typeof useAccountsReceivable>);
 });
 
 describe('FinancialDashboard', () => {
@@ -33,7 +33,7 @@ describe('FinancialDashboard', () => {
   });
 
   it('não mostra totais incompletos quando uma consulta falha', () => {
-    payables.mockReturnValue(query(undefined, true) as ReturnType<typeof useAccountsPayable>);
+    payables.mockReturnValue(query(undefined, true) as unknown as ReturnType<typeof useAccountsPayable>);
     view();
     expect(screen.getByRole('alert').textContent).toContain('Não foi possível consultar');
     expect(screen.queryByText('R$ 150,00')).toBeNull();
@@ -47,7 +47,7 @@ describe('FinancialDashboard', () => {
   });
 
   it('avisa sobre o limite de registros antes de apresentar uma amostra', () => {
-    banks.mockReturnValue(query(Array.from({ length: 100 }, () => ({ active: true, balance: 1 }))) as ReturnType<typeof useBankAccounts>);
+    banks.mockReturnValue(query(Array.from({ length: 100 }, () => ({ active: true, balance: 1 }))) as unknown as ReturnType<typeof useBankAccounts>);
     view();
     expect(screen.getByText(/consultas atingiram o limite/)).toBeTruthy();
   });

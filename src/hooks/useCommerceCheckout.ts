@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { handleMutationError } from "@/lib/toastHelpers";
+import { handleMutationError, toastSuccess } from "@/lib/toastHelpers";
 
 export interface CheckoutItem {
   product_id?: string | null;

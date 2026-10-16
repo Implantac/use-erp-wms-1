@@ -17,7 +17,7 @@ export function validateReinfCertificate(
   // ICP-Brasil A1 certificates commonly carry the holder CNPJ in the CN.
   // If an issuer uses a different subject format, require explicit validation
   // instead of silently accepting an unverified certificate.
-  const subjectsCnpjs = cert.subject.match(/(?<!\d)\d{14}(?!\d)/g) ?? [];
+  const subjectsCnpjs = cert.subject.match(/(?<!\d)\d{14}(?!\d)/g) ?? ([] as string[]);
   if (!subjectsCnpjs.includes(cnpj)) return 'certificate_company_mismatch';
   const start = Date.parse(cert.not_before);
   const end = Date.parse(cert.not_after);
