@@ -15,7 +15,7 @@ import type { BottleneckAnalysis } from '../BottleneckDialog';
 export function useKanbanActions(params: {
   orders: ProductionOrderRow[];
   update: (id: string, updates: TablesUpdate<'production_orders'>) => Promise<boolean>;
-  refetch: () => Promise<void> | void;
+  refetch: () => Promise<unknown> | void;
   capacityLoad: Record<string, { name: string; capacity: number; allocated: number }>;
   wipLimits: Record<string, number>;
   intelligence: PCPIntelligence;
