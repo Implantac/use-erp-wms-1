@@ -43,6 +43,13 @@
       "when": 1791459424749,
       "tag": "0005_channel_scope_restrictive_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792160057161,
+      "tag": "0006_demo_company_flag",
+      "breakpoints": true
     }
   ]
 }
