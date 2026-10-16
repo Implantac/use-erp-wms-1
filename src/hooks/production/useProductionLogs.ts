@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 import { toast } from 'sonner';
 
 export interface ProductionLogRow {
@@ -9,33 +9,40 @@ export interface ProductionLogRow {
   step_id: string | null;
   event_type: string;
   operator: string | null;
-  quantity: number;
+  quantity: number | null;
   description: string | null;
-  metadata: any;
+  metadata: unknown;
   created_at: string;
 }
 
+/** Limited event history, not complete lot genealogy or an inventory ledger. */
 export function useProductionLogs(orderId?: string) {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
+  const companyIdRef = useRef(companyId);
+  companyIdRef.current = companyId;
+  const [loadedCompanyId, setLoadedCompanyId] = useState<string | null>(null);
   const [logs, setLogs] = useState<ProductionLogRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const fetchData = useCallback(async () => {
+    if (!companyId) { setLogs([]); setLoadedCompanyId(null); setLoadError(false); setLoading(false); return false; }
     setLoading(true);
-    let query = supabase.from('production_logs').select('*').order('created_at', { ascending: false }).limit(200);
+    let query = supabase.from('production_logs').select('*').eq('company_id', companyId)
+      .order('created_at', { ascending: false }).limit(200);
     if (orderId) query = query.eq('production_order_id', orderId);
     const { data, error } = await query;
-    if (error) { console.error(error); }
-    else setLogs(data || []);
-    setLoading(false);
-  }, [orderId]);
+    if (companyIdRef.current !== companyId) return false;
+    if (error) {
+      console.error(error); toast.error('Erro ao carregar histórico');
+      setLogs([]); setLoadedCompanyId(null); setLoadError(true); setLoading(false); return false;
+    }
+    setLogs(data || []); setLoadedCompanyId(companyId); setLoadError(false); setLoading(false);
+    return true;
+  }, [companyId, orderId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { void fetchData(); }, [fetchData]);
 
-  const addLog = async (log: Partial<ProductionLogRow>) => {
-    const { error } = await supabase.from('production_logs').insert(log as TablesInsert<'production_logs'>);
-    if (error) console.error('Erro ao registrar log', error);
-    else await fetchData();
-  };
-
-  return { logs, loading, refetch: fetchData, addLog };
+  return { logs: loadedCompanyId === companyId ? logs : [], loading, loadError, hasCompany: !!companyId, refetch: fetchData };
 }

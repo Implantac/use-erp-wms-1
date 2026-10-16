@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/base/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
 import { useProductionLogs } from '@/hooks/production/useProductionLogs';
-import { Search, History, User, Package, Clock, ArrowRight } from 'lucide-react';
+import { Search, History, User, Clock, ArrowRight } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -25,7 +25,7 @@ const eventTypeConfig: Record<string, { label: string; color: string; icon: stri
 };
 
 export default function ProductionTraceabilityPage() {
-  const { logs, loading } = useProductionLogs();
+  const { logs, loading, loadError, hasCompany } = useProductionLogs();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [operatorFilter, setOperatorFilter] = useState('all');
@@ -52,18 +52,19 @@ export default function ProductionTraceabilityPage() {
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   }, [filtered]);
 
-  const totalPieces = logs.reduce((s, l) => s + (l.quantity || 0), 0);
   const defects = logs.filter(l => l.event_type === 'defect').length;
 
   return (
     <PageContainer loading={loading}>
-      <PageHeader title="Rastreabilidade de Produção" description="Histórico completo de eventos — timeline e tabela" />
+      <PageHeader title="Rastreabilidade de Produção" description="Últimos 200 logs da empresa ativa. Não é genealogia de lotes nem prova de recall completo." />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KPICard title="Eventos Registrados" value={logs.length} icon={<History className="h-5 w-5" />} accentColor="primary" index={0} />
-        <KPICard title="Operadores" value={operators.length} icon={<User className="h-5 w-5" />} accentColor="info" index={1} />
-        <KPICard title="Peças Registradas" value={totalPieces} icon={<Package className="h-5 w-5" />} accentColor="success" index={2} />
-        <KPICard title="Defeitos" value={defects} icon={<Clock className="h-5 w-5" />} accentColor={defects > 0 ? 'danger' : 'success'} index={3} />
+      {!hasCompany && <p role="alert" className="text-sm text-muted-foreground">Selecione uma empresa para consultar os registros.</p>}
+      {loadError && <p role="alert" className="text-sm text-destructive">Falha ao consultar logs; não é possível confirmar os eventos.</p>}
+      {hasCompany && !loadError && <>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <KPICard title="Logs na amostra (até 200)" value={logs.length} icon={<History className="h-5 w-5" />} accentColor="primary" index={0} />
+        <KPICard title="Nomes informados" value={operators.length} icon={<User className="h-5 w-5" />} accentColor="info" index={1} />
+        <KPICard title="Defeitos" value={defects} icon={<Clock className="h-5 w-5" />} accentColor={defects > 0 ? 'danger' : 'success'} index={2} />
       </div>
 
       {/* Filters */}
@@ -158,7 +159,7 @@ export default function ProductionTraceabilityPage() {
                         <TableCell className="text-xs font-mono">{format(parseISO(l.created_at), 'dd/MM HH:mm')}</TableCell>
                         <TableCell><Badge className={cn('text-xs', cfg.color)}>{cfg.icon} {cfg.label}</Badge></TableCell>
                         <TableCell>{l.operator || '-'}</TableCell>
-                        <TableCell>{l.quantity || '-'}</TableCell>
+                        <TableCell>{l.quantity ?? '—'} (unidade não registrada)</TableCell>
                         <TableCell className="max-w-xs truncate">{l.description || '-'}</TableCell>
                       </TableRow>
                     );
@@ -169,6 +170,7 @@ export default function ProductionTraceabilityPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </>}
     </PageContainer>
   );
 }
