@@ -18,7 +18,7 @@ import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 export default function ProductionSchedulePage() {
-  const { schedules, loading, create, update } = useProductionSchedule();
+  const { schedules, loading, loadError, hasCompany, create, update } = useProductionSchedule();
   const { orders } = useProductionOrders();
   const [showCreate, setShowCreate] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState('');
@@ -42,27 +42,35 @@ export default function ProductionSchedulePage() {
 
   const handleCreate = async () => {
     if (!selectedOrderId || !plannedStart || !plannedEnd) { toast.error('Preencha todos os campos obrigatórios'); return; }
-    await create({ production_order_id: selectedOrderId, planned_start: new Date(plannedStart).toISOString(), planned_end: new Date(plannedEnd).toISOString(), sector, shift, status: 'scheduled' });
+    const start = new Date(plannedStart).getTime();
+    const end = new Date(plannedEnd).getTime();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      toast.error('O fim planejado deve ser posterior ao início'); return;
+    }
+    if (!await create({ production_order_id: selectedOrderId, planned_start: plannedStart, planned_end: plannedEnd, sector, shift })) return;
     setShowCreate(false); setSelectedOrderId(''); setPlannedStart(''); setPlannedEnd(''); setSector('');
   };
 
   const getStatusBadge = (s: ProductionScheduleRow) => {
     const isLate = s.status !== 'completed' && isAfter(now, new Date(s.planned_end));
     if (isLate) return <Badge variant="destructive">Atrasado</Badge>;
-    if (s.status === 'completed') return <Badge className="bg-success/15 text-success border-success/30">Concluído</Badge>;
-    if (s.actual_start) return <Badge className="bg-warning/15 text-warning border-warning/30">Em Execução</Badge>;
+    if (s.status === 'completed') return <Badge className="bg-success/15 text-success border-success/30">Janela encerrada</Badge>;
+    if (s.actual_start) return <Badge className="bg-warning/15 text-warning border-warning/30">Janela iniciada</Badge>;
     return <Badge variant="outline">Agendado</Badge>;
   };
 
   return (
     <PageContainer loading={loading}>
-      <PageHeader title="Agendamento de Produção" description="Programação e sequenciamento de ordens de produção">
-        <Button onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-2" /> Agendar OP</Button>
+      <PageHeader title="Agendamento de Produção" description="Janelas planejadas por empresa. Não reserva capacidade nem sincroniza automaticamente o estado da OP.">
+        <Button disabled={loadError || !hasCompany} onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-2" /> Agendar OP</Button>
       </PageHeader>
 
+      {!hasCompany && <p role="alert" className="text-sm text-muted-foreground">Selecione uma empresa para consultar a programação.</p>}
+      {loadError && <p role="alert" className="text-sm text-destructive">Falha na leitura da programação; não interprete a lista vazia como ausência de agendamentos.</p>}
+      {hasCompany && !loadError && <>
       <div className="grid gap-4 md:grid-cols-4">
         <KPICard title="Total Agendados" value={enriched.length} icon={<Calendar className="h-5 w-5" />} accentColor="primary" index={0} />
-        <KPICard title="Em Execução" value={inExecution} icon={<Factory className="h-5 w-5" />} accentColor="warning" index={1} />
+        <KPICard title="Janelas iniciadas" value={inExecution} icon={<Factory className="h-5 w-5" />} accentColor="warning" index={1} />
         <KPICard title="Atrasados" value={lateCount} icon={<AlertTriangle className="h-5 w-5" />} accentColor="danger" index={2} />
         <KPICard title="Sem Agendamento" value={unscheduledOrders.length} icon={<Clock className="h-5 w-5" />} accentColor="info" index={3} />
       </div>
@@ -74,7 +82,7 @@ export default function ProductionSchedulePage() {
             <EmptyState
               icon={Calendar}
               title="Nenhum agendamento criado"
-              description={unscheduledOrders.length > 0
+              description={loadError ? 'Consulta indisponível; atualize antes de agendar.' : unscheduledOrders.length > 0
                 ? `Você tem ${unscheduledOrders.length} ordem(ns) aguardando agendamento.`
                 : 'Crie uma ordem de produção primeiro para poder agendá-la.'}
               action={unscheduledOrders.length > 0
@@ -99,8 +107,8 @@ export default function ProductionSchedulePage() {
                     <TableCell><Badge variant="outline">{s.shift}</Badge></TableCell>
                     <TableCell>{getStatusBadge(s)}</TableCell>
                     <TableCell>
-                      {!s.actual_start && <Button size="sm" variant="outline" onClick={() => update(s.id, { actual_start: new Date().toISOString(), status: 'in_progress' })}>Iniciar</Button>}
-                      {s.actual_start && !s.actual_end && <Button size="sm" variant="outline" onClick={() => update(s.id, { actual_end: new Date().toISOString(), status: 'completed' })}>Finalizar</Button>}
+                      {!s.actual_start && <Button size="sm" variant="outline" onClick={() => void update(s.id, 'start')}>Iniciar</Button>}
+                      {s.actual_start && !s.actual_end && <Button size="sm" variant="outline" onClick={() => void update(s.id, 'end')} title="Encerra somente esta janela; não conclui a OP">Encerrar janela</Button>}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -109,6 +117,8 @@ export default function ProductionSchedulePage() {
           )}
         </CardContent>
       </Card>
+
+      </>}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
