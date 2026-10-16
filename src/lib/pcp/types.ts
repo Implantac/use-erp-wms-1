@@ -53,6 +53,7 @@ export interface MaterialItemLike {
 export interface SheetLike {
   product_code?: string;
   product_id?: string;
+  version?: number | string;
   materials?: MaterialItemLike[];
 }
 export interface TimeEntryLike {

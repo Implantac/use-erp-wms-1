@@ -85,14 +85,9 @@ export function useTransferActions() {
       if (!user?.id) throw new Error('Usuário não autenticado.');
       return transferService.createTransfer({ ...input, companyId: currentCompany.id, userId: user.id });
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       invalidate();
-      toastSuccess(
-        'Transferência criada',
-        result.autoApproved
-          ? 'Aprovada automaticamente e liberada para separação.'
-          : 'Aguardando aprovação do gestor (acima do limite automático).'
-      );
+      toastSuccess('Transferência criada');
     },
     onError: (error) => toastError(error, 'Não foi possível criar a transferência.'),
   });

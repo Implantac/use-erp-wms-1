@@ -52,7 +52,7 @@ export default function BIIndustrialPage() {
           <ExecutiveTab metrics={metrics} period={period} periodDays={periodDays} />
         </TabsContent>
         <TabsContent value="pareto">
-          <ParetoTab metrics={metrics} />
+          <ParetoTab />
         </TabsContent>
         <TabsContent value="profit">
           <ProfitTab metrics={metrics} />
@@ -61,7 +61,7 @@ export default function BIIndustrialPage() {
           <CostTab metrics={metrics} />
         </TabsContent>
         <TabsContent value="oee">
-          <OEETab metrics={metrics} />
+          <OEETab />
         </TabsContent>
         <TabsContent value="trend">
           <TrendTab metrics={metrics} period={period} periodDays={periodDays} />

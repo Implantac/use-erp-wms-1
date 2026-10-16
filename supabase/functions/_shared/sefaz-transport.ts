@@ -38,6 +38,8 @@ export function wrapSoap(bodyXml: string, action: string): string {
     `</soap:Envelope>`;
 }
 
+declare const Deno: { env: { get(name: string): string | undefined } };
+
 export async function callSefaz(opts: SoapRequestOptions): Promise<SoapResponse> {
   const proxyUrl = Deno.env.get("SEFAZ_MTLS_PROXY_URL");
   const proxyToken = Deno.env.get("SEFAZ_MTLS_PROXY_TOKEN");
