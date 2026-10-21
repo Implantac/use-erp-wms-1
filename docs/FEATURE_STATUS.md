@@ -79,3 +79,27 @@ a RPC). Matriz nicho→telas testada (vitest) e prova multiempresa no
 harness: 462 migrations, 41/41 PASS com segundo tenant de outro nicho na
 mesma instalação. Pendente da Fase 1: permissões por gerente de setor e
 ensaio RLS A/B completo (lote 1c).
+
+## Auditoria software house + mercado 2026-10-21
+
+Relatório completo (técnico por especialidade + viabilidade comercial) em
+`docs/ANALISE-COMPLETA-SOFTWARE-HOUSE.md`. Média técnica 6,5/10
+(pré-produção avançada); bloqueadores: RLS completo (Fase 1c), fiscal
+homologado via provedor, custos v1, restore ensaiado, CI formal.
+Veredito comercial: viável como ERP têxtil moderno para PME industrial,
+condicionado ao fiscal e a pilotos com métrica.
+
+## Fase 1c concluída 2026-10-21 — permissão por setor + RLS A/B provado
+
+Migration `20261019210000`: `user_sector_access` + `sector_access_allowed`/
+`assert_sector_access`/`my_sector_access`/`set_user_sector_access` e
+wrappers com guarda nas 4 RPCs de escrita do PCP setorial (impl renomeada
+com execute revogado). Centrais PCP fecham por setor (viewer/operator/
+manager; admin total; modo legado até configurar). Harness: **463
+migrations, 55/55 PASS** incluindo o ensaio RLS A/B com papel
+`authenticated` (SELECT/UPDATE/DELETE entre tenants = 0; controle positivo
+ok) e a correção do catálogo `categories` (leitura global+própria; seed
+determinístico por empresa). Vitest 81, typecheck e ESLint limpos.
+**Fase 1 do plano de produção está completa.** Pendente de sincronização
+com o GitHub (token anterior revogado): relatório de análise, esta fase e
+a 1c aguardam novo token para push.

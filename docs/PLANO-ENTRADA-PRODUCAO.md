@@ -99,9 +99,22 @@ matriz nicho→telas em `src/config/nicheMatrix.test.ts` e prova no harness
 (462 migrations, **41/41 PASS**: segundo tenant químico criado por CNPJ na
 mesma instalação, troca para ração reaplicando módulos, auditoria,
 admin de outra empresa negado, BIL têxtil sem perder a produção).
-Faltam da fase: **permissões por gerente de setor** e o **ensaio RLS A/B
-completo** (policies permissivas legadas em tabelas operacionais são o
-alvo) — próximo lote (1c).
+**Fase 1 concluída (2026-10-21, lote 1c):** permissões por gerente de
+setor entregues — tabela `user_sector_access` (viewer/operator/manager),
+RPC admin `set_user_sector_access`, guarda nas RPCs de escrita do PCP
+(apontar = operator; perfil = manager; admin passa; modo legado até a
+empresa configurar concessões) e centrais que se fecham para quem não tem
+o setor. **Ensaio RLS A/B executado e aprovado no harness (463 migrations,
+55/55 PASS):** tenant B não lê, não atualiza e não apaga produção,
+estoque, produtos nem pedidos do tenant A (papel `authenticated` real,
+via `SET ROLE`); escrita direta em tabela de concessão é negada; controle
+positivo (a própria empresa enxerga) e catálogo por empresa íntegros. O
+ensaio ainda corrigiu um defeito real: `categories` estava tenant-only no
+RLS mas o catálogo de processos é compartilhado por desenho — leitura
+global+própria liberada e seed passou a gravar a categoria explicitamente
+para a empresa-alvo. Achado de contexto: já existia RBAC por módulo
+(`has_permission`/`has_role`) — o modelo final é RBAC (o que pode fazer) ×
+setor (onde pode fazer).
 
 ### Fase 2 — Correções P0 do núcleo
 - **Custos industriais v1**: custo por lote/OP (matéria-prima real +
