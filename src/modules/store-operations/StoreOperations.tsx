@@ -191,6 +191,7 @@ export default function StoreOperations() {
               </Card>
 
               <StoreTransfersPanel onReceive={() => setIsReceivingOpen(true)} />
+            </div>
           </div>
         )}
       </div>
