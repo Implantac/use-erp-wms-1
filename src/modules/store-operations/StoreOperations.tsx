@@ -24,6 +24,7 @@ import { useStoreCentral } from '@/hooks/operational/store/useStoreCentral';
 import { useEnterprise } from '@/core/auth/EnterpriseContext';
 import { cn } from '@/lib/utils';
 import { ReceivingDialog } from './components/ReceivingDialog';
+import { GroupRequestsPanel } from './components/GroupRequestsPanel';
 import { RequestDialog } from './components/RequestDialog';
 import { LossDialog } from './components/LossDialog';
 import { InventoryDialog } from './components/InventoryDialog';
@@ -116,6 +117,12 @@ export default function StoreOperations() {
             </button>
           ))}
         </div>
+
+        {activeTab === 'solicitacoes' && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <GroupRequestsPanel />
+          </div>
+        )}
 
         {activeTab === 'resumo' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">

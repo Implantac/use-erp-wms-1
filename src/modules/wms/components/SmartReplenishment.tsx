@@ -6,6 +6,7 @@ import { Input } from '@/ui/base/input';
 import { Badge } from '@/ui/base/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
 import { useEstoqueMatrix } from '@/hooks/inventory/useEstoqueMatrix';
+import { GroupOverviewPanel } from './GroupOverviewPanel';
 import { useBranches } from '@/hooks/useBranches';
 import { useCreateTransferenciaCanal } from '@/hooks/wms/useTransferenciasCanal';
 import { EmptyState } from '@/shared/components/EmptyState';
@@ -1005,6 +1006,7 @@ export function SmartReplenishment() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <GroupOverviewPanel />
     </div>
   );
 }

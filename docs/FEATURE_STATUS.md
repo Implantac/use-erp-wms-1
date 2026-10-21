@@ -103,3 +103,15 @@ determinístico por empresa). Vitest 81, typecheck e ESLint limpos.
 **Fase 1 do plano de produção está completa.** Pendente de sincronização
 com o GitHub (token anterior revogado): relatório de análise, esta fase e
 a 1c aguardam novo token para push.
+
+## Grupo multi-CNPJ + reparo de transferências 2026-10-21 (provado)
+
+Migration `20261019220000`: grupo por `parent_company_id` com
+`group_stock_overview` (só gestores do grupo), solicitações intercompany
+(loja pede por SKU; indústria decide vender/transferir/remanejar/produzir/
+rejeitar; venda vira pedido com a loja-cliente pelo CNPJ) e recebimento
+pelo ledger único. **Reparo:** `fn_transferencia_canal_apply` usava coluna
+inexistente (`movement_type`) e quebrava TODA transferência entre filiais —
+redefinida no contrato atual do ledger. Harness: **464 migrations, 67/67
+PASS**; suíte completa **294 testes**; typecheck integral limpo. Desenho em
+`docs/GRUPO-MULTICNPJ.md`. Pendente de push ao GitHub (aguardando token).
