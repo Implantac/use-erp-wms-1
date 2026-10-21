@@ -1,3 +1,4 @@
+import type { Json } from '@/integrations/supabase/types';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, Building2, CheckCircle2, Loader2, Rocket } from 'lucide-react';
