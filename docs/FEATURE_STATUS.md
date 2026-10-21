@@ -115,3 +115,15 @@ inexistente (`movement_type`) e quebrava TODA transferência entre filiais —
 redefinida no contrato atual do ledger. Harness: **464 migrations, 67/67
 PASS**; suíte completa **294 testes**; typecheck integral limpo. Desenho em
 `docs/GRUPO-MULTICNPJ.md`. Pendente de push ao GitHub (aguardando token).
+
+## Fluxo de lojas destravado 2026-10-21 (provado, 77/77)
+
+Revisão completa em `docs/REVISAO-FLUXO-LOJAS.md`. O fluxo de
+transferências estava congelado (20261008223000) sem a transação atômica
+prometida: construída na migration `20261019230000`
+(create/transition_stock_transfer, register_stock_loss/inventory_count,
+GUC app.stock_transfer_rpc), trigger legado aposentado, auto-aprovação da
+loja removida (aprova só gestor), 4 diálogos da loja religados de verdade
+e blocos demonstrativos da página trocados por dados reais. Harness 465
+migrations 77/77; 297 testes; typecheck limpo. Pendente: abas restantes da
+Central da Loja (F6) e KPI em trânsito (F7). Push ao GitHub pendente.

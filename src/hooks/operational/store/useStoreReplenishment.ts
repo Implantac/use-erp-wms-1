@@ -5,7 +5,6 @@ import {
   replenishmentEngine,
   ReplenishmentRecommendation,
 } from '@/services/operational/inventory/replenishmentEngine';
-import { transferWorkflow } from '@/services/operational/inventory/transferWorkflow';
 import { toastSuccess, toastError } from '@/lib/toastHelpers';
 
 export interface ReplenishmentRequestInput {
@@ -38,42 +37,19 @@ export function useStoreReplenishment() {
       const companyId = recommendation.companyId || currentCompany?.id;
       if (!companyId) throw new Error('Empresa não identificada.');
 
-      const correlationId = crypto.randomUUID();
-
-      const { data: transfer, error } = await (supabase as any)
-        .from('stock_transfer_orders')
-        .insert({
-          company_id: companyId,
-          origin_unit_id: sourceBranchId,
-          destination_unit_id: recommendation.branchId,
-          current_status: 'SUGERIDA',
-          correlation_id: correlationId,
-          requested_by: userData.user.id,
-          notes: notes || recommendation.reason,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const { error: itemError } = await (supabase as any).from('stock_transfer_items').insert({
-        transfer_id: transfer.id,
-        product_id: recommendation.productId,
-        requested_qty: quantity,
-      });
-      if (itemError) throw itemError;
-
-      await transferWorkflow.transition({
-        transferId: transfer.id,
-        toStatus: 'APROVADA',
-        userId: userData.user.id,
-        correlationId,
+      const { data, error } = await (supabase as any).rpc('create_stock_transfer_request', {
+        p_origin_unit_id: sourceBranchId,
+        p_destination_unit_id: recommendation.branchId,
+        p_items: [{ product_id: recommendation.productId, quantity }],
+        p_notes: notes || recommendation.reason,
       });
 
-      return transfer;
+      if (error) throw new Error(error.message);
+
+
     },
     onSuccess: () => {
-      toastSuccess('Solicitação enviada', 'A transferência foi criada e aprovada para separação.');
+      toastSuccess('Solicitação enviada', 'Aguardando a decisão do gestor da rede (aprovar, remanejar ou produzir).');
       queryClient.invalidateQueries({ queryKey: ['store-replenishment'] });
       queryClient.invalidateQueries({ queryKey: ['supply-chain-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['stock-in-transit'] });

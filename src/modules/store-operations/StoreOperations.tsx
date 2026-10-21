@@ -25,6 +25,7 @@ import { useEnterprise } from '@/core/auth/EnterpriseContext';
 import { cn } from '@/lib/utils';
 import { ReceivingDialog } from './components/ReceivingDialog';
 import { GroupRequestsPanel } from './components/GroupRequestsPanel';
+import { StoreTransfersPanel } from './components/StoreTransfersPanel';
 import { RequestDialog } from './components/RequestDialog';
 import { LossDialog } from './components/LossDialog';
 import { InventoryDialog } from './components/InventoryDialog';
@@ -149,7 +150,7 @@ export default function StoreOperations() {
                   <CardDescription className="text-[10px] font-black uppercase">Em Trânsito</CardDescription>
                 </CardHeader>
                 <CardContent className="p-4 pt-1">
-                  <div className="text-2xl font-black">3</div>
+                  <div className="text-2xl font-black">{kpis?.inTransit || 0}</div>
                 </CardContent>
               </Card>
               <Card className="border-primary/10">
@@ -157,7 +158,7 @@ export default function StoreOperations() {
                   <CardDescription className="text-[10px] font-black uppercase">Pendências</CardDescription>
                 </CardHeader>
                 <CardContent className="p-4 pt-1 text-red-500">
-                  <div className="text-2xl font-black">1</div>
+                  <div className="text-2xl font-black">{kpis?.itemsPending || 0}</div>
                 </CardContent>
               </Card>
             </div>
@@ -174,7 +175,7 @@ export default function StoreOperations() {
                   <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-red-500/20 shadow-sm">
                     <div className="space-y-0.5">
                       <p className="text-xs font-bold uppercase tracking-tight">Risco de Ruptura</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">2 produtos atingiram nível crítico</p>
+                    <p className="text-[10px] text-muted-foreground font-medium">{kpis?.ruptures || 0} produto(s) em nível crítico</p>
                     </div>
                     <Button 
                       size="sm" 
@@ -185,82 +186,11 @@ export default function StoreOperations() {
                       TRATAR
                     </Button>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-amber-500/20 shadow-sm">
-                    <div className="space-y-0.5">
-                      <p className="text-xs font-bold uppercase tracking-tight text-amber-600">Divergência TR-00179</p>
-                      <p className="text-[10px] text-muted-foreground font-medium">Faltaram 3 unidades no recebimento</p>
-                    </div>
-                    <Button size="sm" variant="outline" className="h-7 text-[10px] font-black px-3 border-amber-500 text-amber-600 hover:bg-amber-500/5">VER</Button>
-                  </div>
+
                 </CardContent>
               </Card>
 
-              {/* O que está chegando */}
-              <Card className="border-blue-500/20 bg-blue-500/5">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-sm font-black uppercase flex items-center gap-2 text-blue-500">
-                    <Download className="h-4 w-4" /> CHEGANDO
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-background rounded-lg border border-blue-500/20 shadow-sm">
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-black">TR-00182</span>
-                        <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-bold border-blue-200 text-blue-600 uppercase">CD Central</Badge>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground font-medium">Chegada prevista: Hoje (87 itens)</p>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="default" 
-                      className="bg-blue-600 hover:bg-blue-700 h-7 text-[10px] font-black px-3"
-                      onClick={() => setIsReceivingOpen(true)}
-                    >
-                      CONFERIR
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Lista de Solicitações Ativas */}
-            <Card className="border-primary/10">
-              <CardHeader className="p-4 border-b bg-muted/10">
-                <CardTitle className="text-sm font-black uppercase flex items-center gap-2">
-                  <RefreshCcw className="h-4 w-4 text-primary" /> SOLICITAÇÕES ATIVAS
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-primary/5">
-                  {[
-                    { id: 'REQ-00143', items: 50, status: 'Aguardando Aprovação', color: 'text-amber-500' },
-                    { id: 'REQ-00142', items: 80, status: 'Em Separação', color: 'text-blue-500' },
-                    { id: 'REQ-00138', items: 40, status: 'Em Trânsito', color: 'text-purple-500' },
-                  ].map((req) => (
-                    <div key={req.id} className="flex items-center justify-between p-4 hover:bg-muted/5 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="h-8 w-8 rounded-full bg-primary/5 flex items-center justify-center">
-                          <Plus className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-black font-mono">{req.id}</p>
-                          <p className="text-[10px] text-muted-foreground font-medium">{req.items} itens solicitados</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className={cn("text-[10px] font-black uppercase tracking-tight", req.color)}>
-                          {req.status}
-                        </span>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+              <StoreTransfersPanel onReceive={() => setIsReceivingOpen(true)} />
           </div>
         )}
       </div>
