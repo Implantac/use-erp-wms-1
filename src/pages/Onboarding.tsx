@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, Building2, CheckCircle2, Loader2, Rocket } from 'lucide-react';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/hooks/system/useAuth';
 import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
@@ -250,7 +251,7 @@ export default function Onboarding() {
         sub_segment?: string;
         operation_types?: string[];
         address_complement?: string;
-        settings?: Record<string, unknown>;
+        settings?: Json;
       } = {};
       if (input.secondary_segment) {
         companyPatch.sub_segment = selectedSegments.map(segmentLabel).join(' e ');
