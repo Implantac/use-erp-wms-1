@@ -76,7 +76,7 @@ export function OrdersTable({ orders, onView, onStart, onPause, onResume }: Prop
                       {order.status === 'in_progress' && (
                         <>
                           <Button variant="outline" size="sm" onClick={() => onPause(order)}><Pause className="h-4 w-4" /></Button>
-                          <Button variant="outline" size="sm" disabled title="Exige conclusão transacional homologada"><CheckCircle className="h-4 w-4 mr-1" />Conclusão bloqueada</Button>
+                          <Button variant="outline" size="sm" onClick={() => onView(order)} title="Abrir a execução PCP para concluir pela transação auditável"><CheckCircle className="h-4 w-4 mr-1" />Concluir na execução</Button>
                         </>
                       )}
                       {order.status === 'paused' && <Button variant="outline" size="sm" onClick={() => onResume(order)}><Play className="h-4 w-4 mr-1" />Retomar</Button>}
