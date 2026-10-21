@@ -1,3 +1,4 @@
+import type { Json } from '@/integrations/supabase/types';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, Building2, CheckCircle2, Loader2, Rocket } from 'lucide-react';
@@ -250,7 +251,7 @@ export default function Onboarding() {
         sub_segment?: string;
         operation_types?: string[];
         address_complement?: string;
-        settings?: Record<string, unknown>;
+        settings?: Json;
       } = {};
       if (input.secondary_segment) {
         companyPatch.sub_segment = selectedSegments.map(segmentLabel).join(' e ');
