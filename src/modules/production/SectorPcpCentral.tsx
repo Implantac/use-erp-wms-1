@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, Factory, PackageCheck, Plus, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CheckCircle2, ClipboardList, Factory, PackageCheck, Plus, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useSectorAccess } from '@/hooks/production/useSectorAccess';
+import { canOpenSector } from '@/lib/pcp/sectorAccess';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { KPICard } from '@/shared/components/KPICard';
@@ -92,6 +94,8 @@ function isSectorOrder(order: ProductionOrderRow, matchers: readonly string[]): 
 
 export default function SectorPcpCentral({ config }: { config: SectorCentralConfig }) {
   const { orders, loading, loadError, hasCompany, refetch } = useProductionOrders();
+  const { data: sectorAccess } = useSectorAccess();
+  const sectorDenied = sectorAccess != null && !canOpenSector(sectorAccess, config.key);
   const { schedules } = useProductionSchedule();
   const { inspections } = useQualityInspections();
   const [selectedOrderId, setSelectedOrderId] = useState('');
@@ -143,6 +147,34 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
     { label: 'Qualidade formalmente aprovada', ok: approvedQuality >= (selectedOrder.quantity || 0) && !blockedQuality, detail: blockedQuality ? 'Há inspeção rejeitada/quarentena' : `Aprovado ${formatNumber(approvedQuality)} ${selectedOrder.unit}` },
     { label: 'Genealogia de lotes', ok: execution.genealogy.length > 0, detail: selectedOrder.status === 'completed' ? `${execution.genealogy.length} aresta(s) entrada→saída` : 'Será gravada na conclusão transacional' },
   ] : [];
+
+  if (sectorDenied) {
+    return (
+      <PageContainer>
+        <PageHeader title={config.title} description={config.description} />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-amber-600" />
+              Sem acesso ao setor de {config.noun}
+            </CardTitle>
+            <CardDescription>
+              Seu usuário não tem concessão neste setor. Quem opera e gerencia
+              cada setor é definido pelo administrador da empresa (acesso por
+              setor: visualização, operação ou gerenciamento). Fala com o
+              administrador para liberar seu acesso à {config.noun} — as
+              demais centrais liberadas para você continuam no menu.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline">
+              <Link to="/">Voltar ao início</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer loading={loading}>

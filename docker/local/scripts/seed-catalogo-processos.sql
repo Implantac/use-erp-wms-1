@@ -28,32 +28,33 @@ BEGIN
     RAISE EXCEPTION 'Empresa BIL nao encontrada: rode antes o cadastro da BIL (CORRIGIR-LOGIN-BIL.bat).';
   END IF;
 
-  -- Categorias por processo (categorias são globais no sistema)
-  INSERT INTO public.categories (name, description)
-  SELECT 'Fibras e Plumas', 'Matéria-prima fibrosa de entrada da fiação'
-   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Fibras e Plumas');
-  INSERT INTO public.categories (name, description)
-  SELECT 'Fios', 'Fios de urdume, trama e malharia'
-   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Fios');
-  INSERT INTO public.categories (name, description)
-  SELECT 'Tecidos Planos', 'Tecidos planos crus e acabados'
-   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Tecidos Planos');
-  INSERT INTO public.categories (name, description)
-  SELECT 'Malhas', 'Malhas cruas e acabadas'
-   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Malhas');
-  INSERT INTO public.categories (name, description)
-  SELECT 'Corantes e Auxiliares', 'Corantes e produtos auxiliares de tinturaria'
-   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Corantes e Auxiliares');
-  INSERT INTO public.categories (name, description)
-  SELECT 'Serviços de Beneficiamento', 'Tingimento/acabamento para terceiros'
-   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Serviços de Beneficiamento');
+  -- Categorias por processo: categorias sao POR EMPRESA no banco (RLS);
+  -- gravamos explicitamente para a BIL para nao depender do contexto da sessao.
+  INSERT INTO public.categories (name, description, company_id)
+  SELECT 'Fibras e Plumas', 'Matéria-prima fibrosa de entrada da fiação', v_company_id
+   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Fibras e Plumas' AND company_id = v_company_id);
+  INSERT INTO public.categories (name, description, company_id)
+  SELECT 'Fios', 'Fios de urdume, trama e malharia', v_company_id
+   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Fios' AND company_id = v_company_id);
+  INSERT INTO public.categories (name, description, company_id)
+  SELECT 'Tecidos Planos', 'Tecidos planos crus e acabados', v_company_id
+   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Tecidos Planos' AND company_id = v_company_id);
+  INSERT INTO public.categories (name, description, company_id)
+  SELECT 'Malhas', 'Malhas cruas e acabadas', v_company_id
+   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Malhas' AND company_id = v_company_id);
+  INSERT INTO public.categories (name, description, company_id)
+  SELECT 'Corantes e Auxiliares', 'Corantes e produtos auxiliares de tinturaria', v_company_id
+   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Corantes e Auxiliares' AND company_id = v_company_id);
+  INSERT INTO public.categories (name, description, company_id)
+  SELECT 'Serviços de Beneficiamento', 'Tingimento/acabamento para terceiros', v_company_id
+   WHERE NOT EXISTS (SELECT 1 FROM public.categories WHERE name = 'Serviços de Beneficiamento' AND company_id = v_company_id);
 
-  SELECT id INTO c_fibras  FROM public.categories WHERE name = 'Fibras e Plumas';
-  SELECT id INTO c_fios    FROM public.categories WHERE name = 'Fios';
-  SELECT id INTO c_tecidos FROM public.categories WHERE name = 'Tecidos Planos';
-  SELECT id INTO c_malhas  FROM public.categories WHERE name = 'Malhas';
-  SELECT id INTO c_corantes FROM public.categories WHERE name = 'Corantes e Auxiliares';
-  SELECT id INTO c_servicos FROM public.categories WHERE name = 'Serviços de Beneficiamento';
+  SELECT id INTO c_fibras FROM public.categories WHERE name = 'Fibras e Plumas' AND company_id = v_company_id;
+  SELECT id INTO c_fios FROM public.categories WHERE name = 'Fios' AND company_id = v_company_id;
+  SELECT id INTO c_tecidos FROM public.categories WHERE name = 'Tecidos Planos' AND company_id = v_company_id;
+  SELECT id INTO c_malhas FROM public.categories WHERE name = 'Malhas' AND company_id = v_company_id;
+  SELECT id INTO c_corantes FROM public.categories WHERE name = 'Corantes e Auxiliares' AND company_id = v_company_id;
+  SELECT id INTO c_servicos FROM public.categories WHERE name = 'Serviços de Beneficiamento' AND company_id = v_company_id;
 
   -- Catálogo por processo (produtos novos, já classificados)
   INSERT INTO public.products (company_id, code, name, type, unit, item_kind, category_id) VALUES
