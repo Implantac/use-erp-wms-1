@@ -93,10 +93,15 @@ for ($i = 0; $i -lt 40 -and -not $healthOk; $i++) {
 if (-not $healthOk) { Fazer-Rollback "http://localhost:$porta/healthz nao respondeu" }
 Ok "Healthz respondendo."
 
-try {
-  $home = Invoke-WebRequest -Uri "http://localhost:$porta/" -UseBasicParsing -TimeoutSec 5
-  if ($home.StatusCode -ne 200) { Fazer-Rollback "a pagina inicial retornou $($home.StatusCode)" }
-} catch { Fazer-Rollback "a pagina inicial nao carregou" }
+$homeOk = $false
+for ($j = 0; $j -lt 5 -and -not $homeOk; $j++) {
+  if ($j -gt 0) { Start-Sleep -Seconds 3 }
+  try {
+    $respPagina = Invoke-WebRequest -Uri "http://localhost:$porta/" -UseBasicParsing -TimeoutSec 5
+    if ($respPagina.StatusCode -eq 200) { $homeOk = $true }
+  } catch { }
+}
+if (-not $homeOk) { Fazer-Rollback "a pagina inicial nao carregou" }
 Ok "Pagina inicial carregando (HTTP 200)."
 
 Write-Host ""

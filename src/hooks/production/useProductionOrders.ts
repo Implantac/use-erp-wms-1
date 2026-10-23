@@ -7,6 +7,8 @@ import { canChangeOPStatus } from '@/lib/pcp/orderTransitions';
 
 export interface ProductionOrderRow {
   id: string;
+  company_id: string;
+  branch_id: string | null;
   order_number: string;
   product_id: string | null;
   product_code: string;

@@ -13,6 +13,8 @@ npm run dev               # http://localhost:8080
 ```
 Instalação completa (banco, funções, primeiro administrador): **[docs/INSTALL.md](docs/INSTALL.md)**.
 
+> **Versão 100% local (sem nuvem):** PostgreSQL local via Docker no Windows, acessível na rede local — `.\instalar-local.ps1` e pronto. Guia: **[docs/INSTALL-LOCAL.md](docs/INSTALL-LOCAL.md)**.
+
 ## Documentação
 | Documento | Conteúdo |
 |---|---|
