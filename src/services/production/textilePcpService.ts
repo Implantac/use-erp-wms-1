@@ -376,6 +376,8 @@ export interface SectorOrderProfileRow {
   // malharia
   gauge?: string | null;
   diameter_cm?: number | null;
+  target_grammage_g_m2?: number | null;
+  target_width_cm?: number | null;
   // tinturaria
   color_name?: string | null;
   color_code?: string | null;
@@ -384,6 +386,9 @@ export interface SectorOrderProfileRow {
   lab_l?: number | null;
   lab_a?: number | null;
   lab_b?: number | null;
+  measured_lab_l?: number | null;
+  measured_lab_a?: number | null;
+  measured_lab_b?: number | null;
   // comum
   planned_output_kg?: number | null;
   created_at: string;

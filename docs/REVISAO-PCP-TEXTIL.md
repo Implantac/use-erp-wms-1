@@ -35,12 +35,12 @@ quem manda é o processo cadastrado.
 | Setor | Nota | Resumo |
 |---|---|---|
 | Motor comum (planejar/executar/concluir) | **8,5** | Transacional, auditável, sem atalhos; falta sequenciamento multi-restrição |
-| Tecelagem | **8,0** | O mais completo: perfil do tear rico, eventos próprios, Mapa de Teares |
-| Fiação | **6,5** | Real e operável, mas enxuto: sem mistura visível nem taxa de produção |
-| Tinturaria | **6,5** | Bom esqueleto; receita não vira dosagem calculada e cor não é medida |
-| Malharia | **6,0** | O mais enxuto: sem gramatura/largura nem peso por rolo |
+| Tecelagem | **8,3** | O mais completo + evento com tear e quadro sem subcontagem |
+| Fiação | **7,0** | + composição da mistura visível a partir da BOM |
+| Tinturaria | **7,4** | + banho/dosagem calculados da receita e ΔE de cor medida |
+| Malharia | **6,8** | + gramatura e largura alvo no perfil |
 | **Beneficiamento/Acabamento** | **3,0** | **Não existe como setor** — ver achado P1-1 |
-| **PCP têxtil (conjunto)** | **6,8** | Execução forte, profundidade de processo desigual |
+| **PCP têxtil (conjunto)** | **7,3** | Após a elevação de nível (seção 7); beneficiamento segue como lacuna |
 
 ## 3. Achados — corrigidos nesta revisão
 
@@ -152,3 +152,22 @@ concessões" — registrar no checklist do piloto.
 módulos de PCP (perfis, indicadores, filtros de produto, acesso, MRP)
 + fumaça das rotas — verdes. Nenhuma migration nova: as duas correções
 são de interface sobre RPCs existentes.
+
+## 7. Elevação de nível aplicada (23/10/2026)
+
+| Item da revisão | Estado |
+|---|---|
+| C-1 diálogo de criação por setor | ✅ corrigido (lote anterior) |
+| C-2 KPI de déficit por setor | ✅ corrigido (lote anterior) |
+| P1-3 quadros subcontando (2.000 eventos) | ✅ eventos paginados por completo nos dois quadros |
+| P1-4 evento de tecelagem sem máquina | ✅ tear do evento (padrão = tear do perfil), alimenta paradas por máquina |
+| P2-4 urdume/trama sem filtro na criação | ✅ só fios também na criação da OP de tecelagem |
+| P1-2 tinturaria (banho/dosagem/ΔE) | ✅ volume do banho e totais da receita calculados da BOM+perfil; L*a*b* **medido** gravado (migration `20261023200000`) e ΔE*ab exibido contra a meta — tolerância continua sendo da empresa |
+| P2-1 fiação (mistura visível) | ✅ composição % planejada da BOM no perfil da OP |
+| P2-2 malharia (gramatura/largura) | ✅ gramatura alvo (g/m²) e largura alvo (cm) no perfil (mesma migration) |
+| P1-1 beneficiamento como 5º setor | ⏳ próximo lote estrutural (migration + acesso + central) |
+| P2-3 eficiência com denominador | ⏳ após apontamento real (calendário por máquina) |
+
+**Provas da elevação:** migration nova aplicada na cadeia completa do
+harness (**133 PASS / 0 FAIL**); typecheck limpo; **310 testes**
+vitest verdes (cálculos de composição/banho/ΔE com testes próprios).

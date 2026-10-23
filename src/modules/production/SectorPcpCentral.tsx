@@ -255,18 +255,18 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
             <WeavingProfilePanel order={selectedOrder} profile={execution.weavingProfile} lots={execution.lots} onChanged={refresh} />
           )}
           {config.key === 'fiacao' && (
-            <SpinningProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} />
+            <SpinningProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} bomLines={execution.bomLines} />
           )}
           {config.key === 'malharia' && (
-            <KnittingProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} />
+            <KnittingProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} bomLines={execution.bomLines} />
           )}
           {config.key === 'tinturaria' && (
-            <DyeingProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} />
+            <DyeingProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} bomLines={execution.bomLines} />
           )}
           <OrderMaterialReservationPanel order={selectedOrder} bomLines={execution.bomLines} lots={execution.lots} reservations={execution.reservations} snapshotAt={execution.snapshotAt} loading={execution.loading} onChanged={refresh} />
           <OrderStepProgressPanel order={selectedOrder} steps={orderSteps} loading={false} onChanged={refresh} />
           {config.key === 'tecelagem' && (
-            <WeavingEventsPanel order={selectedOrder} events={execution.weavingEvents} onChanged={refresh} />
+            <WeavingEventsPanel order={selectedOrder} events={execution.weavingEvents} profileMachineId={execution.weavingProfile?.machine_id ?? null} onChanged={refresh} />
           )}
           {config.key !== 'tecelagem' && (
             <SectorEventsPanel order={selectedOrder} kind={config.key} events={execution.sectorEvents} onChanged={refresh} />

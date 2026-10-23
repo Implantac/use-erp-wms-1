@@ -10,12 +10,16 @@ import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 import { useProductionMachines } from '@/hooks/production/useProductionMachines';
 import { useProductionResources } from '@/hooks/production/useProductionResources';
 import { createClientIdempotencyKey, createTextileProductionOrder } from '@/services/production/textilePcpService';
+import { filterYarnProducts } from '@/lib/pcp/productFilters';
 
 interface ProductOption {
   id: string;
   code: string;
   name: string;
   unit: string;
+  category_id?: string | null;
+  subcategory?: string | null;
+  category_name?: string | null;
 }
 
 interface Props {
@@ -52,15 +56,18 @@ export function CreateTextileOrderDialog({ open, onOpenChange, onCreated }: Prop
 
   useEffect(() => {
     if (!open || !company?.id) return;
-    void supabase.from('products')
-      .select('id, code, name, unit')
-      .eq('company_id', company.id)
-      .eq('status', 'active')
-      .order('name')
-      .then(({ data, error }) => {
-        if (error) toast.error('Erro ao carregar produtos para a OP');
-        else setProducts(data ?? []);
-      });
+    void (async () => {
+      const [productResult, categoryResult] = await Promise.all([
+        supabase.from('products').select('id, code, name, unit, category_id, subcategory').eq('company_id', company.id).eq('status', 'active').order('name'),
+        supabase.from('categories').select('id, name'),
+      ]);
+      if (productResult.error) { toast.error('Erro ao carregar produtos para a OP'); return; }
+      const categoryNames = new Map((categoryResult.data ?? []).map((c) => [c.id, c.name]));
+      setProducts((productResult.data ?? []).map((product) => ({
+        ...product,
+        category_name: product.category_id ? categoryNames.get(product.category_id) ?? null : null,
+      })));
+    })();
   }, [open, company?.id]);
 
   const optionalNumber = (value: string) => {
@@ -135,8 +142,8 @@ export function CreateTextileOrderDialog({ open, onOpenChange, onCreated }: Prop
           <div className="space-y-1"><Label>Centro/tear planejado (texto)</Label><Input value={workCenter} onChange={(event) => setWorkCenter(event.target.value)} placeholder="Ex.: Tear 03" /></div>
           <div className="space-y-1 md:col-span-2"><Label>Cliente (opcional)</Label><Input value={clientName} onChange={(event) => setClientName(event.target.value)} /></div>
 
-          <div className="space-y-1"><Label>Fio de urdume</Label><Select value={warpProductId} onValueChange={setWarpProductId}><SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger><SelectContent><SelectItem value={NONE}>Não informado</SelectItem>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.code} — {product.name}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-1"><Label>Fio de trama</Label><Select value={weftProductId} onValueChange={setWeftProductId}><SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger><SelectContent><SelectItem value={NONE}>Não informado</SelectItem>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.code} — {product.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1"><Label>Fio de urdume</Label><Select value={warpProductId} onValueChange={setWarpProductId}><SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger><SelectContent><SelectItem value={NONE}>Não informado</SelectItem>{filterYarnProducts(products, warpProductId === NONE ? null : warpProductId).map((product) => <SelectItem key={product.id} value={product.id}>{product.code} — {product.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1"><Label>Fio de trama</Label><Select value={weftProductId} onValueChange={setWeftProductId}><SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger><SelectContent><SelectItem value={NONE}>Não informado</SelectItem>{filterYarnProducts(products, weftProductId === NONE ? null : weftProductId).map((product) => <SelectItem key={product.id} value={product.id}>{product.code} — {product.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1"><Label>Recurso/tear cadastrado</Label><Select value={resourceId} onValueChange={setResourceId}><SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger><SelectContent><SelectItem value={NONE}>Não informado</SelectItem>{resources.filter((resource) => resource.is_active).map((resource) => <SelectItem key={resource.id} value={resource.id}>{resource.code} — {resource.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1"><Label>Máquina/tear cadastrada</Label><Select value={machineId} onValueChange={setMachineId}><SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger><SelectContent><SelectItem value={NONE}>Não informado</SelectItem>{machines.filter((machine) => machine.active).map((machine) => <SelectItem key={machine.id} value={machine.id}>{machine.code} — {machine.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1"><Label>Código do rolo de urdume</Label><Input value={beamCode} onChange={(event) => setBeamCode(event.target.value)} /></div>

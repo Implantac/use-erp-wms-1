@@ -177,11 +177,15 @@ const EVENT_TYPES = [
 interface EventsProps {
   order: ProductionOrderRow;
   events: WeavingEventRow[];
+  profileMachineId?: string | null;
   onChanged: () => Promise<void> | void;
 }
 
-export function WeavingEventsPanel({ order, events, onChanged }: EventsProps) {
+export function WeavingEventsPanel({ order, events, profileMachineId, onChanged }: EventsProps) {
+  const { machines } = useProductionMachines();
   const [eventType, setEventType] = useState('note');
+  const [machineId, setMachineId] = useState(NONE);
+  useEffect(() => { setMachineId(profileMachineId ?? NONE); }, [profileMachineId, order.id]);
   const [quantityM, setQuantityM] = useState('');
   const [downtimeMinutes, setDowntimeMinutes] = useState('');
   const [reason, setReason] = useState('');
@@ -196,6 +200,7 @@ export function WeavingEventsPanel({ order, events, onChanged }: EventsProps) {
       await recordWeavingEvent({
         productionOrderId: order.id,
         eventType,
+        machineId: machineId === NONE ? null : machineId,
         quantityM: quantityM ? Number(quantityM) : null,
         downtimeMinutes: downtimeMinutes ? Number(downtimeMinutes) : null,
         reason: reason.trim() || null,
@@ -224,6 +229,7 @@ export function WeavingEventsPanel({ order, events, onChanged }: EventsProps) {
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-5">
           <div className="space-y-1"><Label>Evento</Label><Select value={eventType} onValueChange={setEventType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{EVENT_TYPES.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1"><Label>Tear do evento</Label><Select value={machineId} onValueChange={setMachineId}><SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger><SelectContent><SelectItem value={NONE}>Não informado</SelectItem>{machines.filter((machine) => machine.active && machineMatchesSector(machine.sector, 'tecelagem')).map((machine) => <SelectItem key={machine.id} value={machine.id}>{machine.code} — {machine.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1"><Label>Metros no evento</Label><Input type="number" min="0" step="0.01" value={quantityM} onChange={(event) => setQuantityM(event.target.value)} /></div>
           <div className="space-y-1"><Label>Parada (min)</Label><Input type="number" min="0" step="0.01" value={downtimeMinutes} onChange={(event) => setDowntimeMinutes(event.target.value)} /></div>
           <div className="space-y-1"><Label>Operador</Label><Input value={operatorName} onChange={(event) => setOperatorName(event.target.value)} /></div>

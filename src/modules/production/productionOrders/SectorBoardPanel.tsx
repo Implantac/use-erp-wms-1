@@ -92,16 +92,24 @@ export function SectorBoardPanel({ config }: { config: SectorBoardConfig }) {
         : { data: [] };
       const productName = new Map((products || []).map((p: any) => [p.id, p.name]));
 
-      const { data: events } = await (supabase as any)
-        .from('sector_production_events')
-        .select('production_order_id, event_type, quantity, occurred_at')
-        .eq('company_id', companyId)
-        .eq('sector', config.kind)
-        .order('occurred_at', { ascending: false })
-        .limit(2000);
+      // Todos os eventos do setor (paginado): janela fixa subcontava OP longa.
+      const events: any[] = [];
+      for (let page = 0; page < 100; page++) {
+        const from = page * 1000;
+        const { data: pageRows } = await (supabase as any)
+          .from('sector_production_events')
+          .select('production_order_id, event_type, quantity, occurred_at')
+          .eq('company_id', companyId)
+          .eq('sector', config.kind)
+          .order('occurred_at', { ascending: false })
+          .range(from, from + 999);
+        if (!pageRows?.length) break;
+        events.push(...pageRows);
+        if (pageRows.length < 1000) break;
+      }
       const produced = new Map<string, number>();
       const lastEvent = new Map<string, any>();
-      for (const e of events || []) {
+      for (const e of events) {
         if (e.quantity) {
           produced.set(e.production_order_id, (produced.get(e.production_order_id) || 0) + Number(e.quantity));
         }

@@ -6,6 +6,8 @@ import { Input } from '@/ui/base/input';
 import { Label } from '@/ui/base/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
+import type { TextileBomLine } from '@/hooks/production/useTextilePcpData';
+import { bathVolumeLiters, bomComposition, componentTotalsForBatch, deltaE76 } from '@/lib/pcp/sectorCalculations';
 import { useProductionMachines } from '@/hooks/production/useProductionMachines';
 import {
   recordSectorEvent,
@@ -42,6 +44,7 @@ interface ProfileProps {
   order: ProductionOrderRow;
   profile: SectorOrderProfileRow | null;
   onChanged: () => Promise<void> | void;
+  bomLines?: TextileBomLine[];
 }
 
 function MachineSelect({ value, onChange, kind }: { value: string; onChange: (value: string) => void; kind: SectorKind }) {
@@ -101,7 +104,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const PROFILE_DESCRIPTION =
   'Campos executáveis da ordem: máquina, centro e parâmetros configurados da empresa. Nenhum valor é sugerido automaticamente.';
 
-export function SpinningProfilePanel({ order, profile, onChanged }: ProfileProps) {
+export function SpinningProfilePanel({ order, profile, onChanged, bomLines = [] }: ProfileProps) {
   const [form, setForm] = useState({ machineId: NONE, workCenter: '', targetTitle: '', twistPerM: '', plannedOutputKg: '', notes: '' });
   const [saving, setSaving] = useState(false);
 
@@ -144,12 +147,21 @@ export function SpinningProfilePanel({ order, profile, onChanged }: ProfileProps
       <Field label="Torção (voltas/m)"><Input type="number" min="0" value={form.twistPerM} onChange={(e) => setForm({ ...form, twistPerM: e.target.value })} /></Field>
       <Field label="Produção planejada (kg)"><Input type="number" min="0" value={form.plannedOutputKg} onChange={(e) => setForm({ ...form, plannedOutputKg: e.target.value })} /></Field>
       <Field label="Observações"><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+      {bomComposition(bomLines).length > 0 && (
+        <div className="md:col-span-3 rounded-md border bg-muted/40 px-3 py-2">
+          <p className="text-xs font-medium">Composição planejada (da BOM/snapshot, por unidade de saída)</p>
+          <p className="text-sm text-muted-foreground">
+            {bomComposition(bomLines).map((c) => `${c.name} ${formatNumber(c.pct, 1)}%`).join(' · ')}
+          </p>
+          <p className="text-[11px] text-muted-foreground">É a mistura planejada da ficha — a mistura real é a dos lotes efetivamente consumidos na conclusão.</p>
+        </div>
+      )}
     </ProfileShell>
   );
 }
 
 export function KnittingProfilePanel({ order, profile, onChanged }: ProfileProps) {
-  const [form, setForm] = useState({ machineId: NONE, workCenter: '', gauge: '', diameterCm: '', plannedOutputKg: '', notes: '' });
+  const [form, setForm] = useState({ machineId: NONE, workCenter: '', gauge: '', diameterCm: '', targetGsm: '', targetWidthCm: '', plannedOutputKg: '', notes: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -158,6 +170,8 @@ export function KnittingProfilePanel({ order, profile, onChanged }: ProfileProps
       workCenter: profile?.work_center ?? order.work_center ?? '',
       gauge: profile?.gauge ?? '',
       diameterCm: numStr(profile?.diameter_cm),
+      targetGsm: numStr(profile?.target_grammage_g_m2),
+      targetWidthCm: numStr(profile?.target_width_cm),
       plannedOutputKg: numStr(profile?.planned_output_kg),
       notes: profile?.notes ?? '',
     });
@@ -171,6 +185,8 @@ export function KnittingProfilePanel({ order, profile, onChanged }: ProfileProps
         work_center: form.workCenter.trim() || null,
         gauge: form.gauge.trim() || null,
         diameter_cm: numberOrNull(form.diameterCm),
+        target_grammage_g_m2: numberOrNull(form.targetGsm),
+        target_width_cm: numberOrNull(form.targetWidthCm),
         planned_output_kg: numberOrNull(form.plannedOutputKg),
         notes: form.notes.trim() || null,
       });
@@ -189,16 +205,18 @@ export function KnittingProfilePanel({ order, profile, onChanged }: ProfileProps
       <Field label="Centro de trabalho"><Input value={form.workCenter} onChange={(e) => setForm({ ...form, workCenter: e.target.value })} /></Field>
       <Field label="Galga (configurada)"><Input value={form.gauge} onChange={(e) => setForm({ ...form, gauge: e.target.value })} /></Field>
       <Field label="Diâmetro (cm)"><Input type="number" min="0" value={form.diameterCm} onChange={(e) => setForm({ ...form, diameterCm: e.target.value })} /></Field>
+      <Field label="Gramatura alvo (g/m², configurada)"><Input type="number" min="0" value={form.targetGsm} onChange={(e) => setForm({ ...form, targetGsm: e.target.value })} /></Field>
+      <Field label="Largura alvo (cm, configurada)"><Input type="number" min="0" value={form.targetWidthCm} onChange={(e) => setForm({ ...form, targetWidthCm: e.target.value })} /></Field>
       <Field label="Produção planejada (kg)"><Input type="number" min="0" value={form.plannedOutputKg} onChange={(e) => setForm({ ...form, plannedOutputKg: e.target.value })} /></Field>
       <Field label="Observações"><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
     </ProfileShell>
   );
 }
 
-export function DyeingProfilePanel({ order, profile, onChanged }: ProfileProps) {
+export function DyeingProfilePanel({ order, profile, onChanged, bomLines = [] }: ProfileProps) {
   const [form, setForm] = useState({
     machineId: NONE, workCenter: '', colorName: '', colorCode: '', bathRatio: '', batchCode: '',
-    labL: '', labA: '', labB: '', plannedOutputKg: '', notes: '',
+    labL: '', labA: '', labB: '', measuredL: '', measuredA: '', measuredB: '', plannedOutputKg: '', notes: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -213,6 +231,9 @@ export function DyeingProfilePanel({ order, profile, onChanged }: ProfileProps) 
       labL: numStr(profile?.lab_l),
       labA: numStr(profile?.lab_a),
       labB: numStr(profile?.lab_b),
+      measuredL: numStr(profile?.measured_lab_l),
+      measuredA: numStr(profile?.measured_lab_a),
+      measuredB: numStr(profile?.measured_lab_b),
       plannedOutputKg: numStr(profile?.planned_output_kg),
       notes: profile?.notes ?? '',
     });
@@ -231,6 +252,9 @@ export function DyeingProfilePanel({ order, profile, onChanged }: ProfileProps) 
         lab_l: numberOrNull(form.labL),
         lab_a: numberOrNull(form.labA),
         lab_b: numberOrNull(form.labB),
+        measured_lab_l: numberOrNull(form.measuredL),
+        measured_lab_a: numberOrNull(form.measuredA),
+        measured_lab_b: numberOrNull(form.measuredB),
         planned_output_kg: numberOrNull(form.plannedOutputKg),
         notes: form.notes.trim() || null,
       });
@@ -259,9 +283,37 @@ export function DyeingProfilePanel({ order, profile, onChanged }: ProfileProps) 
       <Field label="Meta L* (CIELAB, se aplicável)"><Input type="number" value={form.labL} onChange={(e) => setForm({ ...form, labL: e.target.value })} /></Field>
       <Field label="Meta a* (CIELAB, se aplicável)"><Input type="number" value={form.labA} onChange={(e) => setForm({ ...form, labA: e.target.value })} /></Field>
       <Field label="Meta b* (CIELAB, se aplicável)"><Input type="number" value={form.labB} onChange={(e) => setForm({ ...form, labB: e.target.value })} /></Field>
+      <Field label="L* medido da partida"><Input type="number" value={form.measuredL} onChange={(e) => setForm({ ...form, measuredL: e.target.value })} /></Field>
+      <Field label="a* medido da partida"><Input type="number" value={form.measuredA} onChange={(e) => setForm({ ...form, measuredA: e.target.value })} /></Field>
+      <Field label="b* medido da partida"><Input type="number" value={form.measuredB} onChange={(e) => setForm({ ...form, measuredB: e.target.value })} /></Field>
       <Field label="Produção planejada (kg)"><Input type="number" min="0" value={form.plannedOutputKg} onChange={(e) => setForm({ ...form, plannedOutputKg: e.target.value })} /></Field>
       <Field label="Observações"><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+      <DyeingCalcBlock form={form} bomLines={bomLines} />
     </ProfileShell>
+  );
+}
+
+function DyeingCalcBlock({ form, bomLines }: { form: { bathRatio: string; plannedOutputKg: string; labL: string; labA: string; labB: string; measuredL: string; measuredA: string; measuredB: string }; bomLines: TextileBomLine[] }) {
+  const num = (v: string) => (v.trim() && Number.isFinite(Number(v)) ? Number(v) : undefined);
+  const volume = bathVolumeLiters(num(form.plannedOutputKg), num(form.bathRatio));
+  const totals = componentTotalsForBatch(bomLines, num(form.plannedOutputKg));
+  const dE = deltaE76(
+    { l: num(form.labL), a: num(form.labA), b: num(form.labB) },
+    { l: num(form.measuredL), a: num(form.measuredA), b: num(form.measuredB) },
+  );
+  if (volume === null && totals.length === 0 && dE === null) return null;
+  return (
+    <div className="md:col-span-3 rounded-md border bg-muted/40 px-3 py-2 space-y-1">
+      <p className="text-xs font-medium">Calculado da receita configurada (BOM/snapshot + perfil)</p>
+      {volume !== null && <p className="text-sm text-muted-foreground">Volume do banho: {formatNumber(volume)} L (peso da partida × relação de banho)</p>}
+      {totals.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Componentes p/ a partida: {totals.slice(0, 6).map((t) => `${t.name} ${formatNumber(t.total)} ${t.unit}`).join(' · ')}
+        </p>
+      )}
+      {dE !== null && <p className="text-sm text-muted-foreground">ΔE*ab meta × medido: <strong>{formatNumber(dE, 2)}</strong> (a tolerância de aceite é da empresa)</p>}
+      <p className="text-[11px] text-muted-foreground">Valores calculados do que está configurado/medido — nada é dosagem sugerida automaticamente.</p>
+    </div>
   );
 }
 
