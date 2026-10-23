@@ -124,7 +124,10 @@ CREATE POLICY "stock_transfer_orders_tenant_isolation" ON public.stock_transfer_
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.stock_transfer_items TO authenticated;
 GRANT ALL ON public.stock_transfer_items TO service_role;
 ALTER TABLE public.stock_transfer_items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "stock_transfer_items_tenant_isolation" ON public.stock_transfer_items FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM stock_transfer_orders o WHERE o.id = transfer_id AND o.company_id = (SELECT company_id FROM profiles WHERE id = auth.uid()))));
+-- [Correcao instalacao local] Havia um ")" excedente no fim desta policy
+-- (4 aberturas x 5 fechamentos): o SQL era sintaticamente invalido e nao
+-- poderia ter sido aplicado em nenhum banco. Removido o parenteses extra.
+CREATE POLICY "stock_transfer_items_tenant_isolation" ON public.stock_transfer_items FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM stock_transfer_orders o WHERE o.id = transfer_id AND o.company_id = (SELECT company_id FROM profiles WHERE id = auth.uid())));
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.replenishment_policies TO authenticated;
 GRANT ALL ON public.replenishment_policies TO service_role;

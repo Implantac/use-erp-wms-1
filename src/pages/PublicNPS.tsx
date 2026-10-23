@@ -7,6 +7,7 @@ import { Progress } from '@/ui/base/progress';
 import { Loader2, XCircle, ShieldCheck } from 'lucide-react';
 import type { AnswerMap, PublicSurvey, Question } from '@/modules/nps/public/types';
 import { errorMessage } from '@/lib/errors';
+import { getSupabaseUrl, getSupabasePublishableKey } from '@/integrations/supabase/config';
 import { QuestionRenderer } from '@/modules/nps/public/QuestionRenderer';
 import { DoneView } from '@/modules/nps/public/DoneView';
 import { ScoreSelector } from '@/modules/nps/public/ScoreSelector';
@@ -26,8 +27,8 @@ export default function PublicNPS() {
   const [touched, setTouched] = useState(false);
   const [startedAt] = useState(() => Date.now());
 
-  const projectUrl = import.meta.env.VITE_SUPABASE_URL;
-  const anon = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const projectUrl = getSupabaseUrl();
+  const anon = getSupabasePublishableKey();
 
   useEffect(() => {
     (async () => {

@@ -22,13 +22,25 @@ export class TenantService {
   }
 
   static async getCompanies() {
-    const { data, error } = await supabase
+    // Empresas que o usuário pode abrir (perfil + papéis + system_admin).
+    // A leitura direta de companies é escopada pela RLS e esconderia as
+    // lojas do grupo; a RPC my_companies devolve só as do próprio usuário.
+    const { data, error } = await (supabase as any).rpc('my_companies');
+    if (!error && data) return data;
+    const fallback = await supabase
       .from('companies')
       .select('*')
       .order('name', { ascending: true });
-    
+    if (fallback.error) throw fallback.error;
+    return fallback.data;
+  }
+
+  /** Troca a empresa ativa no servidor (RLS acompanha a tela). */
+  static async switchActiveCompany(companyId: string) {
+    const { error } = await (supabase as any).rpc('switch_active_company', {
+      p_company_id: companyId,
+    });
     if (error) throw error;
-    return data;
   }
 
   static async getOperationalUnits(companyId: string) {

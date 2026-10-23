@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { ProductionDailyQueue } from './ProductionDailyQueue';
 import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { ExportButton } from '@/shared/components/ExportButton';
 import { PageContainer } from '@/shared/components/PageContainer';
@@ -10,6 +11,7 @@ import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders'
 import { OrdersFilters } from './productionOrders/OrdersFilters';
 import { OrdersTable } from './productionOrders/OrdersTable';
 import { OrderDetailDialog } from './productionOrders/OrderDetailDialog';
+import { CreateTextileOrderDialog } from './productionOrders/CreateTextileOrderDialog';
 
 export default function ProductionOrdersPage() {
   const { orders, loading, loadError, hasCompany, update: updateOrder } = useProductionOrders();
@@ -53,6 +55,7 @@ export default function ProductionOrdersPage() {
           filename="ordens_producao"
         />
       </PageHeader>
+      <ProductionDailyQueue />
 
       {!hasCompany && <p role="alert" className="text-sm text-muted-foreground">Selecione uma empresa para consultar OPs.</p>}
       {loadError && <p role="alert" className="text-sm text-destructive">Falha na consulta de OPs; não é possível confirmar os totais.</p>}

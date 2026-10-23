@@ -91,6 +91,8 @@ export function useProductionSteps() {
 }
 
 export function useProductionOrderSteps(productionOrderId?: string) {
+  const { company } = useActiveTenant();
+  const companyId = company?.id;
   const [orderSteps, setOrderSteps] = useState<ProductionOrderStep[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -98,20 +100,23 @@ export function useProductionOrderSteps(productionOrderId?: string) {
     if (!productionOrderId) { setOrderSteps([]); setLoading(false); return; }
     setLoading(true);
     // Sem FK entre production_order_steps.step_id e production_steps → merge manual.
-    const { data, error } = await supabase
+    let orderStepQuery = supabase
       .from('production_order_steps')
       .select('*')
-      .eq('production_order_id', productionOrderId)
-      .order('sequence', { ascending: true });
+      .eq('production_order_id', productionOrderId);
+    if (companyId) orderStepQuery = orderStepQuery.eq('company_id', companyId);
+    const { data, error } = await orderStepQuery.order('sequence', { ascending: true });
     if (error) { console.error(error); toast.error('Erro ao carregar etapas da OP'); setLoading(false); return; }
 
     const stepIds = Array.from(new Set((data || []).map((d) => d.step_id as string).filter(Boolean))) as string[];
     const stepsMap = new Map<string, { id: string; name: string; code: string; sector: string | null }>();
     if (stepIds.length > 0) {
-      const { data: steps } = await supabase
+      let stepQuery = supabase
         .from('production_steps')
         .select('id, name, code, sector')
         .in('id', stepIds);
+      if (companyId) stepQuery = stepQuery.eq('company_id', companyId);
+      const { data: steps } = await stepQuery;
       (steps || []).forEach((s) => stepsMap.set(s.id, s));
     }
     setOrderSteps((data || []).map((d) => {
@@ -119,26 +124,38 @@ export function useProductionOrderSteps(productionOrderId?: string) {
       return { ...d, step_name: s?.name, step_code: s?.code, step_sector: s?.sector ?? undefined } as ProductionOrderStep;
     }));
     setLoading(false);
-  }, [productionOrderId]);
+  }, [productionOrderId, companyId]);
 
   useEffect(() => { fetchOrderSteps(); }, [fetchOrderSteps]);
 
-  const updateOrderStep = async (id: string, updates: Partial<ProductionOrderStep>) => {
-    const { error } = await supabase.from('production_order_steps').update({ ...updates, updated_at: new Date().toISOString() } as TablesUpdate<'production_order_steps'>).eq('id', id);
-    if (error) { toast.error('Erro ao atualizar etapa'); return; }
-    await fetchOrderSteps();
+  const updateOrderStep = async (_id: string, _updates: Partial<ProductionOrderStep>) => {
+    toast.error('Apontamento direto de etapa desativado; use a RPC sequencial de progresso do PCP');
+    return false;
   };
 
-  const generateStepsForOrder = async (orderId: string, quantity: number, selectedStepIds: string[]) => {
+  const generateStepsForOrder = async (orderId: string, quantity: number, selectedStepIds: string[]): Promise<boolean> => {
+    if (!companyId) { toast.error('Selecione a empresa antes de gerar etapas'); return false; }
+    const { count: existingCount, error: existingError } = await supabase
+      .from('production_order_steps')
+      .select('id', { count: 'exact', head: true })
+      .eq('production_order_id', orderId)
+      .eq('company_id', companyId);
+    if (existingError) { toast.error('Erro ao verificar etapas existentes da OP'); return false; }
+    if ((existingCount ?? 0) > 0) {
+      toast.error('Esta OP já possui etapas geradas; gere apenas para OP sem etapas para não duplicar o acompanhamento.');
+      return false;
+    }
     const { data: stepsData } = await supabase
       .from('production_steps')
       .select('*')
+      .eq('company_id', companyId)
       .in('id', selectedStepIds)
       .order('sequence');
 
-    if (!stepsData || stepsData.length === 0) return;
+    if (!stepsData || stepsData.length === 0) return false;
 
     const inserts = stepsData.map((s) => ({
+      company_id: companyId,
       production_order_id: orderId,
       step_id: s.id,
       sequence: s.sequence,
@@ -148,9 +165,10 @@ export function useProductionOrderSteps(productionOrderId?: string) {
     }));
 
     const { error } = await supabase.from('production_order_steps').insert(inserts as unknown as TablesInsert<'production_order_steps'>[]);
-    if (error) { toast.error('Erro ao gerar etapas'); return; }
+    if (error) { toast.error('Erro ao gerar etapas'); return false; }
     toast.success(`${inserts.length} etapas geradas`);
     await fetchOrderSteps();
+    return true;
   };
 
   return { orderSteps, loading, refetch: fetchOrderSteps, updateOrderStep, generateStepsForOrder };
