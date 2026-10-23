@@ -33,7 +33,7 @@ export default function ProductsPage() {
   const { products, productsLoading: isLoading, categories, deleteProduct } = useInventory();
 
   const [filters, setFilters] = useState<ProductFilters>({
-    search: '', type: 'all', category: 'all', status: 'all',
+    search: new URLSearchParams(window.location.search).get('q') || '', type: 'all', category: 'all', status: 'all',
   });
   const [selectedProduct, setSelectedProduct] = useState<DbProduct | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);

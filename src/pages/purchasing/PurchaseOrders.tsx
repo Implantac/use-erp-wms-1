@@ -53,7 +53,10 @@ export default function PurchaseOrdersPage() {
   const [newPriority, setNewPriority] = useState('medium');
   const [newExpected, setNewExpected] = useState('');
   const [draftItems, setDraftItems] = useState<DraftItem[]>([{ productId: '', quantity: 1, unitPrice: 0 }]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') || '');
+
+  useEffect(() => { setSearchTerm(searchParams.get('q') || ''); }, [searchParams]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [isViewOpen, setIsViewOpen] = useState(false);

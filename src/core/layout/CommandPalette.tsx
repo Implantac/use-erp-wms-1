@@ -147,19 +147,19 @@ export function CommandPalette() {
         ...((products.data || []).map((r: any) => ({
           title: r.name,
           sub: `Produto · ${r.code || 'sem código'}`,
-          href: '/estoque/produtos',
+          href: `/estoque/produtos?q=${encodeURIComponent(r.code || r.name)}`,
           kind: 'produto',
         }))),
         ...((prodOrders.data || []).map((r: any) => ({
           title: `OP ${r.order_number}`,
           sub: `Produção · ${r.products?.name || ''} · ${r.current_status_view || ''}`,
-          href: '/producao/ordens',
+          href: `/producao/ordens?q=${encodeURIComponent(r.order_number)}`,
           kind: 'op',
         }))),
         ...((purchOrders.data || []).map((r: any) => ({
           title: `Pedido ${r.number}`,
           sub: `Compras · ${r.supplier_name || ''} · ${r.status || ''}`,
-          href: '/compras/pedidos',
+          href: `/compras/pedidos?q=${encodeURIComponent(r.number)}`,
           kind: 'compra',
         }))),
       ]);

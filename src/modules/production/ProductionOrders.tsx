@@ -15,7 +15,10 @@ import { CreateTextileOrderDialog } from './productionOrders/CreateTextileOrderD
 
 export default function ProductionOrdersPage() {
   const { orders, loading, loadError, hasCompany, update: updateOrder } = useProductionOrders();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') || '');
+
+  useEffect(() => { setSearchTerm(searchParams.get('q') || ''); }, [searchParams]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<ProductionOrderRow | null>(null);
