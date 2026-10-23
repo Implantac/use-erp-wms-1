@@ -50,6 +50,13 @@
       "when": 1792160057161,
       "tag": "0006_demo_company_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792598244767,
+      "tag": "0007_niche_packages",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders'
 import { OrdersFilters } from './productionOrders/OrdersFilters';
 import { OrdersTable } from './productionOrders/OrdersTable';
 import { OrderDetailDialog } from './productionOrders/OrderDetailDialog';
+import { CreateTextileOrderDialog } from './productionOrders/CreateTextileOrderDialog';
 
 export default function ProductionOrdersPage() {
   const { orders, loading, loadError, hasCompany, update: updateOrder } = useProductionOrders();

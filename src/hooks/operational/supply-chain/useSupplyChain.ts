@@ -5,7 +5,7 @@ import { supplyChainService, SupplyChainMovement, MovementStatus } from '@/servi
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from 'sonner';
 
-export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
+export function useSupplyChain(filters?: { status?: MovementStatus[]; scope?: 'unit' | 'group' }) {
   const { currentBranch, currentCompany, isLoading: isEnterpriseLoading } = useEnterprise();
   const [movements, setMovements] = useState<SupplyChainMovement[]>([]);
   const [loadedScope, setLoadedScope] = useState('');
@@ -14,7 +14,7 @@ export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
   const branchId = currentBranch?.id;
   const statusKey = filters?.status?.join('|') ?? '';
   const statusFilter = useMemo(() => statusKey ? statusKey.split('|') as MovementStatus[] : undefined, [statusKey]);
-  const scopeKey = `${currentCompany?.id ?? ''}:${branchId ?? ''}:${statusKey}`;
+  const scopeKey = `${currentCompany?.id ?? ''}:${branchId ?? ''}:${statusKey}:${filters?.scope ?? 'unit'}`;
   const latestScope = useRef(scopeKey);
   latestScope.current = scopeKey;
 
@@ -25,7 +25,8 @@ export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
     try {
       const data = await supplyChainService.getMovements({
         unit_id: branchId,
-        status: statusFilter
+        status: statusFilter,
+        scope: filters?.scope ?? 'unit'
       });
       if (latestScope.current !== scopeKey || getActiveCompanyId() !== currentCompany.id || getActiveBranchId() !== branchId) return;
       setMovements(data);
@@ -97,14 +98,21 @@ export function useSupplyChain(filters?: { status?: MovementStatus[] }) {
   const getMovementLedger = async (movementId: string) => {
     const companyId = getActiveCompanyId();
     if (!companyId) throw new Error('Empresa ativa não identificada para consultar o histórico.');
-    const { data, error } = await supabase
-      .from('supply_chain_ledger')
+    const { data, error } = await (supabase as any)
+      .from('stock_transfer_workflow_logs')
       .select('*')
-      .eq('company_id', companyId)
-      .eq('movement_id', movementId)
-      .order('created_at', { ascending: false });
+      .eq('transfer_id', movementId)
+      .order('created_at', { ascending: true });
     if (error) throw error;
-    return data ?? [];
+    const rows = data ?? [];
+    return rows.map((r: any, i: number) => ({
+      id: r.id,
+      movement_id: movementId,
+      previous_status: i === 0 ? null : rows[i - 1].status,
+      new_status: r.status,
+      created_at: r.created_at,
+      notes: r.notes,
+    }));
   };
 
   return {

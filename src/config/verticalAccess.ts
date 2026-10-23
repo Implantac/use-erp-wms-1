@@ -4,14 +4,14 @@ import type { Segment } from './adaptive';
 // Unknown/unconfigured niches see none; hybrid capabilities need a separately
 // authorized per-company configuration before they can be enabled.
 const verticalRoutes: Record<Segment, readonly string[]> = {
-  textile: ['/vertical/textile', '/vertical/spinning', '/vertical/weaving'],
+  textile: ['/vertical/textile', '/vertical/spinning', '/vertical/weaving', '/vertical/knitting', '/vertical/dyeing'],
   apparel: ['/vertical/apparel'],
   fio: ['/vertical/spinning'],
   tecelagem: ['/vertical/weaving'],
   food_factory: ['/vertical/food-feed'],
   animal_feed: ['/vertical/food-feed'],
   pharma: ['/vertical/pharma'],
-  dyeing: [],
+  dyeing: ['/vertical/dyeing'],
   laundry: [],
   chemicals: [],
   industry: [],
