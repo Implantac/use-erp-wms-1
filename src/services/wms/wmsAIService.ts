@@ -10,19 +10,9 @@ export class WMSAIService {
       p_branch_id: branchId
     });
 
-    if (error) {
-      // Fallback/Mock logic if RPC not available
-      return [
-        {
-          product_code: 'SKU-001',
-          product_name: 'Widget A',
-          current_location: 'END-A-01-05',
-          suggested_location: 'END-PICK-01',
-          reason: 'Alto giro detectado (Curva A)',
-          potential_saving: '15% no tempo de picking'
-        }
-      ];
-    }
+    // Sem fallback fabricado: se a RPC não responde, a tela mostra o erro
+    // real em vez de uma recomendação inventada (Widget A/SKU-001).
+    if (error) throw error;
     return data;
   }
 

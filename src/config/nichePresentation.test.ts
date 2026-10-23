@@ -26,4 +26,12 @@ describe('apresentação contextual por ramo, sem conceder permissão', () => {
     expect(canPresentNicheRoute('retail', '/vertical/spinning', ['spinning'])).toBe(false);
     expect(canPresentNicheRoute('industry', '/vertical/pharma', ['chemicals'])).toBe(false);
   });
+  it('apresenta a central do setor industrial configurado (malharia/tinturaria)', () => {
+    expect(canPresentNicheRoute('textile', '/vertical/knitting')).toBe(true);
+    expect(canPresentNicheRoute('textile', '/vertical/dyeing')).toBe(true);
+    expect(canPresentNicheRoute('industry', '/vertical/knitting', ['knitting'])).toBe(true);
+    expect(canPresentNicheRoute('industry', '/vertical/dyeing', ['dyeing'])).toBe(true);
+    expect(canPresentNicheRoute('industry', '/vertical/dyeing', ['knitting'])).toBe(false);
+    expect(canPresentNicheRoute('retail', '/vertical/dyeing', ['dyeing'])).toBe(false);
+  });
 });

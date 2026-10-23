@@ -14,7 +14,7 @@ test('status compare-and-swap scopes to company and row', () => {
 test('both entry screens check transition success and do not directly add to OP totals', () => {
   for (const source of [terminal, entries]) {
     assert.match(source, /\{ status: 'paused' \}, 'started'\)/);
-    assert.match(source, /if \(!finished\) return|if \(!await update\(entry\.id, \{ status: 'completed'/);
+    assert.match(source, /if \(!finished\) (?:return|\{)|if \(!await update\(entry\.id, \{ status: 'completed'/);
     assert.doesNotMatch(source, /produced_quantity: order\.produced_quantity \+/);
   }
 });
