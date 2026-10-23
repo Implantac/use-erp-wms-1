@@ -1,4 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { isHiddenHref } from '@/config/adaptive';
 import { useNavigate } from 'react-router-dom';
 import {
   CommandDialog,
@@ -54,7 +56,7 @@ interface FlatItem {
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const { activeUnitType, activeChannel, scope, role, permissions } = useEnterprise();
+  const { activeUnitType, activeChannel, scope, role, permissions, segment, currentCompany } = useEnterprise();
   const context = useMemo(() => ({ unitType: activeUnitType, channel: activeChannel, scope, role, permissions }),
     [activeUnitType, activeChannel, scope, role, permissions]);
   const visibleTasks = useMemo(() => taskActions.filter((action) => {
@@ -81,17 +83,19 @@ export function CommandPalette() {
     const items: FlatItem[] = [];
     getNavigationForContext(context).forEach((section) => {
       section.items.forEach((item) => {
+        if (isHiddenHref(segment, item.href)) return;
         if (!item.children || item.children.length === 0) {
           items.push({ title: item.title, href: item.href, icon: item.icon, group: section.label || 'Navegação' });
         } else {
           item.children.forEach((child) => {
+            if (isHiddenHref(segment, child.href)) return;
             items.push({ title: child.title, href: child.href, icon: child.icon, group: item.title });
           });
         }
       });
     });
     return items;
-  }, [context]);
+  }, [context, segment]);
 
   const groups = useMemo(() => {
     const map = new Map<string, FlatItem[]>();
@@ -103,14 +107,78 @@ export function CommandPalette() {
     return Array.from(map.entries());
   }, [flatItems]);
 
+  const [query, setQuery] = useState('');
+  const [dataResults, setDataResults] = useState<
+    { title: string; sub: string; href: string; kind: string }[]
+  >([]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!open || q.length < 2 || !currentCompany?.id) {
+      setDataResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const companyId = currentCompany.id;
+      const like = `%${q}%`;
+      const [products, prodOrders, purchOrders] = await Promise.all([
+        (supabase as any)
+          .from('products')
+          .select('id, name, code')
+          .eq('company_id', companyId)
+          .or(`name.ilike.${like},code.ilike.${like}`)
+          .limit(5),
+        (supabase as any)
+          .from('production_orders')
+          .select('id, order_number, current_status_view:status, products:product_id(name)')
+          .eq('company_id', companyId)
+          .ilike('order_number', like)
+          .limit(5),
+        (supabase as any)
+          .from('purchase_orders')
+          .select('id, number, supplier_name, status')
+          .eq('company_id', companyId)
+          .ilike('number', like)
+          .limit(5),
+      ]);
+      if (cancelled) return;
+      setDataResults([
+        ...((products.data || []).map((r: any) => ({
+          title: r.name,
+          sub: `Produto · ${r.code || 'sem código'}`,
+          href: `/estoque/produtos?q=${encodeURIComponent(r.code || r.name)}`,
+          kind: 'produto',
+        }))),
+        ...((prodOrders.data || []).map((r: any) => ({
+          title: `OP ${r.order_number}`,
+          sub: `Produção · ${r.products?.name || ''} · ${r.current_status_view || ''}`,
+          href: `/producao/ordens?q=${encodeURIComponent(r.order_number)}`,
+          kind: 'op',
+        }))),
+        ...((purchOrders.data || []).map((r: any) => ({
+          title: `Pedido ${r.number}`,
+          sub: `Compras · ${r.supplier_name || ''} · ${r.status || ''}`,
+          href: `/compras/pedidos?q=${encodeURIComponent(r.number)}`,
+          kind: 'compra',
+        }))),
+      ]);
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, open, currentCompany?.id]);
+
   const handleSelect = (href: string) => {
     setOpen(false);
+    setQuery('');
     navigate(href);
   };
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="O que você quer fazer?" />
+      <CommandInput placeholder="O que você quer fazer? (busque também produtos, OPs e pedidos)" onValueChange={setQuery} />
       <CommandList>
         <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
         <CommandGroup heading="O que você quer fazer?">
@@ -129,6 +197,25 @@ export function CommandPalette() {
             );
           })}
         </CommandGroup>
+        {dataResults.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Dados">
+              {dataResults.map((r, i) => (
+                <CommandItem
+                  key={`${r.kind}-${r.title}-${i}`}
+                  value={`dado ${r.kind} ${r.title} ${r.sub}`}
+                  onSelect={() => handleSelect(r.href)}
+                  className="gap-2"
+                >
+                  <PackageSearch className="h-4 w-4 text-primary" />
+                  <span>{r.title}</span>
+                  <span className="text-xs text-muted-foreground">{r.sub}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
         <CommandSeparator />
         {groups.map(([group, items], idx) => (
           <div key={group}>

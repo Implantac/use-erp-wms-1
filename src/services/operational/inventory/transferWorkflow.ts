@@ -65,8 +65,22 @@ export function nextStatuses(from: TransferStatus) {
 }
 
 export const transferWorkflow = {
-  async transition(_input: Omit<WorkflowTransition, 'fromStatus'>): Promise<never> {
-    throw new Error('Transição de transferência indisponível: histórico, status e estoque exigem transação autorizada no servidor.');
+  /**
+   * Transição oficial: RPC atômica no servidor (valida a máquina de estados,
+   * move o estoque pelo ledger e grava o histórico na mesma transação).
+   * O cliente nunca escreve status/estoque direto — o banco congela isso.
+   */
+  async transition(input: Omit<WorkflowTransition, 'fromStatus'>) {
+    const { data, error } = await (supabase as any).rpc('transition_stock_transfer', {
+      p_transfer_id: input.transferId,
+      p_to_status: input.toStatus,
+      p_items: input.itemQuantities?.length
+        ? input.itemQuantities.map((q) => ({ item_id: q.itemId, quantity: q.quantity }))
+        : null,
+      p_notes: input.notes ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return data as { id: string; from_status: string; status: string; moved_quantity: number; divergence: number };
   },
 
   async getHistory(transferId: string) {
