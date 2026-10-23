@@ -7,21 +7,23 @@ import { useEnterprise } from '@/core/auth/EnterpriseContext';
 import { formatNumber } from '@/lib/formatters';
 
 interface SectorBoardConfig {
-  kind: 'fiacao' | 'malharia' | 'tinturaria';
+  kind: 'fiacao' | 'malharia' | 'tinturaria' | 'beneficiamento';
   title: string;
   machineMatch: string;
   profileTable: string;
   unit: string;
+  plannedField: 'planned_output_kg' | 'planned_output_m';
   extraLabel: (profile: any) => string | null;
 }
 
-export const SECTOR_BOARDS: Record<'fiacao' | 'malharia' | 'tinturaria', SectorBoardConfig> = {
+export const SECTOR_BOARDS: Record<'fiacao' | 'malharia' | 'tinturaria' | 'beneficiamento', SectorBoardConfig> = {
   fiacao: {
     kind: 'fiacao',
     title: 'Quadro de Máquinas — Fiação',
     machineMatch: 'fia',
     profileTable: 'spinning_order_profiles',
     unit: 'kg',
+    plannedField: 'planned_output_kg',
     extraLabel: (p) => (p?.target_title ? `título ${p.target_title}` : null),
   },
   malharia: {
@@ -30,6 +32,7 @@ export const SECTOR_BOARDS: Record<'fiacao' | 'malharia' | 'tinturaria', SectorB
     machineMatch: 'malhar',
     profileTable: 'knitting_order_profiles',
     unit: 'kg',
+    plannedField: 'planned_output_kg',
     extraLabel: (p) => (p?.gauge ? `galga ${p.gauge}` : null),
   },
   tinturaria: {
@@ -38,8 +41,19 @@ export const SECTOR_BOARDS: Record<'fiacao' | 'malharia' | 'tinturaria', SectorB
     machineMatch: 'tintur',
     profileTable: 'dyeing_order_profiles',
     unit: 'kg',
+    plannedField: 'planned_output_kg',
     extraLabel: (p) =>
       p?.color_name ? `cor ${p.color_name}${p.bath_ratio ? ` · banho 1:${p.bath_ratio}` : ''}` : null,
+  },
+  beneficiamento: {
+    kind: 'beneficiamento',
+    title: 'Quadro de Ramas/Máquinas — Beneficiamento',
+    machineMatch: 'benefici',
+    profileTable: 'beneficiamento_order_profiles',
+    unit: 'm',
+    plannedField: 'planned_output_m',
+    extraLabel: (p) =>
+      p?.target_width_cm ? `largura alvo ${p.target_width_cm} cm${p.target_grammage_g_m2 ? ` · ${p.target_grammage_g_m2} g/m²` : ''}` : null,
   },
 };
 
@@ -124,7 +138,7 @@ export function SectorBoardPanel({ config }: { config: SectorBoardConfig }) {
 
       return sectorMachines.map((m: any) => {
         const active = activeByMachine.get(m.id);
-        const planned = Number(active?.profile?.planned_output_kg || 0);
+        const planned = Number(active?.profile?.[config.plannedField] || 0);
         const done = active ? produced.get(active.order.id) || 0 : 0;
         return {
           id: m.id,

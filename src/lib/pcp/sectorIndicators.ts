@@ -89,6 +89,7 @@ const BREAK_EVENT_TYPES: Record<SectorKind, readonly string[]> = {
   malharia: ['yarn_break'],
   tecelagem: ['warp_break', 'weft_break', 'yarn_break'],
   tinturaria: [],
+  beneficiamento: [],
 };
 
 const CLOSED = new Set(['completed', 'cancelled', 'canceled', 'done', 'closed']);
@@ -248,6 +249,14 @@ export function computeSectorReadiness(input: {
       case 'tinturaria': {
         const count = input.products.filter(isDyeProduct).length;
         return { label: 'Corantes/auxiliares cadastrados', count, hint: 'cadastre corantes e auxiliares como produtos (categoria ou nome de corante)' };
+      }
+      case 'beneficiamento': {
+        const count = input.products.filter((product) => {
+          const text = `${product.name} ${product.category_name ?? ''} ${product.subcategory ?? ''}`
+            .toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+          return text.includes('tecido') || text.includes('malha');
+        }).length;
+        return { label: 'Tecidos/malhas cadastrados', count, hint: 'cadastre os tecidos/malhas que entram no beneficiamento como produtos' };
       }
       default: {
         const count = input.products.filter(isYarnProduct).length;

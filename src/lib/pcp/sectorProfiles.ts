@@ -8,7 +8,7 @@
  * são sempre configurados pela empresa na ficha/OP.
  */
 
-export type SectorKind = 'fiacao' | 'malharia' | 'tecelagem' | 'tinturaria';
+export type SectorKind = 'fiacao' | 'malharia' | 'tecelagem' | 'tinturaria' | 'beneficiamento';
 
 /** Setores com perfil/eventos próprios nesta leva (tecelagem tem tabelas legadas próprias). */
 export type SectorProfileKind = Exclude<SectorKind, 'tecelagem'>;
@@ -18,6 +18,7 @@ export const SECTOR_LABELS: Record<SectorKind, string> = {
   malharia: 'Malharia',
   tecelagem: 'Tecelagem',
   tinturaria: 'Tinturaria',
+  beneficiamento: 'Beneficiamento/Acabamento',
 };
 
 /** Trechos (minúsculos, sem acento) que identificam o setor de uma OP. */
@@ -25,7 +26,8 @@ export const SECTOR_MATCHERS: Record<SectorKind, readonly string[]> = {
   fiacao: ['fiacao', 'filatorio', 'spinning'],
   malharia: ['malharia', 'knitting', 'circular'],
   tecelagem: ['tecelagem', 'tecel', 'loom', 'tear'],
-  tinturaria: ['tinturaria', 'tingimento', 'dyeing', 'beneficiamento'],
+  tinturaria: ['tinturaria', 'tingimento', 'dyeing'],
+  beneficiamento: ['beneficiamento', 'finishing'],
 };
 
 function normalize(text: string): string {
@@ -39,7 +41,7 @@ function normalize(text: string): string {
 export function sectorKindFromSectorText(sector: string | null | undefined): SectorKind | null {
   if (!sector) return null;
   const normalized = normalize(sector);
-  const order: SectorKind[] = ['fiacao', 'malharia', 'tinturaria', 'tecelagem'];
+  const order: SectorKind[] = ['fiacao', 'malharia', 'beneficiamento', 'tinturaria', 'tecelagem'];
   for (const kind of order) {
     if (SECTOR_MATCHERS[kind].some((matcher) => normalized.includes(matcher))) return kind;
   }
@@ -51,6 +53,7 @@ export const SECTOR_EVENT_QUANTITY_UNIT: Record<SectorProfileKind, string> = {
   fiacao: 'kg',
   malharia: 'kg',
   tinturaria: 'kg',
+  beneficiamento: 'm',
 };
 
 const COMMON_EVENT_TYPES = [
@@ -70,6 +73,7 @@ export const SECTOR_EVENT_TYPES: Record<SectorProfileKind, readonly string[]> = 
   fiacao: [...COMMON_EVENT_TYPES, 'doffing', 'fiber_break'],
   malharia: [...COMMON_EVENT_TYPES, 'yarn_break', 'roll_change'],
   tinturaria: [...COMMON_EVENT_TYPES, 'bath_start', 'wash', 'unload', 'color_hold', 'color_release', 're_dye'],
+  beneficiamento: [...COMMON_EVENT_TYPES, 'rama_start', 'width_check', 'shrinkage_check', 'roll_change'],
 };
 
 export const SECTOR_EVENT_LABELS: Record<string, string> = {
@@ -92,6 +96,9 @@ export const SECTOR_EVENT_LABELS: Record<string, string> = {
   color_hold: 'Retenção para acerto de cor',
   color_release: 'Cor liberada',
   re_dye: 'Retingimento',
+  rama_start: 'Início na rama',
+  width_check: 'Conferência de largura',
+  shrinkage_check: 'Medição de encolhimento',
 };
 
 export function sectorEventLabel(eventType: string): string {
@@ -149,6 +156,16 @@ export const SECTOR_DEVIATION_CATEGORIES: Record<SectorKind, readonly DeviationC
     { value: 'manutencao', label: 'Manutenção' },
     { value: 'laboratorio', label: 'Laboratório' },
     { value: 'planejamento', label: 'Planejamento' },
+  ],
+  beneficiamento: [
+    { value: 'largura', label: 'Largura' },
+    { value: 'gramatura', label: 'Gramatura' },
+    { value: 'encolhimento', label: 'Encolhimento' },
+    { value: 'aparencia', label: 'Toque/aparência' },
+    { value: 'maquina', label: 'Máquina/rama' },
+    { value: 'qualidade', label: 'Qualidade' },
+    { value: 'material', label: 'Material' },
+    { value: 'programacao', label: 'Programação' },
   ],
 };
 

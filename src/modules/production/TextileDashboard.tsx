@@ -14,6 +14,7 @@ const links = [
   { href: '/vertical/knitting', title: 'Central PCP de Malharia', description: 'OP, reserva por lote de fio, etapas, qualidade, conclusão e genealogia.', icon: Factory },
   { href: '/vertical/weaving', title: 'Central PCP de Tecelagem', description: 'OP, perfil do tear, reserva, etapas, eventos, qualidade e conclusão.', icon: Factory },
   { href: '/vertical/dyeing', title: 'Central PCP de Tinturaria', description: 'OP, ficha/receita configurada, reserva, etapas, qualidade, conclusão e genealogia.', icon: Factory },
+  { href: '/vertical/finishing', title: 'Central PCP de Beneficiamento', description: 'OP, perfil da rama/acabamento, reserva, etapas, qualidade, conclusão e genealogia.', icon: Factory },
   { href: '/producao/mrp', title: 'MRP líquido', description: 'Déficit por BOM, saldo disponível, compras abertas e pedido em rascunho.', icon: PackageSearch },
   { href: '/producao/programacao', title: 'Programação finita', description: 'Janelas por tear/recurso sem dupla alocação.', icon: CalendarClock },
   { href: '/producao/qualidade', title: 'Qualidade e liberação', description: 'Inspeção aprovada, quarentena e bloqueio formal da conclusão.', icon: ShieldCheck },

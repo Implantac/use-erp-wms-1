@@ -39,8 +39,8 @@ quem manda é o processo cadastrado.
 | Fiação | **7,0** | + composição da mistura visível a partir da BOM |
 | Tinturaria | **7,4** | + banho/dosagem calculados da receita e ΔE de cor medida |
 | Malharia | **6,8** | + gramatura e largura alvo no perfil |
-| **Beneficiamento/Acabamento** | **3,0** | **Não existe como setor** — ver achado P1-1 |
-| **PCP têxtil (conjunto)** | **7,3** | Após a elevação de nível (seção 7); beneficiamento segue como lacuna |
+| **Beneficiamento/Acabamento** | **6,5** | **Virou o 5º setor** (seção 8): perfil, eventos, central e acesso próprios |
+| **PCP têxtil (conjunto)** | **7,6** | Após a elevação de nível e o 5º setor (seções 7–8) |
 
 ## 3. Achados — corrigidos nesta revisão
 
@@ -165,9 +165,31 @@ são de interface sobre RPCs existentes.
 | P1-2 tinturaria (banho/dosagem/ΔE) | ✅ volume do banho e totais da receita calculados da BOM+perfil; L*a*b* **medido** gravado (migration `20261023200000`) e ΔE*ab exibido contra a meta — tolerância continua sendo da empresa |
 | P2-1 fiação (mistura visível) | ✅ composição % planejada da BOM no perfil da OP |
 | P2-2 malharia (gramatura/largura) | ✅ gramatura alvo (g/m²) e largura alvo (cm) no perfil (mesma migration) |
-| P1-1 beneficiamento como 5º setor | ⏳ próximo lote estrutural (migration + acesso + central) |
+| P1-1 beneficiamento como 5º setor | ✅ aplicado (seção 8) |
 | P2-3 eficiência com denominador | ⏳ após apontamento real (calendário por máquina) |
 
 **Provas da elevação:** migration nova aplicada na cadeia completa do
 harness (**133 PASS / 0 FAIL**); typecheck limpo; **310 testes**
 vitest verdes (cálculos de composição/banho/ΔE com testes próprios).
+
+## 8. Beneficiamento como 5º setor (23/10/2026)
+
+- **Banco** (`20261023210000`): tabela `beneficiamento_order_profiles`
+  (rama/máquina, processo, largura/gramatura/encolhimento alvo,
+  temperatura, velocidade, saída em metros), eventos do setor na
+  `sector_production_events` (`rama_start`, `width_check`,
+  `shrinkage_check`, `roll_change`), taxonomia de desvios própria
+  (largura, gramatura, encolhimento, toque/aparência...) e
+  `beneficiamento` admitido nas guardas de acesso/concessões. Wrappers
+  públicos intactos — só as implementações ganharam o novo ramo.
+- **Interface**: central própria (`/vertical/finishing`), quadro de
+  ramas/máquinas (saída em **metros**), perfil técnico, eventos com
+  unidade em metros, criação de OP setorial e indicadores — tudo sobre
+  o mesmo motor (snapshot, reserva, programação, qualidade, genealogia).
+- **Cuidado de migração de comportamento**: "Tinturaria e Acabamento"
+  continua caindo na **tinturaria** (o matcher do beneficiamento exige
+  "beneficiamento/finishing" no roteiro) — nenhuma OP existente muda de
+  setor por causa desta entrega.
+- **Provas**: harness **133 PASS / 0 FAIL** com a migration na cadeia;
+  typecheck limpo; **310 testes** verdes (o teste-espelho
+  lib×migration agora cobre os quatro setores com perfil).

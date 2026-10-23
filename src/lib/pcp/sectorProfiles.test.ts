@@ -27,6 +27,9 @@ describe('vocabulário de eventos por setor', () => {
     expect(isValidSectorEvent('tinturaria', 're_dye')).toBe(true);
     expect(isValidSectorEvent('malharia', 'roll_change')).toBe(true);
     expect(isValidSectorEvent('malharia', 'bath_start')).toBe(false);
+    expect(isValidSectorEvent('beneficiamento', 'rama_start')).toBe(true);
+    expect(isValidSectorEvent('beneficiamento', 'shrinkage_check')).toBe(true);
+    expect(isValidSectorEvent('beneficiamento', 'bath_start')).toBe(false);
     // Tecelagem tem tabela/RPC próprias: seus eventos não entram neste vocabulário.
     for (const kind of Object.keys(SECTOR_EVENT_TYPES) as SectorProfileKind[]) {
       expect(isValidSectorEvent(kind, 'warp_break')).toBe(false);
@@ -34,8 +37,8 @@ describe('vocabulário de eventos por setor', () => {
     }
   });
 
-  it('eventos comuns existem nos três setores', () => {
-    for (const kind of ['fiacao', 'malharia', 'tinturaria'] as SectorProfileKind[]) {
+  it('eventos comuns existem nos setores com perfil', () => {
+    for (const kind of ['fiacao', 'malharia', 'tinturaria', 'beneficiamento'] as SectorProfileKind[]) {
       for (const type of ['setup', 'start', 'pause', 'resume', 'stop', 'quality_hold', 'quality_release', 'inspection', 'note']) {
         expect(isValidSectorEvent(kind, type)).toBe(true);
       }
@@ -51,6 +54,8 @@ describe('identificação do setor da OP', () => {
     expect(sectorKindFromSectorText('Tecelagem')).toBe('tecelagem');
     expect(sectorKindFromSectorText('Tinturaria')).toBe('tinturaria');
     expect(sectorKindFromSectorText('Tinturaria e Acabamento')).toBe('tinturaria');
+    expect(sectorKindFromSectorText('Beneficiamento')).toBe('beneficiamento');
+    expect(sectorKindFromSectorText('Acabamento')).toBeNull(); // sem 'beneficiamento', não rouba a tinturaria
   });
   it('retorna null para setor ausente ou desconhecido', () => {
     expect(sectorKindFromSectorText(null)).toBeNull();
@@ -59,20 +64,24 @@ describe('identificação do setor da OP', () => {
   });
 });
 
-describe('migration 20261019180000 espelha o vocabulário da lib', () => {
+describe('migrations espelham o vocabulário da lib', () => {
   const sql = readFileSync('supabase/migrations/20261019180000_sector_pcp_profiles.sql', 'utf8');
+  // O CHECK vigente e a implementação de eventos vivem na migration do
+  // beneficiamento (20261023210000), que os redefine por completo.
+  const sqlVigente = readFileSync('supabase/migrations/20261023210000_finishing_sector.sql', 'utf8');
 
-  it('CHECK da tabela cobre exatamente a união dos três setores', () => {
-    const checkMatch = sql.match(/sector_production_events_type_check CHECK \(event_type IN \(([\s\S]*?)\)\)/);
+  it('CHECK vigente cobre exatamente a união dos setores com perfil', () => {
+    const checkMatch = sqlVigente.match(/sector_production_events_type_check CHECK \(event_type IN \(([\s\S]*?)\)\)/);
     expect(checkMatch).not.toBeNull();
     const inSql = [...checkMatch![1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
     const union = [...new Set(Object.values(SECTOR_EVENT_TYPES).flat())].sort();
     expect(inSql).toEqual(union);
   });
 
-  it('RPC record_sector_event valida o mesmo conjunto por setor', () => {
-    const branches = [...sql.matchAll(/WHEN '(\w+)' THEN ARRAY\[([^\]]+)\]/g)];
-    expect(branches.length).toBe(3);
+  it('RPC record_sector_event (impl vigente) valida o mesmo conjunto por setor', () => {
+    const allowedBlock = sqlVigente.match(/v_allowed := CASE([\s\S]*?)END;/)?.[1] ?? '';
+    const branches = [...allowedBlock.matchAll(/WHEN '(\w+)' THEN ARRAY\[([^\]]+)\]/g)];
+    expect(branches.length).toBe(4);
     for (const [, sector, list] of branches) {
       const inSql = [...list.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
       expect(inSql).toEqual([...SECTOR_EVENT_TYPES[sector as SectorProfileKind]].sort());
@@ -96,6 +105,8 @@ describe('classificação de desvios por setor (skills §desvios)', () => {
     expect(isValidDeviationCategory('fiacao', 'cor')).toBe(false);
     expect(isValidDeviationCategory('tinturaria', 'cor')).toBe(true);
     expect(isValidDeviationCategory('tinturaria', 'fio_urdume')).toBe(false);
+    expect(isValidDeviationCategory('beneficiamento', 'encolhimento')).toBe(true);
+    expect(isValidDeviationCategory('beneficiamento', 'cor')).toBe(false);
     expect(isValidDeviationCategory('tecelagem', 'fio_urdume')).toBe(true);
     expect(isValidDeviationCategory('tecelagem', null)).toBe(true);
     expect(deviationCategoryLabel('tinturaria', 'laboratorio')).toBe('Laboratório');

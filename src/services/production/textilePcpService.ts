@@ -361,7 +361,7 @@ export async function fetchProductionLotGenealogy(productionOrderId: string) {
 // 20261019180000). Nenhum parâmetro de processo é presumido no front.
 // ---------------------------------------------------------------------------
 
-export type SectorProfileKind = 'fiacao' | 'malharia' | 'tinturaria';
+export type SectorProfileKind = 'fiacao' | 'malharia' | 'tinturaria' | 'beneficiamento';
 
 export interface SectorOrderProfileRow {
   id: string;
@@ -389,6 +389,12 @@ export interface SectorOrderProfileRow {
   measured_lab_l?: number | null;
   measured_lab_a?: number | null;
   measured_lab_b?: number | null;
+  // beneficiamento
+  process_type?: string | null;
+  target_shrinkage_pct?: number | null;
+  temperature_c?: number | null;
+  speed_m_min?: number | null;
+  planned_output_m?: number | null;
   // comum
   planned_output_kg?: number | null;
   created_at: string;
@@ -416,6 +422,7 @@ const SECTOR_PROFILE_TABLES: Record<SectorProfileKind, string> = {
   fiacao: 'spinning_order_profiles',
   malharia: 'knitting_order_profiles',
   tinturaria: 'dyeing_order_profiles',
+  beneficiamento: 'beneficiamento_order_profiles',
 };
 
 export async function upsertSectorOrderProfile(

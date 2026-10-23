@@ -14,7 +14,7 @@ const familyVerticalRoutes: Partial<Record<IndustrialProcessFamily, readonly str
   weaving: ['/vertical/textile', '/vertical/weaving'],
   knitting: ['/vertical/textile', '/vertical/knitting'],
   dyeing: ['/vertical/textile', '/vertical/dyeing'],
-  finishing: ['/vertical/textile'],
+  finishing: ['/vertical/textile', '/vertical/finishing'],
   apparel: ['/vertical/apparel'],
   animal_feed: ['/vertical/food-feed'],
   food: ['/vertical/food-feed'],

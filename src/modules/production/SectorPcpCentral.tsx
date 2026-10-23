@@ -25,7 +25,7 @@ import { ProductionCompletionPanel } from './productionOrders/ProductionCompleti
 import { WeavingEventsPanel, WeavingProfilePanel } from './productionOrders/WeavingOperationsPanel';
 import { LoomBoardPanel } from './productionOrders/LoomBoardPanel';
 import { SectorBoardPanel, SECTOR_BOARDS } from './productionOrders/SectorBoardPanel';
-import { DyeingProfilePanel, KnittingProfilePanel, SectorEventsPanel, SpinningProfilePanel } from './productionOrders/SectorOperationsPanels';
+import { DyeingProfilePanel, FinishingProfilePanel, KnittingProfilePanel, SectorEventsPanel, SpinningProfilePanel } from './productionOrders/SectorOperationsPanels';
 import { SECTOR_MATCHERS, type SectorKind } from '@/lib/pcp/sectorProfiles';
 import { formatNumber } from '@/lib/formatters';
 
@@ -81,6 +81,14 @@ export const SECTOR_CENTRALS: Record<SectorCentralConfig['key'], SectorCentralCo
     description: 'Fluxo executável da tinturaria: OP com snapshot (ficha e receita configuradas da empresa), reserva por lote, capacidade finita, apontamento sequencial, qualidade e genealogia até o lote tingido.',
     newOrderLabel: 'Nova OP de tinturaria',
     matchers: SECTOR_MATCHERS.tinturaria,
+  },
+  beneficiamento: {
+    key: 'beneficiamento',
+    noun: 'beneficiamento',
+    title: 'Central PCP — Beneficiamento/Acabamento',
+    description: 'Fluxo executável do beneficiamento: OP com snapshot, perfil da rama/acabamento (largura, gramatura, encolhimento configurados), reserva por lote, capacidade finita, apontamento sequencial, qualidade e genealogia até o tecido acabado.',
+    newOrderLabel: 'Nova OP de beneficiamento',
+    matchers: SECTOR_MATCHERS.beneficiamento,
   },
 };
 
@@ -209,8 +217,8 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
         inspections={inspections}
       />
       {config.key === 'tecelagem' && <LoomBoardPanel />}
-      {(config.key === 'fiacao' || config.key === 'malharia' || config.key === 'tinturaria') && (
-        <SectorBoardPanel config={SECTOR_BOARDS[config.key]} />
+      {config.key !== 'tecelagem' && (
+        <SectorBoardPanel config={SECTOR_BOARDS[config.key as keyof typeof SECTOR_BOARDS]} />
       )}
 
       <Card>
@@ -262,6 +270,9 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
           )}
           {config.key === 'tinturaria' && (
             <DyeingProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} bomLines={execution.bomLines} />
+          )}
+          {config.key === 'beneficiamento' && (
+            <FinishingProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} />
           )}
           <OrderMaterialReservationPanel order={selectedOrder} bomLines={execution.bomLines} lots={execution.lots} reservations={execution.reservations} snapshotAt={execution.snapshotAt} loading={execution.loading} onChanged={refresh} />
           <OrderStepProgressPanel order={selectedOrder} steps={orderSteps} loading={false} onChanged={refresh} />

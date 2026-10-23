@@ -317,6 +317,73 @@ function DyeingCalcBlock({ form, bomLines }: { form: { bathRatio: string; planne
   );
 }
 
+export function FinishingProfilePanel({ order, profile, onChanged }: ProfileProps) {
+  const [form, setForm] = useState({
+    machineId: NONE, workCenter: '', processType: '', targetWidthCm: '', targetGsm: '',
+    targetShrinkagePct: '', temperatureC: '', speedMMin: '', plannedOutputM: '', notes: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setForm({
+      machineId: profile?.machine_id ?? NONE,
+      workCenter: profile?.work_center ?? order.work_center ?? '',
+      processType: profile?.process_type ?? '',
+      targetWidthCm: numStr(profile?.target_width_cm),
+      targetGsm: numStr(profile?.target_grammage_g_m2),
+      targetShrinkagePct: numStr(profile?.target_shrinkage_pct),
+      temperatureC: numStr(profile?.temperature_c),
+      speedMMin: numStr(profile?.speed_m_min),
+      plannedOutputM: numStr(profile?.planned_output_m),
+      notes: profile?.notes ?? '',
+    });
+  }, [profile, order.id, order.work_center]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await upsertSectorOrderProfile(order.id, 'beneficiamento', {
+        machine_id: form.machineId === NONE ? null : form.machineId,
+        work_center: form.workCenter.trim() || null,
+        process_type: form.processType.trim() || null,
+        target_width_cm: numberOrNull(form.targetWidthCm),
+        target_grammage_g_m2: numberOrNull(form.targetGsm),
+        target_shrinkage_pct: numberOrNull(form.targetShrinkagePct),
+        temperature_c: numberOrNull(form.temperatureC),
+        speed_m_min: numberOrNull(form.speedMMin),
+        planned_output_m: numberOrNull(form.plannedOutputM),
+        notes: form.notes.trim() || null,
+      });
+      toast.success('Perfil de beneficiamento salvo');
+      await onChanged();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao salvar perfil de beneficiamento');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ProfileShell
+      title="Perfil técnico de beneficiamento da OP"
+      description="Rama/máquina de acabamento e metas configuradas da empresa (largura, gramatura, encolhimento, temperatura, velocidade). Nenhum valor é sugerido automaticamente."
+      saving={saving}
+      onSave={save}
+    >
+      <Field label="Rama/máquina de acabamento"><MachineSelect kind="beneficiamento" value={form.machineId} onChange={(v) => setForm({ ...form, machineId: v })} /></Field>
+      <Field label="Centro de trabalho"><Input value={form.workCenter} onChange={(e) => setForm({ ...form, workCenter: e.target.value })} /></Field>
+      <Field label="Processo (configurado)"><Input value={form.processType} onChange={(e) => setForm({ ...form, processType: e.target.value })} placeholder="Ex.: ramagem, sanforização, calandragem" /></Field>
+      <Field label="Largura final alvo (cm)"><Input type="number" min="0" value={form.targetWidthCm} onChange={(e) => setForm({ ...form, targetWidthCm: e.target.value })} /></Field>
+      <Field label="Gramatura alvo (g/m²)"><Input type="number" min="0" value={form.targetGsm} onChange={(e) => setForm({ ...form, targetGsm: e.target.value })} /></Field>
+      <Field label="Encolhimento alvo (%)"><Input type="number" min="0" value={form.targetShrinkagePct} onChange={(e) => setForm({ ...form, targetShrinkagePct: e.target.value })} /></Field>
+      <Field label="Temperatura (ºC, configurada)"><Input type="number" min="0" value={form.temperatureC} onChange={(e) => setForm({ ...form, temperatureC: e.target.value })} /></Field>
+      <Field label="Velocidade (m/min, configurada)"><Input type="number" min="0" value={form.speedMMin} onChange={(e) => setForm({ ...form, speedMMin: e.target.value })} /></Field>
+      <Field label="Saída planejada (m)"><Input type="number" min="0" value={form.plannedOutputM} onChange={(e) => setForm({ ...form, plannedOutputM: e.target.value })} /></Field>
+      <Field label="Observações"><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+    </ProfileShell>
+  );
+}
+
 interface EventsProps {
   order: ProductionOrderRow;
   kind: SectorProfileKind;

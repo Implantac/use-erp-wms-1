@@ -77,6 +77,12 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
     labA: '',
     labB: '',
     plannedOutputKg: '',
+    processType: '',
+    targetWidthCm: '',
+    targetShrinkagePct: '',
+    temperatureC: '',
+    speedMMin: '',
+    plannedOutputM: '',
     notes: '',
   });
 
@@ -160,6 +166,20 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
     }
     if (kind === 'malharia') {
       return { ...base, gauge: textOrNull(form.gauge), diameter_cm: optionalNumber(form.diameterCm) };
+    }
+    if (kind === 'beneficiamento') {
+      return {
+        machine_id: form.machineId === NONE ? null : form.machineId,
+        work_center: textOrNull(form.workCenter),
+        process_type: textOrNull(form.processType),
+        target_width_cm: optionalNumber(form.targetWidthCm),
+        target_grammage_g_m2: optionalNumber(form.targetGsm),
+        target_shrinkage_pct: optionalNumber(form.targetShrinkagePct),
+        temperature_c: optionalNumber(form.temperatureC),
+        speed_m_min: optionalNumber(form.speedMMin),
+        planned_output_m: optionalNumber(form.plannedOutputM),
+        notes: textOrNull(form.notes),
+      };
     }
     return {
       ...base,
@@ -262,7 +282,7 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
           <div className="space-y-1 md:col-span-2"><Label>Cliente (opcional)</Label><Input value={form.clientName} onChange={(e) => set({ clientName: e.target.value })} /></div>
 
           <div className="space-y-1">
-            <Label>{kind === 'fiacao' ? 'Filatório/máquina' : kind === 'malharia' ? 'Tear circular/máquina' : 'Máquina de tingir (JET/barca)'}</Label>
+            <Label>{kind === 'fiacao' ? 'Filatório/máquina' : kind === 'malharia' ? 'Tear circular/máquina' : kind === 'beneficiamento' ? 'Rama/máquina de acabamento' : 'Máquina de tingir (JET/barca)'}</Label>
             <Select value={form.machineId} onValueChange={(value) => set({ machineId: value })}>
               <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
               <SelectContent>
@@ -271,7 +291,9 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1"><Label>Produção planejada (kg)</Label><Input type="number" min="0" step="0.01" value={form.plannedOutputKg} onChange={(e) => set({ plannedOutputKg: e.target.value })} /></div>
+          {kind !== 'beneficiamento' && (
+            <div className="space-y-1"><Label>Produção planejada (kg)</Label><Input type="number" min="0" step="0.01" value={form.plannedOutputKg} onChange={(e) => set({ plannedOutputKg: e.target.value })} /></div>
+          )}
 
           {kind === 'fiacao' && (
             <>
@@ -283,6 +305,17 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
             <>
               <div className="space-y-1"><Label>Galga (configurada)</Label><Input value={form.gauge} onChange={(e) => set({ gauge: e.target.value })} /></div>
               <div className="space-y-1"><Label>Diâmetro (cm)</Label><Input type="number" min="0" step="0.01" value={form.diameterCm} onChange={(e) => set({ diameterCm: e.target.value })} /></div>
+            </>
+          )}
+          {kind === 'beneficiamento' && (
+            <>
+              <div className="space-y-1"><Label>Processo (configurado)</Label><Input value={form.processType} onChange={(e) => set({ processType: e.target.value })} placeholder="Ex.: ramagem, sanforização" /></div>
+              <div className="space-y-1"><Label>Largura final alvo (cm)</Label><Input type="number" min="0" step="0.01" value={form.targetWidthCm} onChange={(e) => set({ targetWidthCm: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Gramatura alvo (g/m²)</Label><Input type="number" min="0" step="0.01" value={form.targetGsm} onChange={(e) => set({ targetGsm: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Encolhimento alvo (%)</Label><Input type="number" min="0" step="0.01" value={form.targetShrinkagePct} onChange={(e) => set({ targetShrinkagePct: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Temperatura (ºC, configurada)</Label><Input type="number" min="0" step="0.01" value={form.temperatureC} onChange={(e) => set({ temperatureC: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Velocidade (m/min, configurada)</Label><Input type="number" min="0" step="0.01" value={form.speedMMin} onChange={(e) => set({ speedMMin: e.target.value })} /></div>
+              <div className="space-y-1"><Label>Saída planejada (m)</Label><Input type="number" min="0" step="0.01" value={form.plannedOutputM} onChange={(e) => set({ plannedOutputM: e.target.value })} /></div>
             </>
           )}
           {kind === 'tinturaria' && (
