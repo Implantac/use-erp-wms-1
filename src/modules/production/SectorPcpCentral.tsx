@@ -19,6 +19,7 @@ import { useQualityInspections } from '@/hooks/production/useQualityInspections'
 import { useTextilePcpData } from '@/hooks/production/useTextilePcpData';
 import { useNetMRP } from './mrp/useNetMRP';
 import { CreateTextileOrderDialog } from './productionOrders/CreateTextileOrderDialog';
+import { CreateSectorOrderDialog } from './productionOrders/CreateSectorOrderDialog';
 import { OrderMaterialReservationPanel, OrderStepProgressPanel } from './productionOrders/OrderExecutionPanels';
 import { ProductionCompletionPanel } from './productionOrders/ProductionCompletionPanel';
 import { WeavingEventsPanel, WeavingProfilePanel } from './productionOrders/WeavingOperationsPanel';
