@@ -33,7 +33,7 @@ export default function ProductsPage() {
   const { products, productsLoading: isLoading, categories, deleteProduct } = useInventory();
 
   const [filters, setFilters] = useState<ProductFilters>({
-    search: '', type: 'all', category: 'all', status: 'all',
+    search: new URLSearchParams(window.location.search).get('q') || '', type: 'all', category: 'all', status: 'all',
   });
   const [selectedProduct, setSelectedProduct] = useState<DbProduct | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -194,9 +194,18 @@ export default function ProductsPage() {
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.code}</TableCell>
                     <TableCell>
-                      <div>
-                        <div className="font-medium">{product.name}</div>
-                        {product.barcode && <div className="text-xs text-muted-foreground">{product.barcode}</div>}
+                      <div className="flex items-center gap-3">
+                        {product.image_url ? (
+                          <img src={product.image_url} alt="" className="h-10 w-10 rounded border object-cover" loading="lazy" />
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded border bg-muted">
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium">{product.name}</div>
+                          {product.barcode && <div className="text-xs text-muted-foreground">{product.barcode}</div>}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{getTypeBadge(product.type)}</TableCell>
