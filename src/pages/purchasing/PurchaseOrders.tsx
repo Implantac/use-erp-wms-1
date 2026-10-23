@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { Plus, Search, MoreHorizontal, Eye, Edit, Trash2, Send, CheckCircle, Package, FileText, Loader2, Clock } from 'lucide-react';
@@ -57,6 +58,23 @@ export default function PurchaseOrdersPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+  const [payable, setPayable] = useState<{ amount: number; status: string; due_date: string } | null>(null);
+
+  useEffect(() => {
+    if (!selectedOrder?.id) { setPayable(null); return; }
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('accounts_payable')
+        .select('amount, status, due_date')
+        .eq('source_type', 'purchase_order')
+        .eq('source_id', selectedOrder.id)
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setPayable(data || null);
+    })();
+  }, [selectedOrder?.id]);
 
   const filteredOrders = useMemo(() => orders.filter((order) => {
     const matchesSearch =
@@ -222,6 +240,14 @@ export default function PurchaseOrdersPage() {
                <div className="grid grid-cols-2 gap-4">
                  <div><Label className="text-muted-foreground text-xs uppercase">Fornecedor</Label><p className="font-bold">{selectedOrder.supplierName}</p></div>
                  <div><Label className="text-muted-foreground text-xs uppercase">Total</Label><p className="font-bold">{formatBRL(selectedOrder.total)}</p></div>
+                 <div>
+                   <Label className="text-muted-foreground text-xs uppercase">Financeiro</Label>
+                   {payable ? (
+                     <p className="font-bold">Título a pagar de {formatBRL(Number(payable.amount))} · {payable.status} · vence {formatDate(payable.due_date)}</p>
+                   ) : (
+                     <p className="text-muted-foreground">Sem título (gerado no recebimento)</p>
+                   )}
+                 </div>
                </div>
                <Separator />
                <Table>

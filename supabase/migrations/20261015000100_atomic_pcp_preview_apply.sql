@@ -29,7 +29,10 @@ BEGIN
      OR jsonb_typeof(p_updates) IS DISTINCT FROM 'array' THEN
     RAISE EXCEPTION 'invalid PCP plan';
   END IF;
-  IF jsonb_array_length(p_updates) > CASE WHEN p_kind = 'schedule' THEN 100 ELSE 500 END
+  -- [Correcao instalacao local] CASE entre parenteses: sem eles o parser do
+  -- PL/pgSQL encerra a expressao no CASE ("syntax error at end of input") e a
+  -- funcao nao pode ser criada em nenhum Postgres. Semantica inalterada.
+  IF jsonb_array_length(p_updates) > (CASE WHEN p_kind = 'schedule' THEN 100 ELSE 500 END)
      OR (p_branch_ids IS NOT NULL AND cardinality(p_branch_ids) = 0) THEN
     RAISE EXCEPTION 'PCP plan exceeds verified scope';
   END IF;
