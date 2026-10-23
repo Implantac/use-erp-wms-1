@@ -53,22 +53,15 @@ export const operationalService = {
   },
 
   async getSmartInventorySuggestions(branchId: string) {
-    // Busca produtos com estoque baixo ou alta movimentação sem contagem recente
-    // Esta lógica seria idealmente uma VIEW ou RPC no Postgres
-    const { data: suggestions, error } = await supabase
-      .from('replenishment_policies')
-      .select('*, product:products(name, code, unit)')
-      .eq('branch_id', branchId)
-      .limit(12);
-
-    if (error) return [];
-    
-    return (suggestions || []).map((s: any) => ({
-      productId: s.product_id,
-      productName: s.product?.name,
-      productCode: s.product?.code,
-      reason: 'Auditoria Cíclica (Giro Alto)',
-      expectedQty: 100, // Mocked balance for now
+    // Real: política de reposição x saldo da unidade (sem valores fixos).
+    const { getReplenishmentAlerts } = await import('./supplyService');
+    const alerts = await getReplenishmentAlerts(branchId);
+    return alerts.map((a) => ({
+      productId: a.productId,
+      productName: a.productName,
+      productCode: a.productCode,
+      reason: `Abaixo do mínimo (saldo ${a.currentQty} / mínimo ${a.minStock})`,
+      expectedQty: a.suggestedQty,
     }));
   }
 };

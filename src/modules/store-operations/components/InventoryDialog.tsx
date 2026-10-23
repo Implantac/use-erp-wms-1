@@ -1,158 +1,104 @@
 import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useEnterprise } from '@/core/auth/EnterpriseContext';
+import { toastError, toastSuccess } from '@/lib/toastHelpers';
 import { Button } from "@/ui/base/button";
-import { ClipboardList, AlertCircle, Package, Search } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/ui/base/dialog";
 import { Input } from "@/ui/base/input";
-import { useProducts, type DbProduct } from '@/hooks/inventory/useProducts';
-import { Badge } from '@/ui/base/badge';
-import { ScrollArea } from '@/ui/base/scroll-area';
+import { Label } from "@/ui/base/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/ui/base/select";
+import { ClipboardList } from 'lucide-react';
 
-interface InventoryDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+/**
+ * Contagem de inventário da loja (fluxo real): informa o físico e a RPC
+ * register_inventory_count lança só a diferença no ledger, devolvendo
+ * sistema x contado x delta para conferência na tela.
+ */
+export function InventoryDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { currentBranch } = useEnterprise();
+  const queryClient = useQueryClient();
+  const [productId, setProductId] = useState('');
+  const [counted, setCounted] = useState('');
+  const [result, setResult] = useState<{ system: number; counted: number; delta: number } | null>(null);
+  const [busy, setBusy] = useState(false);
 
-export function InventoryDialog({ isOpen, onClose }: InventoryDialogProps) {
-  const { data: products } = useProducts();
-  const [step, setStep] = useState(1);
-  
-  const [items, setItems] = useState<(DbProduct & { counted_qty: number })[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const { data: stock = [] } = useQuery({
+    queryKey: ['store-count-stock', currentBranch?.id],
+    enabled: isOpen && !!currentBranch?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('stock_balances')
+        .select('product_id, product_code, product_name, quantity')
+        .eq('branch_id', currentBranch!.id)
+        .order('product_name')
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as { product_id: string; product_code: string; product_name: string; quantity: number }[];
+    },
+  });
 
-  const filteredProducts = products?.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.code?.toLowerCase().includes(searchTerm.toLowerCase())
-  ).slice(0, 10);
-
-  const addItem = (product: DbProduct) => {
-    if (items.find(i => i.id === product.id)) return;
-    setItems([...items, { ...product, counted_qty: 0 }]);
+  const submit = async () => {
+    try {
+      setBusy(true);
+      const { data, error } = await (supabase as any).rpc('register_inventory_count', {
+        p_product_id: productId,
+        p_branch_id: currentBranch!.id,
+        p_counted_quantity: Number(counted),
+        p_notes: 'contagem física da loja',
+      });
+      if (error) throw new Error(error.message);
+      const r = data as { system_quantity: number; counted_quantity: number; delta: number };
+      setResult({ system: Number(r.system_quantity), counted: Number(r.counted_quantity), delta: Number(r.delta) });
+      toastSuccess('Inventário registrado', 'A diferença foi lançada no ledger de estoque.');
+      queryClient.invalidateQueries({ queryKey: ['store-kpis'] });
+    } catch (e) {
+      toastError(e, 'Não foi possível registrar a contagem.');
+    } finally {
+      setBusy(false);
+    }
   };
-
-  const removeItem = (id: string) => {
-    setItems(items.filter(i => i.id !== id));
-  };
-
-  const updateQty = (id: string, qty: number) => {
-    setItems(items.map(i => i.id === id ? { ...i, counted_qty: qty } : i));
-  };
-
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 font-black uppercase tracking-tight text-primary">
-            <ClipboardList className="h-5 w-5" />
-            {step === 1 ? 'INICIAR CONTAGEM DE ESTOQUE' : 'CONFIRMAR RESULTADOS'}
+          <DialogTitle className="uppercase text-sm font-black flex items-center gap-2">
+            <ClipboardList className="h-4 w-4" /> Contagem de inventário
           </DialogTitle>
         </DialogHeader>
-        
-        {step === 1 ? (
-          <div className="space-y-4 py-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Pesquisar produtos por nome ou SKU..." 
-                className="pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            {searchTerm && (
-              <div className="border rounded-lg divide-y bg-muted/20">
-                {filteredProducts?.map(p => (
-                  <button 
-                    key={p.id} 
-                    className="w-full text-left p-3 hover:bg-primary/5 flex items-center justify-between"
-                    onClick={() => addItem(p)}
-                  >
-                    <div>
-                      <p className="text-sm font-bold">{p.name}</p>
-                      <p className="text-[10px] text-muted-foreground font-mono">{p.code || 'SEM SKU'}</p>
-                    </div>
-                    <Badge variant="outline">Adicionar</Badge>
-                  </button>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-[10px] font-black uppercase">Produto</Label>
+            <Select value={productId} onValueChange={(v) => { setProductId(v); setResult(null); }}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                {stock.map((s) => (
+                  <SelectItem key={s.product_id} value={s.product_id}>
+                    {s.product_code} — {s.product_name} (sistema: {s.quantity})
+                  </SelectItem>
                 ))}
-              </div>
-            )}
-
-            <ScrollArea className="h-[300px] border rounded-xl p-4 bg-background">
-              {items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50">
-                  <Package className="h-12 w-12 mb-2" />
-                  <p className="text-sm font-bold uppercase tracking-widest">Nenhum item selecionado</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {items.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
-                    <div>
-                      <p className="text-sm font-bold">{item.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{item.code || 'SEM SKU'}</p>
-                    </div>
-                      <div className="flex items-center gap-3">
-                        <Input 
-                          type="number" 
-                          className="w-20 text-right font-black" 
-                          value={item.counted_qty}
-                          onChange={(e) => updateQty(item.id, Number(e.target.value))}
-                        />
-                        <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)} className="text-red-500">
-                          X
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+              </SelectContent>
+            </Select>
           </div>
-        ) : (
-          <div className="py-6 space-y-4">
-             <div className="bg-amber-500/10 p-4 border border-amber-500/20 rounded-xl flex items-start gap-3">
-               <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-               <div className="text-sm">
-                 <p className="font-bold text-amber-700 uppercase text-xs">Atenção</p>
-                 <p className="text-amber-600 font-medium">Prévia de {items.length} itens. O registro e os ajustes de estoque não estão disponíveis nesta tela; nenhuma alteração será salva.</p>
-               </div>
-             </div>
-             
-             <div className="divide-y border rounded-xl bg-background">
-               {items.map(item => (
-                 <div key={item.id} className="p-4 flex justify-between items-center">
-                   <span className="text-sm font-bold uppercase">{item.name}</span>
-                   <Badge className="bg-primary font-mono text-lg px-4">{item.counted_qty}</Badge>
-                 </div>
-               ))}
-             </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] font-black uppercase">Quantidade contada (físico)</Label>
+            <Input type="number" min="0" step="any" value={counted} onChange={(e) => setCounted(e.target.value)} />
           </div>
-        )}
-
-        <DialogFooter>
-          {step === 1 ? (
-            <>
-              <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-              <Button 
-                className="bg-primary font-black uppercase tracking-widest text-[10px]" 
-                disabled={items.length === 0}
-                onClick={() => setStep(2)}
-              >
-                Revisar Contagem
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="ghost" onClick={() => setStep(1)}>Voltar</Button>
-              <Button 
-                className="bg-emerald-600 hover:bg-emerald-700 font-black uppercase tracking-widest text-[10px]" 
-                disabled
-              >
-                REGISTRO INDISPONÍVEL
-              </Button>
-            </>
+          {result && (
+            <p className="rounded-md bg-muted/40 p-3 text-xs">
+              Sistema: <strong>{result.system}</strong> · Contado: <strong>{result.counted}</strong> ·
+              Diferença lançada: <strong>{result.delta > 0 ? `+${result.delta}` : result.delta}</strong>
+            </p>
           )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Fechar</Button>
+          <Button onClick={submit} disabled={busy || !productId || counted === ''}>
+            Registrar contagem
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

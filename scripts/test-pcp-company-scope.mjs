@@ -11,10 +11,13 @@ for (const [hook, table, result] of [
     assert.match(source, /useActiveTenant\(\)/);
     assert.match(source, /companyIdRef\.current !== companyId/);
     assert.match(source, new RegExp(`from\\('${table}'\\)\\.select\\('\\*'\\)\\.eq\\('company_id', companyId\\)`));
-    assert.match(source, /\.eq\('id', id\)\.eq\('company_id', companyId\)\.select\('id'\)/);
+    assert.match(source, /\.eq\('id', id\)\.eq\('company_id', companyId\)[\s\S]*?\.select\('id'\)/);
     assert.match(source, new RegExp(`${result}: loadedCompanyId === companyId \\? ${result} : \\[\\]`));
   });
 }
 test('OP cannot be completed by a direct hook update', () => {
-  assert.match(read('useProductionOrders.ts'), /updates\.status === 'completed'/);
+  const hook = read('useProductionOrders.ts');
+  const transitions = readFileSync(new URL('../src/lib/pcp/orderTransitions.ts', import.meta.url), 'utf8');
+  assert.match(hook, /canChangeOPStatus\(current\.status, updates\.status\)/);
+  assert.match(transitions, /next !== 'completed'/);
 });
