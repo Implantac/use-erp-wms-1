@@ -43,9 +43,14 @@ interface OperationalUnitSource {
 function mapOperationalUnits(units: OperationalUnitSource[]): OperationalUnit[] {
   return units.map((unit) => {
     const unitType = normalizeUnitType(unit.tipo ?? unit.type);
-    const defaultChannel = unit.canal_padrao === 'VAREJO_PDV' || unit.canal_padrao === 'ATACADO_INDUSTRIA'
+    // O canal padrão precisa pertencer aos canais do tipo da unidade:
+    // um cadastro inconsistente (ex.: CD com canal de Loja) não pode
+    // travar a troca de contexto — vale o canal derivado do tipo.
+    const derivedChannel = getDefaultChannel(unitType);
+    const defaultChannel = (unit.canal_padrao === 'VAREJO_PDV' || unit.canal_padrao === 'ATACADO_INDUSTRIA')
+      && getAllowedChannels(unitType).includes(unit.canal_padrao)
       ? unit.canal_padrao
-      : getDefaultChannel(unitType);
+      : derivedChannel;
     return {
       id: unit.id,
       name: unit.name,
@@ -471,6 +476,16 @@ export const EnterpriseProvider = React.memo(({ children }: { children: React.Re
     try {
       const company = allowedCompanies.find((candidate) => candidate.id === input.companyId);
       if (!company) throw new Error('Empresa não autorizada para este usuário.');
+
+      if (company.id !== currentCompany?.id) {
+        // A empresa ativa muda também no servidor: sem isso a RLS continua
+        // enxergando a empresa do perfil e a loja do grupo some das telas.
+        try {
+          await TenantService.switchActiveCompany(company.id);
+        } catch (rpcError) {
+          console.warn('Não foi possível sincronizar a empresa ativa no servidor.', rpcError);
+        }
+      }
 
       await queryClient.cancelQueries();
       const unitsResult = company.id === currentCompany?.id && allowedUnits.length > 0
