@@ -22,6 +22,15 @@ describe('visibilidade dos pacotes por perfil', () => {
     expect(canViewVertical('tecelagem', '/vertical/spinning')).toBe(false);
     expect(canViewVertical('textile', '/vertical/pharma')).toBe(false);
   });
+  it('libera as centrais por setor têxtil sem abrir verticais de outros ramos', () => {
+    for (const route of ['/vertical/spinning', '/vertical/knitting', '/vertical/weaving', '/vertical/dyeing']) {
+      expect(canViewVertical('textile', route)).toBe(true);
+    }
+    expect(canViewVertical('dyeing', '/vertical/dyeing')).toBe(true);
+    expect(canViewVertical('dyeing', '/vertical/weaving')).toBe(false);
+    expect(canViewVertical('fio', '/vertical/dyeing')).toBe(false);
+    expect(canViewVertical('tecelagem', '/vertical/knitting')).toBe(false);
+  });
   it('restringe serviços e geral e cobre todas as chaves do catálogo', () => {
     for (const segment of Object.keys(SEGMENTS)) {
       expect(() => allRoutes.map(route => canViewVertical(segment, route))).not.toThrow();

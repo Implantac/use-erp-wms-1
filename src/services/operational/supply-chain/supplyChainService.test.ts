@@ -5,10 +5,11 @@ const { order, limit, eq, query, from, rpc, getActiveCompanyId } = vi.hoisted(()
   const limit = vi.fn();
   const order = vi.fn(() => ({ limit }));
   const eq = vi.fn();
-  const query = { select: vi.fn(), eq, or: vi.fn(), in: vi.fn(), order };
+  const query = { select: vi.fn(), eq, or: vi.fn(), in: vi.fn(), not: vi.fn(), order };
   query.select.mockReturnValue(query);
   eq.mockReturnValue(query);
   query.or.mockReturnValue(query);
+  query.not.mockReturnValue(query);
   query.in.mockReturnValue(query);
   const from = vi.fn(() => query);
   return { order, limit, eq, query, from, rpc, getActiveCompanyId: vi.fn(() => 'company-a') };
@@ -32,12 +33,16 @@ describe('supply chain reads', () => {
   it('scopes both company and branch and propagates query errors', async () => {
     limit.mockResolvedValueOnce({ data: null, error: new Error('RLS indisponível') });
     await expect(supplyChainService.getMovements({ unit_id: 'branch' })).rejects.toThrow('RLS indisponível');
-    expect(eq).toHaveBeenCalledWith('company_id', 'company-a');
-    expect(query.or).toHaveBeenCalledWith('origin_id.eq.branch,destination_id.eq.branch');
+    expect(query.in).toHaveBeenCalledWith('company_id', ['company-a']);
+    expect(query.or).toHaveBeenCalledWith('origin_unit_id.eq.branch,destination_unit_id.eq.branch');
   });
   it('returns data only on successful lookup', async () => {
-    limit.mockResolvedValueOnce({ data: [{ id: 'one' }], error: null });
-    await expect(supplyChainService.getMovements({ unit_id: 'branch' })).resolves.toEqual([{ id: 'one' }]);
+    limit.mockResolvedValueOnce({
+      data: [{ id: 'one', current_status: 'SUGERIDA', origin_unit_id: 'a', destination_unit_id: 'b' }],
+      error: null,
+    });
+    const result = await supplyChainService.getMovements({ unit_id: 'branch' });
+    expect(result).toMatchObject([{ id: 'one', status: 'requested', origin_id: 'a', destination_id: 'b' }]);
     expect(order).toHaveBeenCalled();
   });
   it('rejects cross-tenant request before writing and sends one atomic RPC for valid items', async () => {
