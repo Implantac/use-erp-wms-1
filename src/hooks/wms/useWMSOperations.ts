@@ -260,7 +260,7 @@ export function useWMSDashboardStats() {
 
   useEffect(() => {
     fetch();
-    const channel = supabase.channel('wms-dashboard-operations');
+    const channel = supabase.channel('wms-dashboard-operations-' + Math.random().toString(36).substring(7));
     ['wms_receiving_orders', 'wms_picking_orders', 'wms_packing_orders', 'wms_storage_locations', 'wms_movements', 'wms_shipments', 'loading_docks'].forEach((table) => {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => { void fetch(); });
     });

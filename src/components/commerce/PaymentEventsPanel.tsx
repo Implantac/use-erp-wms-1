@@ -9,6 +9,7 @@ import { Skeleton } from "@/ui/base/skeleton";
 import { Separator } from "@/ui/base/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/base/select";
 import { usePaymentEventsForStorefront } from "@/hooks/usePaymentEvents";
+import { getSupabaseUrl } from "@/integrations/supabase/config";
 import { MultiSelectPopover, FilterChip } from "./payment-events/FilterControls";
 import { EventItem } from "./payment-events/EventItem";
 import { PaginationBar } from "./payment-events/PaginationBar";
@@ -32,7 +33,8 @@ interface Props { storefrontId: string; orders: OrderLite[]; projectRef?: string
 
 export function PaymentEventsPanel({ storefrontId, orders, projectRef }: Props) {
   const { data: events = [], isLoading } = usePaymentEventsForStorefront(storefrontId);
-  const baseUrl = projectRef ? `https://${projectRef}.supabase.co` : String(import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/$/, "");
+  // Na nuvem, projectRef monta a URL pública; na instalação local usa a origem resolvida.
+  const baseUrl = projectRef ? `https://${projectRef}.supabase.co` : getSupabaseUrl();
   const webhookUrl = `${baseUrl}/functions/v1/psp-webhook`;
 
   const [providers, setProviders] = useState<string[]>([]);
