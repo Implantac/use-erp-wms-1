@@ -10,6 +10,11 @@ import getOrderTool from "./tools/get-order";
 // proxy .lovable.cloud). O project ref é o único valor que sobrevive a publish
 // e o Vite inlina como literal no build (mantém o entry import-safe).
 const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
+// Instalação local (sem project ref da nuvem): aponta o issuer para o Auth
+// local servido na mesma origem. Na nuvem o comportamento é idêntico ao anterior.
+const issuer = import.meta.env.VITE_SUPABASE_PROJECT_ID
+  ? `https://${projectRef}.supabase.co/auth/v1`
+  : `${(import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/+$/, "")}/auth/v1`;
 
 export default defineMcp({
   name: "use-sistemas-erp-mcp",
@@ -24,7 +29,7 @@ export default defineMcp({
     "Use `get_order` para obter um pedido específico (com itens) pelo seu UUID. " +
     "Todas as consultas respeitam o escopo de empresa do usuário autenticado.",
   auth: auth.oauth.issuer({
-    issuer: `https://${projectRef}.supabase.co/auth/v1`,
+    issuer,
     acceptedAudiences: "authenticated",
   }),
   tools: [whoamiTool, searchProductsTool, listPayablesTool, listOrdersTool, getOrderTool],

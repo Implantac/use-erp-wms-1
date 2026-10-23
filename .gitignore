@@ -14,6 +14,11 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.local.example
+!Dockerfile.local
+
+# Instalação local (Docker): backups gerados e segredos nunca vão para o git
+backups/
 test-results/
 *.zip
 *.exe
