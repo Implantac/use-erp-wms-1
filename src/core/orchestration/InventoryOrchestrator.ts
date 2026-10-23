@@ -1,3 +1,10 @@
+/**
+ * LEGADO ISOLADO (revisado em 2026-10-23): trilha de auditoria de status
+ * em supply_chain_ledger. Único chamador: o teste de rastreabilidade
+ * logístico-fiscal. Não participa das telas nem do fluxo oficial de
+ * estoque (stock_transfer_orders). Não estender; aposentar junto da
+ * tabela quando o teste for migrado para a trilha oficial.
+ */
 import { useEventBus } from '@/core/events/useEventBus';
 import { useEnterprise } from '@/core/auth/EnterpriseContext';
 import { useEffect, useRef, useCallback } from 'react';

@@ -50,7 +50,8 @@ nenhum teste meu substitui 30 dias de uso real.
 | Ambiente de E2E (stack local automatizada ou CI) | Eu + você | Execução repetível |
 
 *Estado:* a jornada está provada no **banco** (harness) e por **roteiro manual**
-(C1–C8), mas nenhum robô clica nas telas hoje. É a maior lacuna de teste.
+(C1–C8). Existe uma spec Playwright da tecelagem (`tests/e2e/`), nunca
+ executada em CI ou contra a instalação real. É a maior lacuna de teste.
 
 ### 🟡 Instalação e atualização
 | Item | Estado |

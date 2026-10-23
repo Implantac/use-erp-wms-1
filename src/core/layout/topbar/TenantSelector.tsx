@@ -39,7 +39,7 @@ export function TenantSelector() {
 
   const handleSelectCompany = async (id: string) => {
     if (id === currentCompany?.id) return;
-    try { await setCompany(id); } catch { toast.error('Não foi possível trocar a empresa. Tente novamente.'); }
+    try { await setCompany(id); } catch (err: any) { toast.error(`Não foi possível trocar a empresa: ${err?.message || 'erro desconhecido'}`); }
   };
 
   const handleSelectBranch = async (id: string | null) => {
@@ -61,6 +61,12 @@ export function TenantSelector() {
       .toLocaleLowerCase('pt-BR').includes(unitSearch.trim().toLocaleLowerCase('pt-BR'))
   );
 
+  const orderedCompanies = [...allowedCompanies].sort((a, b) => {
+    const aChild = (a as any).parent_company_id ? 1 : 0;
+    const bChild = (b as any).parent_company_id ? 1 : 0;
+    return aChild - bChild || a.name.localeCompare(b.name, 'pt-BR');
+  });
+
   return (
     <>
       <DropdownMenu>
@@ -74,7 +80,7 @@ export function TenantSelector() {
         <DropdownMenuContent align="start" className="w-72 max-h-80 overflow-y-auto bg-sidebar border-sidebar-border">
           <DropdownMenuLabel className="text-sidebar-foreground/60 text-xs">Empresa ativa · {allowedCompanies.length} {allowedCompanies.length === 1 ? 'disponível' : 'disponíveis'}</DropdownMenuLabel>
           <DropdownMenuSeparator className="bg-sidebar-border" />
-           {allowedCompanies.map((company) => (
+           {orderedCompanies.map((company) => (
             <DropdownMenuItem
                key={company.id}
                onClick={() => handleSelectCompany(company.id)}
@@ -84,6 +90,13 @@ export function TenantSelector() {
                )}
             >
                <span className="min-w-0 flex-1 truncate">{company.name}</span>
+               {(company as any).parent_company_id ? (
+                 <span className="ml-2 inline-flex shrink-0 items-center gap-1 rounded bg-sidebar-accent px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sidebar-foreground/70">
+                   <Store className="h-3 w-3" /> Loja do grupo
+                 </span>
+               ) : allowedCompanies.length > 1 ? (
+                 <span className="ml-2 shrink-0 rounded bg-sidebar-accent px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sidebar-foreground/70">Principal</span>
+               ) : null}
                {currentCompany?.id === company.id && <Check className="ml-2 h-4 w-4 shrink-0 text-sidebar-primary" aria-label="Selecionada" />}
             </DropdownMenuItem>
            ))}

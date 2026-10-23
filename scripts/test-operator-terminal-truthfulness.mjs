@@ -13,12 +13,12 @@ test('unmeasured duration and incompatible quantity totals are not presented as 
 });
 test('alert insertion errors and failed pauses cannot be reported as success', () => {
   assert.match(terminal, /if \(alertError\)/);
-  assert.match(terminal, /if \(!await update\(currentEntry.id, \{ status: 'paused' \}\)\)/);
+  assert.match(terminal, /if \(!await update\(currentEntry.id, \{ status: 'paused' \}, 'started'\)\)/);
   assert.match(terminal, /NÃO foi pausado/);
 });
 test('time entry mutations return success before dependent actions', () => {
   assert.match(hook, /return false;/);
   assert.match(hook, /return true;/);
-  assert.match(terminal, /if \(!created\) return/);
-  assert.match(terminal, /if \(!finished\) return/);
+  assert.match(terminal, /if \(!created\) \{/);
+  assert.match(terminal, /if \(!finished\) \{/);
 });

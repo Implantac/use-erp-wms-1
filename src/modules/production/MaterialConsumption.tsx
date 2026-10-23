@@ -14,30 +14,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/ui/base/label';
 import { Progress } from '@/ui/base/progress';
 import { useMaterialConsumptions, MaterialConsumptionRow } from '@/hooks/production/useMaterialConsumptions';
-import { useProductionOrders } from '@/hooks/production/useProductionOrders';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { PackageMinus, Search, Package, Eye, Plus, CheckCircle, AlertTriangle, MapPin, Box } from 'lucide-react';
-import { toSafeNumber } from '@/lib/numericValidation';
+import { PackageMinus, Search, Package, Eye, CheckCircle, AlertTriangle, MapPin, Box } from 'lucide-react';
 
 export default function MaterialConsumptionPage() {
-  const { consumptions, loading, refetch, update } = useMaterialConsumptions();
-  const { orders } = useProductionOrders();
+  const { consumptions, loading } = useMaterialConsumptions();
   const [searchTerm, setSearchTerm] = useState('');
   const [orderFilter, setOrderFilter] = useState('all');
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [consumeOpen, setConsumeOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
   const [selected, setSelected] = useState<MaterialConsumptionRow | null>(null);
-  const [consumeQty, setConsumeQty] = useState(0);
-  const [form, setForm] = useState({
-    production_order_id: '', component_code: '', component_name: '',
-    expected_quantity: 0, unit: 'UN', batch: '', location: '',
-  });
 
-  const activeOrders = orders.filter(o => ['planned', 'in_progress', 'paused'].includes(o.status));
   const orderNumbers = [...new Set(consumptions.map(c => c.order_number))];
 
   const filtered = useMemo(() => consumptions.filter(c => {
@@ -54,43 +41,6 @@ export default function MaterialConsumptionPage() {
   const pendingItems = consumptions.filter(c => c.consumed_quantity < c.expected_quantity).length;
   const consumptionRate = totalExpected > 0 ? Math.round((totalConsumed / totalExpected) * 100) : 0;
 
-  const handleCreate = async () => {
-    if (!form.production_order_id || !form.component_code || !form.component_name) {
-      toast.error('Preencha os campos obrigatórios');
-      return;
-    }
-    const order = orders.find(o => o.id === form.production_order_id);
-    const { error } = await supabase.from('material_consumptions').insert({
-      production_order_id: form.production_order_id,
-      order_number: order?.order_number || '',
-      component_code: form.component_code,
-      component_name: form.component_name,
-      expected_quantity: form.expected_quantity,
-      consumed_quantity: 0,
-      unit: form.unit,
-      batch: form.batch || null,
-      location: form.location || null,
-    });
-    if (error) { toast.error('Erro ao registrar'); console.error(error); return; }
-    toast.success('Consumo registrado');
-    setCreateOpen(false);
-    setForm({ production_order_id: '', component_code: '', component_name: '', expected_quantity: 0, unit: 'UN', batch: '', location: '' });
-    await refetch();
-  };
-
-  const handleConsume = async () => {
-    if (!selected || consumeQty <= 0) return;
-    const newConsumed = selected.consumed_quantity + consumeQty;
-    await update(selected.id, {
-      consumed_quantity: newConsumed,
-      consumed_at: new Date().toISOString(),
-      consumed_by: 'Operador',
-    });
-    toast.success(`${consumeQty} ${selected.unit} consumidos`);
-    setConsumeOpen(false);
-    setSelected(null);
-  };
-
   const getStatus = (c: MaterialConsumptionRow) => {
     const pct = c.expected_quantity > 0 ? (c.consumed_quantity / c.expected_quantity) * 100 : 0;
     if (pct >= 100) return { label: 'Completo', variant: 'outline' as const };
@@ -100,7 +50,7 @@ export default function MaterialConsumptionPage() {
 
   return (
     <PageContainer loading={loading}>
-      <PageHeader title="Consumo de Matéria-Prima" description="Registro e baixa de materiais integrado ao estoque">
+      <PageHeader title="Consumo de Matéria-Prima" description="Consulta do ledger de consumo gravado pela conclusão transacional da OP. Baixas manuais foram removidas: consuma pela reserva/conclusão da OP com lote, quantidade e genealogia.">
         <ExportButton
           data={filtered as unknown as Record<string, unknown>[]}
           columns={[
@@ -110,9 +60,6 @@ export default function MaterialConsumptionPage() {
           ]}
           filename="consumo_materiais"
         />
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Registrar Consumo
-        </Button>
       </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -148,11 +95,9 @@ export default function MaterialConsumptionPage() {
               icon={PackageMinus}
               title={consumptions.length === 0 ? 'Nenhum consumo registrado' : 'Nenhum registro encontrado'}
               description={consumptions.length === 0
-                ? 'Registre o consumo de matéria-prima para acompanhar o uso por ordem de produção.'
+                ? 'Nenhum consumo foi persistido pela conclusão transacional das OPs.'
                 : 'Ajuste a busca ou os filtros para localizar o registro desejado.'}
-              action={consumptions.length === 0
-                ? { label: 'Registrar Consumo', onClick: () => setCreateOpen(true), icon: Plus }
-                : { label: 'Limpar filtros', onClick: () => { setSearchTerm(''); setOrderFilter('all'); }, variant: 'outline' }}
+              action={{ label: 'Limpar filtros', onClick: () => { setSearchTerm(''); setOrderFilter('all'); }, variant: 'outline' }}
             />
           ) : (
             <Table>
@@ -192,15 +137,6 @@ export default function MaterialConsumptionPage() {
                           <Button variant="ghost" size="sm" onClick={() => { setSelected(c); setDetailsOpen(true); }}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {c.consumed_quantity < c.expected_quantity && (
-                            <Button variant="outline" size="sm" onClick={() => {
-                              setSelected(c);
-                              setConsumeQty(c.expected_quantity - c.consumed_quantity);
-                              setConsumeOpen(true);
-                            }}>
-                              <PackageMinus className="h-4 w-4 mr-1" /> Consumir
-                            </Button>
-                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -232,78 +168,6 @@ export default function MaterialConsumptionPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Consume Dialog */}
-      <Dialog open={consumeOpen} onOpenChange={setConsumeOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Registrar Consumo</DialogTitle></DialogHeader>
-          {selected && (
-            <div className="space-y-4">
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="font-medium">{selected.component_name}</p>
-                <p className="text-sm text-muted-foreground">{selected.component_code}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><p className="text-sm text-muted-foreground">Esperado</p><p className="font-medium">{selected.expected_quantity} {selected.unit}</p></div>
-                <div><p className="text-sm text-muted-foreground">Já Consumido</p><p className="font-medium">{selected.consumed_quantity} {selected.unit}</p></div>
-              </div>
-              <div>
-                <Label>Quantidade a Consumir</Label>
-                <Input type="number" min={0} max={selected.expected_quantity - selected.consumed_quantity} value={consumeQty} onChange={e => setConsumeQty(toSafeNumber(e.target.value))} className="mt-1" />
-                <p className="text-xs text-muted-foreground mt-1">Máximo: {selected.expected_quantity - selected.consumed_quantity} {selected.unit}</p>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConsumeOpen(false)}>Cancelar</Button>
-            <Button onClick={handleConsume}>Confirmar Consumo</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Novo Registro de Consumo</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Ordem de Produção *</Label>
-              <Select value={form.production_order_id} onValueChange={v => setForm(f => ({ ...f, production_order_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Selecione a OP" /></SelectTrigger>
-                <SelectContent>
-                  {activeOrders.map(o => (
-                    <SelectItem key={o.id} value={o.id}>{o.order_number} — {o.product_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><Label>Código do Componente *</Label><Input value={form.component_code} onChange={e => setForm(f => ({ ...f, component_code: e.target.value }))} placeholder="MAT-001" /></div>
-              <div><Label>Nome do Componente *</Label><Input value={form.component_name} onChange={e => setForm(f => ({ ...f, component_name: e.target.value }))} placeholder="Tecido algodão" /></div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div><Label>Quantidade Esperada</Label><Input type="number" value={form.expected_quantity} onChange={e => setForm(f => ({ ...f, expected_quantity: toSafeNumber(e.target.value) }))} /></div>
-              <div><Label>Unidade</Label>
-                <Select value={form.unit} onValueChange={v => setForm(f => ({ ...f, unit: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="UN">UN</SelectItem>
-                    <SelectItem value="KG">KG</SelectItem>
-                    <SelectItem value="MT">MT</SelectItem>
-                    <SelectItem value="LT">LT</SelectItem>
-                    <SelectItem value="PC">PC</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>Lote</Label><Input value={form.batch} onChange={e => setForm(f => ({ ...f, batch: e.target.value }))} placeholder="L2024-01" /></div>
-            </div>
-            <div><Label>Localização</Label><Input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Almoxarifado A3" /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate}>Registrar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </PageContainer>
   );
 }
