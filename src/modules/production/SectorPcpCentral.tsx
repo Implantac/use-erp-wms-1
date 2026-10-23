@@ -22,6 +22,7 @@ import { CreateTextileOrderDialog } from './productionOrders/CreateTextileOrderD
 import { OrderMaterialReservationPanel, OrderStepProgressPanel } from './productionOrders/OrderExecutionPanels';
 import { ProductionCompletionPanel } from './productionOrders/ProductionCompletionPanel';
 import { WeavingEventsPanel, WeavingProfilePanel } from './productionOrders/WeavingOperationsPanel';
+import { LoomBoardPanel } from './productionOrders/LoomBoardPanel';
 import { DyeingProfilePanel, KnittingProfilePanel, SectorEventsPanel, SpinningProfilePanel } from './productionOrders/SectorOperationsPanels';
 import { SECTOR_MATCHERS, type SectorKind } from '@/lib/pcp/sectorProfiles';
 import { formatNumber } from '@/lib/formatters';
@@ -203,6 +204,7 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
         orders={markedOrders}
         inspections={inspections}
       />
+      {config.key === 'tecelagem' && <LoomBoardPanel />}
 
       <Card>
         <CardHeader>
