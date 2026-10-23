@@ -10,6 +10,8 @@ import { getOrderFlowStatus } from '@/hooks/commercial/useOrderFlow';
 import { OrderFlowBadge } from './OrderFlowIndicators';
 import { OrderTimeline } from './OrderTimeline';
 import type { DbOrder, DbOrderItem } from '@/hooks/commercial/orders/types';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   order: (DbOrder & { items?: DbOrderItem[] }) | null;
@@ -19,6 +21,22 @@ interface Props {
 }
 
 export function OrderDetailDialog({ order, onClose, onTransition, lifecyclePending }: Props) {
+  const [receivable, setReceivable] = useState<{ amount: number; status: string; due_date: string } | null>(null);
+  useEffect(() => {
+    if (!order?.id) { setReceivable(null); return; }
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('accounts_receivable')
+        .select('amount, status, due_date')
+        .eq('order_id', order.id)
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setReceivable(data || null);
+    })();
+  }, [order?.id]);
+
   return (
     <Dialog open={!!order} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -86,6 +104,12 @@ export function OrderDetailDialog({ order, onClose, onTransition, lifecyclePendi
                   {order.separation_status && <div><span className="text-muted-foreground">Separação:</span> {order.separation_status}</div>}
                   {order.production_status && <div><span className="text-muted-foreground">Produção:</span> {order.production_status}</div>}
                   {order.billing_status && <div><span className="text-muted-foreground">Faturamento:</span> {order.billing_status}</div>}
+                  <div>
+                    <span className="text-muted-foreground">Financeiro:</span>{' '}
+                    {receivable
+                      ? <>título a receber de {formatBRL(Number(receivable.amount))} · {receivable.status} · vence {format(new Date(receivable.due_date), 'dd/MM/yyyy')}</>
+                      : 'sem título (gerado ao faturar)'}
+                  </div>
                   {order.shipment_status && <div><span className="text-muted-foreground">Expedição:</span> {order.shipment_status}</div>}
                 </div>
               </TabsContent>

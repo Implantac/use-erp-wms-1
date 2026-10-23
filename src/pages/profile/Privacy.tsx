@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getSupabaseFunctionsUrl, getSupabasePublishableKey } from "@/integrations/supabase/config";
 import { Button } from "@/ui/base/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/base/card";
 import { Badge } from "@/ui/base/badge";
@@ -55,11 +56,11 @@ export default function ProfilePrivacy() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/lgpd-export`,
+        `${getSupabaseFunctionsUrl()}/lgpd-export`,
         {
           headers: {
             Authorization: `Bearer ${session?.access_token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            apikey: getSupabasePublishableKey(),
           },
         },
       );

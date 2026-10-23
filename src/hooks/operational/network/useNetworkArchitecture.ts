@@ -63,11 +63,11 @@ export const useSupplyChainStats = () => {
   return useQuery({
     queryKey: ['supply_chain_stats', companyId],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('supply_chain_movements')
+      const { count, error } = await (supabase as any)
+        .from('stock_transfer_orders')
         .select('id', { count: 'exact', head: true })
         .eq('company_id', companyId)
-        .in('status', ['in_transit', 'shipped']);
+        .in('current_status', ['EM TRÂNSITO', 'EXPEDIDA']);
       if (error) throw error;
       if (count === null) throw new Error('Contagem de movimentações indisponível');
       return { inTransit: count };

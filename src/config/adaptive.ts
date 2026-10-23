@@ -34,7 +34,28 @@ export interface SegmentConfig {
   label: string;
   allowedSections: string[];
   recommendedModules: string[];
+  /** Telas de vitrine (sem operação real alimentando) fora do menu. */
+  hiddenHrefs?: string[];
 }
+
+/**
+ * PODA DE TELAS (2026-10-23): telas que nenhuma operação real alimenta
+ * (IA preditiva, gêmeo digital, IoT, APS experimental, gamificação) saem
+ * do menu de TODOS os nichos — menu é ferramenta de trabalho, não vitrine.
+ * As rotas continuam existindo para avaliação técnica via URL direta.
+ * Para reabilitar uma tela: remova o href daqui quando houver dado real
+ * e uso comprovado no piloto.
+ */
+export const SHOWCASE_HREFS: readonly string[] = [
+  '/producao/ia',
+  '/producao/twin',
+  '/producao/iot',
+  '/producao/previsoes',
+  '/producao/aps',
+  '/producao/aps/multi',
+  '/comercial/ia',
+  '/comercial/gamificacao',
+];
 
 export const SEGMENTS: Record<Segment, SegmentConfig> = {
   textile: {
@@ -148,3 +169,14 @@ export const TAX_REGIMES = [
   'Lucro Real',
   'MEI'
 ];
+
+// Toda empresa vê o menu podado; vitrine não volta por nicho.
+for (const cfg of Object.values(SEGMENTS)) {
+  cfg.hiddenHrefs = [...SHOWCASE_HREFS];
+}
+
+export function isHiddenHref(segment: string | null | undefined, href: string | null | undefined): boolean {
+  if (!segment || !href) return false;
+  const cfg = (SEGMENTS as Record<string, SegmentConfig>)[segment];
+  return !!cfg?.hiddenHrefs?.includes(href);
+}

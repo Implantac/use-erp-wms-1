@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FiscalProviderCard } from './FiscalProviderCard';
 import { toastSuccess, toastError } from '@/lib/toastHelpers';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -92,6 +93,8 @@ export default function NFePage() {
           <Plus className="h-4 w-4" />Nova NF-e
         </Button>
       </PageHeader>
+
+      <FiscalProviderCard />
 
       <div className="grid gap-4 md:grid-cols-4">
         <KPICard title="NF-e Emitidas" value={String(nfes.filter(n => n.status === 'authorized').length)} icon={<FileText className="h-5 w-5" />} accentColor="primary" index={0} />
