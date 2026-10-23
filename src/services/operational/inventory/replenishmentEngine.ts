@@ -75,7 +75,7 @@ export const replenishmentEngine = {
     const [balancesRes, policiesRes, networkRes, branchesRes, demand] = await Promise.all([
       (supabase as any)
         .from('stock_balances')
-        .select('*, products(name, code, unit, min_stock, max_stock, abc_classification)')
+        .select('*')
         .eq('branch_id', branchId),
       (supabase as any)
         .from('replenishment_policies')
@@ -84,7 +84,7 @@ export const replenishmentEngine = {
         .eq('is_active', true),
       (supabase as any)
         .from('stock_balances')
-        .select('product_id, branch_id, quantity, reserved_qty, in_transit_qty, products(max_stock)')
+        .select('product_id, branch_id, quantity, reserved_qty, in_transit_qty')
         .eq('company_id', companyId)
         .neq('branch_id', branchId),
       (supabase as any)
@@ -96,6 +96,15 @@ export const replenishmentEngine = {
     ]);
 
     const balances = balancesRes.data || [];
+    const productIds = [...new Set(balances.map((b: any) => b.product_id).filter(Boolean))];
+    if (productIds.length > 0) {
+      const { data: prods } = await (supabase as any)
+        .from('products')
+        .select('id, name, code, unit, min_stock, max_stock, abc_classification, image_url')
+        .in('id', productIds);
+      const byId = new Map((prods || []).map((pr: any) => [pr.id, pr]));
+      for (const b of balances) b.products = byId.get(b.product_id) || {};
+    }
     const policies = policiesRes.data || [];
     const network = networkRes.data || [];
     const branchMap = new Map<string, any>((branchesRes.data || []).map((b: any) => [b.id, b]));

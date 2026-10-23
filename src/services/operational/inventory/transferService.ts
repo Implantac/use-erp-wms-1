@@ -96,7 +96,18 @@ export const transferService = {
     })).filter((row: any) => row.available > 0);
   },
 
-  async createTransfer(_input: NewTransferInput): Promise<never> {
-    throw new Error('Criação de transferência indisponível: pedido e itens precisam ser gravados em transação atômica no servidor.');
+  /**
+   * Criação oficial: RPC atômica no servidor (ordem + itens em uma transação;
+   * a empresa vem do perfil de quem chama, nunca do cliente).
+   */
+  async createTransfer(input: NewTransferInput) {
+    const { data, error } = await (supabase as any).rpc('create_stock_transfer_request', {
+      p_origin_unit_id: input.originUnitId,
+      p_destination_unit_id: input.destinationUnitId,
+      p_items: input.items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
+      p_notes: input.reason ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return data as { id: string; status: TransferStatus };
   },
 };

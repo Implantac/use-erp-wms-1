@@ -31,16 +31,11 @@ function RecommendationRow({
   isSubmitting,
 }: {
   rec: ReplenishmentRecommendation;
-  onSubmit: (sourceBranchId: string, qty: number) => void;
+  onSubmit: (qty: number) => void;
   isSubmitting: boolean;
 }) {
-  const [source, setSource] = useState<string>(rec.sourceBranchId || '');
   const [qty, setQty] = useState<string>(String(rec.suggestedQty));
-
-  const selected = rec.sourceOptions.find((o) => o.branchId === source);
   const numericQty = Number(qty) || 0;
-  const overLimit = !!selected && numericQty > selected.availableQty;
-  const noSource = rec.sourceOptions.length === 0;
 
   return (
     <div className="p-4 space-y-3 hover:bg-muted/30 transition-colors">
@@ -66,6 +61,20 @@ function RecommendationRow({
             </Badge>
           </div>
           <p className="text-[11px] text-muted-foreground mt-1">{rec.reason}</p>
+          {rec.sourceOptions.length > 0 ? (
+            <p className="text-[11px] mt-1 flex flex-wrap items-center gap-1">
+              <span className="text-muted-foreground">Onde há saldo:</span>
+              {rec.sourceOptions.map((o) => (
+                <Badge key={o.branchId} variant="secondary" className="text-[9px] h-4 py-0 gap-1">
+                  <SourceIcon type={o.type} /> {SOURCE_LABEL[o.type]} · {o.branchName} ({o.availableQty} un)
+                </Badge>
+              ))}
+            </p>
+          ) : (
+            <p className="text-[11px] mt-1 text-amber-600">
+              Sem saldo na rede — o almoxarifado pode pedir produção à fábrica.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-4 text-right">
@@ -85,46 +94,26 @@ function RecommendationRow({
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-        <Select value={source} onValueChange={setSource} disabled={noSource}>
-          <SelectTrigger className="h-9 text-xs sm:w-64">
-            <SelectValue placeholder={noSource ? 'Sem estoque na rede' : 'Escolha a origem'} />
-          </SelectTrigger>
-          <SelectContent>
-            {rec.sourceOptions.map((opt) => (
-              <SelectItem key={opt.branchId} value={opt.branchId} className="text-xs">
-                <span className="flex items-center gap-2">
-                  <SourceIcon type={opt.type} />
-                  {SOURCE_LABEL[opt.type]} · {opt.branchName} ({opt.availableQty} un)
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Input
           type="number"
           min={1}
           value={qty}
           onChange={(e) => setQty(e.target.value)}
-          className={cn('h-9 text-xs sm:w-28', overLimit && 'border-destructive')}
+          className="h-9 text-xs sm:w-28"
           aria-label={`Quantidade a solicitar de ${rec.productName}`}
         />
-
         <Button
           size="sm"
           className="h-9 gap-2 text-xs"
-          disabled={isSubmitting || noSource || !source || numericQty <= 0 || overLimit}
-          onClick={() => onSubmit(source, numericQty)}
+          disabled={isSubmitting || numericQty <= 0}
+          onClick={() => onSubmit(numericQty)}
         >
           <CheckCircle2 className="h-3.5 w-3.5" />
-          Solicitar
+          Solicitar abastecimento
         </Button>
-
-        {overLimit && (
-          <span className="text-[10px] text-destructive">
-            A origem só possui {selected?.availableQty} un disponíveis.
-          </span>
-        )}
+        <span className="text-[10px] text-muted-foreground">
+          Você não escolhe a origem: o almoxarifado decide (outra Loja, CD ou fábrica).
+        </span>
       </div>
     </div>
   );
@@ -151,7 +140,7 @@ export function ReplenishmentPanel() {
               <RefreshCw className="h-5 w-5 text-primary" /> Reposição da Loja
             </CardTitle>
             <CardDescription>
-              Pedidos à fábrica e remanejamento entre lojas calculados pela demanda real dos últimos 30 dias
+              Fluxo único da Loja: 1) confira o estoque 2) solicite o abastecimento 3) o almoxarifado decide a origem (outra Loja, CD ou fábrica) 4) acompanhe e receba
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -205,9 +194,7 @@ export function ReplenishmentPanel() {
                 key={`${rec.productId}-${rec.branchId}`}
                 rec={rec}
                 isSubmitting={isSubmitting}
-                onSubmit={(sourceBranchId, quantity) =>
-                  createRequest({ recommendation: rec, sourceBranchId, quantity })
-                }
+                onSubmit={(quantity) => createRequest({ recommendation: rec, quantity })}
               />
             ))}
           </div>
