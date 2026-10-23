@@ -34,7 +34,7 @@ export function useRealtimeWMS(onEvent?: (table: string) => void) {
       wms_inventory_counts: [['wms_inventory']],
     };
 
-    const channel = supabase.channel('wms-realtime');
+    const channel = supabase.channel('wms-realtime-' + Math.random().toString(36).substring(7));
 
     tables.forEach((table) => {
       channel.on(

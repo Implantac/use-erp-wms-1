@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { PageHeader } from '@/shared/components/PageHeader';
@@ -19,8 +19,10 @@ import { Plus, ShieldCheck, AlertTriangle, CheckCircle, XCircle, Search } from '
 import { format } from 'date-fns';
 import { Skeleton } from '@/ui/base/skeleton';
 import { toSafeNumber } from '@/lib/numericValidation';
+import { toast } from 'sonner';
+import { decideProductionQualityInspection } from '@/services/production/textilePcpService';
 
-const defectCategories = ['Costura irregular', 'Mancha no tecido', 'Estampa desalinhada', 'Bordado com falha', 'Medida incorreta', 'Acabamento ruim', 'Furo no tecido', 'Cor diferente', 'Outro'];
+const defectCategories = ['Tonalidade fora do padrão', 'Falha de tingimento', 'Defeito de tecelagem', 'Mancha no tecido', 'Furo no tecido', 'Gramatura/largura fora do padrão', 'Encolhimento fora do padrão', 'Toque/acabamento fora do padrão', 'Medida incorreta', 'Cor diferente', 'Outro'];
 const severityConfig: Record<string, { label: string; color: string }> = {
   minor: { label: 'Menor', color: 'bg-yellow-100 text-yellow-800' },
   major: { label: 'Maior', color: 'bg-orange-100 text-orange-800' },
@@ -28,10 +30,18 @@ const severityConfig: Record<string, { label: string; color: string }> = {
 };
 
 export default function QualityControlPage() {
-  const { inspections, loading, create } = useQualityInspections();
+  const { inspections, loading, loadError, hasCompany, create, refetch } = useQualityInspections();
   const { orders } = useProductionOrders();
   const { steps } = useProductionSteps();
+  const stepNameById = useMemo(() => new Map(steps.map(step => [step.id, step.name])), [steps]);
+  const orderById = useMemo(() => new Map(orders.map(order => [order.id, order])), [orders]);
+  const inspectionUnit = (inspection: (typeof inspections)[number]) => inspection.order_unit
+    || (inspection.production_order_id ? orderById.get(inspection.production_order_id)?.unit : undefined);
+  const inspectionUnits = [...new Set(inspections.map(inspectionUnit).filter((unit): unit is string => Boolean(unit?.trim())) )];
+  const hasUnknownUnit = inspections.some(inspection => !inspectionUnit(inspection)?.trim());
+  const aggregateUnit = inspectionUnits.length === 1 && !hasUnknownUnit ? inspectionUnits[0] : null;
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [decisionBusyId, setDecisionBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({
     production_order_id: '', step_id: '', inspector: '', approved_quantity: 0,
@@ -41,9 +51,11 @@ export default function QualityControlPage() {
 
   const activeOrders = orders.filter(o => ['in_progress', 'planned'].includes(o.status));
 
-  const totalApproved = inspections.reduce((s, i) => s + i.approved_quantity, 0);
-  const totalRejected = inspections.reduce((s, i) => s + i.rejected_quantity, 0);
-  const defectRate = (totalApproved + totalRejected) > 0 ? ((totalRejected / (totalApproved + totalRejected)) * 100).toFixed(1) : '0';
+  const totalApproved = aggregateUnit ? inspections.reduce((s, i) => s + i.approved_quantity, 0) : null;
+  const totalRejected = aggregateUnit ? inspections.reduce((s, i) => s + i.rejected_quantity, 0) : null;
+  const defectRate = totalApproved !== null && totalRejected !== null && (totalApproved + totalRejected) > 0
+    ? ((totalRejected / (totalApproved + totalRejected)) * 100).toFixed(1)
+    : null;
 
   const filtered = inspections.filter(i =>
     !search || i.order_number?.toLowerCase().includes(search.toLowerCase()) ||
@@ -51,9 +63,27 @@ export default function QualityControlPage() {
     i.defect_category?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleDecision = async (inspection: (typeof inspections)[number], status: 'approved' | 'quarantine' | 'rejected') => {
+    setDecisionBusyId(inspection.id);
+    try {
+      await decideProductionQualityInspection(
+        inspection.id,
+        status,
+        inspection.corrective_action,
+        inspection.notes,
+      );
+      toast.success(status === 'approved' ? 'Qualidade aprovada/liberada' : status === 'quarantine' ? 'Qualidade colocada em quarentena' : 'Qualidade rejeitada');
+      await refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao decidir a qualidade');
+    } finally {
+      setDecisionBusyId(null);
+    }
+  };
+
   const handleSave = async () => {
     if (!form.production_order_id || !form.inspector) return;
-    await create({
+    const saved = await create({
       ...form,
       step_id: form.step_id || null,
       defect_reason: form.defect_reason || null,
@@ -61,6 +91,7 @@ export default function QualityControlPage() {
       corrective_action: form.corrective_action || null,
       notes: form.notes || null,
     });
+    if (!saved) return;
     setDialogOpen(false);
     setForm({ production_order_id: '', step_id: '', inspector: '', approved_quantity: 0, rejected_quantity: 0, defect_reason: '', defect_category: '', severity: 'minor', corrective_action: '', notes: '' });
   };
@@ -77,14 +108,17 @@ export default function QualityControlPage() {
   return (
     <PageContainer>
       <PageHeader title="Controle de Qualidade" description="Registro de inspeções, aprovações e defeitos">
-        <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" /> Nova Inspeção</Button>
+        <Button disabled={!hasCompany || loadError} onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" /> Nova Inspeção</Button>
       </PageHeader>
+
+      {!hasCompany && <p role="alert" className="text-sm text-muted-foreground">Selecione uma empresa para consultar as inspeções.</p>}
+      {loadError && <p role="alert" className="text-sm text-destructive">Falha ao carregar inspeções; não interprete a lista vazia como ausência de inspeções.</p>}
 
       <div className="grid gap-4 md:grid-cols-4">
         <KPICard title="Inspeções" value={inspections.length} icon={<ShieldCheck className="h-5 w-5" />} accentColor="primary" index={0} />
-        <KPICard title="Aprovadas" value={totalApproved} subtitle="peças" icon={<CheckCircle className="h-5 w-5" />} accentColor="success" index={1} />
-        <KPICard title="Rejeitadas" value={totalRejected} subtitle="peças" icon={<XCircle className="h-5 w-5" />} accentColor="warning" index={2} />
-        <KPICard title="Taxa de Defeito" value={`${defectRate}%`} icon={<AlertTriangle className="h-5 w-5" />} accentColor="info" index={3} />
+        <KPICard title="Quantidade aprovada" value={totalApproved ?? '—'} subtitle={aggregateUnit || 'unidades diferentes/não informadas'} icon={<CheckCircle className="h-5 w-5" />} accentColor="success" index={1} />
+        <KPICard title="Quantidade rejeitada" value={totalRejected ?? '—'} subtitle={aggregateUnit || 'unidades diferentes/não informadas'} icon={<XCircle className="h-5 w-5" />} accentColor="warning" index={2} />
+        <KPICard title="Taxa de Defeito" value={defectRate === null ? 'Sem dados suficientes' : `${defectRate}%`} icon={<AlertTriangle className="h-5 w-5" />} accentColor="info" index={3} />
       </div>
 
       <Card>
@@ -119,7 +153,9 @@ export default function QualityControlPage() {
                 <TableHead>Rejeitadas</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Severidade</TableHead>
+                <TableHead>Decisão</TableHead>
                 <TableHead>Data</TableHead>
+                <TableHead>Ações</TableHead>
               </TableRow></TableHeader>
               <TableBody>
                 {filtered.map(i => {
@@ -127,13 +163,21 @@ export default function QualityControlPage() {
                   return (
                     <TableRow key={i.id}>
                       <TableCell className="font-mono">{i.order_number || '-'}</TableCell>
-                      <TableCell>{i.step_name || '-'}</TableCell>
+                      <TableCell>{i.step_name || (i.step_id ? stepNameById.get(i.step_id) : null) || '-'}</TableCell>
                       <TableCell>{i.inspector}</TableCell>
-                      <TableCell className="text-green-600 font-medium">{i.approved_quantity}</TableCell>
-                      <TableCell className="text-destructive font-medium">{i.rejected_quantity}</TableCell>
+                      <TableCell className="text-green-600 font-medium">{i.approved_quantity} {inspectionUnit(i) || ''}</TableCell>
+                      <TableCell className="text-destructive font-medium">{i.rejected_quantity} {inspectionUnit(i) || ''}</TableCell>
                       <TableCell>{i.defect_category || '-'}</TableCell>
                       <TableCell><Badge className={sev.color}>{sev.label}</Badge></TableCell>
+                      <TableCell><Badge variant={i.status === 'approved' ? 'default' : i.status === 'open' ? 'outline' : 'destructive'}>{i.status}</Badge></TableCell>
                       <TableCell>{format(new Date(i.inspection_date), 'dd/MM/yyyy HH:mm')}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          <Button size="sm" variant="outline" disabled={decisionBusyId === i.id} onClick={() => void handleDecision(i, 'approved')}>Aprovar</Button>
+                          <Button size="sm" variant="outline" disabled={decisionBusyId === i.id} onClick={() => void handleDecision(i, 'quarantine')}>Quarentena</Button>
+                          <Button size="sm" variant="destructive" disabled={decisionBusyId === i.id} onClick={() => void handleDecision(i, 'rejected')}>Rejeitar</Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -177,8 +221,8 @@ export default function QualityControlPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Peças Aprovadas</Label><Input type="number" value={form.approved_quantity} onChange={e => setForm({ ...form, approved_quantity: toSafeNumber(e.target.value) })} /></div>
-              <div><Label>Peças Rejeitadas</Label><Input type="number" value={form.rejected_quantity} onChange={e => setForm({ ...form, rejected_quantity: toSafeNumber(e.target.value) })} /></div>
+              <div><Label>Quantidade aprovada (unidade da OP)</Label><Input type="number" value={form.approved_quantity} onChange={e => setForm({ ...form, approved_quantity: toSafeNumber(e.target.value) })} /></div>
+              <div><Label>Quantidade rejeitada (unidade da OP)</Label><Input type="number" value={form.rejected_quantity} onChange={e => setForm({ ...form, rejected_quantity: toSafeNumber(e.target.value) })} /></div>
             </div>
             <div><Label>Categoria do Defeito</Label>
               <Select value={form.defect_category} onValueChange={v => setForm({ ...form, defect_category: v })}>

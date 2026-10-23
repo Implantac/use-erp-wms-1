@@ -19,6 +19,7 @@ import { DemandTab } from './pcp/DemandTab';
 import { CapacityTab } from './pcp/CapacityTab';
 import { ProductivityTab } from './pcp/ProductivityTab';
 import { AlertsTab } from './pcp/AlertsTab';
+import { ManagerPanel } from './pcp/ManagerPanel';
 import { GenerateOPDialog } from './pcp/GenerateOPDialog';
 import { usePCPPanelState, computeDerived, handleStatusChange } from './pcp/usePCPPanel';
 
@@ -61,6 +62,7 @@ export default function PCPPanel() {
 
       <Tabs defaultValue="orders">
         <TabsList className="flex-wrap">
+          <TabsTrigger value="manager">Painel do Gerente</TabsTrigger>
           <TabsTrigger value="orders">Ordens de Produção</TabsTrigger>
           <TabsTrigger value="gantt"><GanttChart className="h-4 w-4 mr-1" /> Timeline</TabsTrigger>
           <TabsTrigger value="demand">Demanda Comercial ({ordersAwaitingProduction.length})</TabsTrigger>
@@ -69,6 +71,10 @@ export default function PCPPanel() {
           <TabsTrigger value="kpis">📊 KPIs & Sugestões</TabsTrigger>
           <TabsTrigger value="alerts">Alertas</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="manager" className="mt-4">
+          <ManagerPanel />
+        </TabsContent>
 
         <TabsContent value="orders" className="mt-4">
           <OrdersTab
