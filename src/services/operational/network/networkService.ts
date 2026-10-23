@@ -41,54 +41,50 @@ export const networkService = {
     return (data || []) as unknown as StockBalance[];
   },
 
-  async createTransfer(params: Database['public']['Tables']['supply_chain_movements']['Insert']) {
-    const { data, error } = await supabase
-      .from('supply_chain_movements')
-      .insert([params])
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
+  // Modelo legado aposentado: criar/alterar transferência só pelo fluxo
+  // oficial (create_stock_transfer_request / transition_stock_transfer).
+  async createTransfer(_params: Database['public']['Tables']['supply_chain_movements']['Insert']) {
+    throw new Error('Modelo legado aposentado: use o fluxo oficial de transferências (Central da Loja / fila de decisão).');
   },
 
-  async updateTransferStatus(transferId: string, status: Database['public']['Tables']['supply_chain_movements']['Update']['status']) {
-    const { data, error } = await supabase
-      .from('supply_chain_movements')
-      .update({ status })
-      .eq('id', transferId)
-      .select()
-      .single();
-    
-    if (error) throw error;
-    return data;
+  async updateTransferStatus(_transferId: string, _status: Database['public']['Tables']['supply_chain_movements']['Update']['status']) {
+    throw new Error('Modelo legado aposentado: transições só pela máquina de estados oficial (transition_stock_transfer).');
   },
 
   async getTransfers(companyId: string): Promise<StockTransfer[]> {
-    const { data, error } = await supabase
-      .from('supply_chain_movements')
-      .select(`
-        *,
-        origin:branches!supply_chain_movements_origin_id_fkey(name),
-        destination:branches!supply_chain_movements_destination_id_fkey(name)
-      `)
+    // Leitura no fluxo oficial (stock_transfer_orders), traduzindo status.
+    const PT_TO_EN: Record<string, string> = {
+      SUGERIDA: 'requested', APROVADA: 'approved', RESERVADA: 'picking',
+      'SEPARAÇÃO': 'picking', 'CONFERÊNCIA': 'picked', EXPEDIDA: 'shipped',
+      'EM TRÂNSITO': 'in_transit', RECEBIDA: 'received',
+      'RECEBIDA PARCIAL': 'divergent', 'RECEBIDA COM DIVERGÊNCIA': 'divergent',
+      CONFERIDA: 'checked', ENCERRADA: 'completed',
+      REJEITADA: 'cancelled', CANCELADA: 'cancelled',
+    };
+    const { data, error } = await (supabase as any)
+      .from('stock_transfer_orders')
+      .select('*')
       .eq('company_id', companyId)
       .order('created_at', { ascending: false })
       .limit(1000);
-
-    if (error) {
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from('supply_chain_movements')
-        .select('*')
-        .eq('company_id', companyId)
-        .order('created_at', { ascending: false })
-        .limit(1000);
-      
-      if (fallbackError) throw fallbackError;
-      return (fallbackData || []) as StockTransfer[];
-    }
-    
-    return (data || []) as unknown as StockTransfer[];
+    if (error) throw error;
+    const rows = data || [];
+    const branchIds = [...new Set(rows.flatMap((o: any) => [o.origin_unit_id, o.destination_unit_id]))];
+    const { data: branches } = branchIds.length
+      ? await (supabase as any).from('branches').select('id, name').in('id', branchIds)
+      : { data: [] };
+    const names = new Map((branches || []).map((b: any) => [b.id, b.name]));
+    return rows.map((o: any) => ({
+      id: o.id,
+      company_id: o.company_id,
+      origin_id: o.origin_unit_id,
+      destination_id: o.destination_unit_id,
+      status: PT_TO_EN[o.current_status] || 'requested',
+      created_at: o.created_at,
+      updated_at: o.updated_at,
+      origin: { name: names.get(o.origin_unit_id) || null },
+      destination: { name: names.get(o.destination_unit_id) || null },
+    })) as unknown as StockTransfer[];
   },
 
   async getPosTerminals(unitId: string) {

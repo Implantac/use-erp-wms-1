@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { PurchasingDailyQueue } from '@/modules/purchasing/PurchasingDailyQueue';
 import { useQuery } from '@tanstack/react-query';
 import { 
   BarChart3, 
@@ -43,6 +44,7 @@ export default function ProcurementDashboard() {
 
   return (
     <PageContainer>
+      <PurchasingDailyQueue />
       <PageHeader 
         title="Dashboard de Compras (MRP)" 
         description="Automação de ressuprimento baseada em inteligência de estoque"

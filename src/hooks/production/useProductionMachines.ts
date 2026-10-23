@@ -48,7 +48,10 @@ export function useProductionMachines() {
 
   useEffect(() => {
     if (!companyId) return;
-    const channel = supabase.channel(`production-machines-${companyId}`)
+    // Nome unico por instancia: supabase.channel() reutiliza o canal pelo
+    // nome; com varios componentes montados, o segundo receberia o canal ja
+    // inscrito e o .on() lancaria "cannot add callbacks after subscribe()".
+    const channel = supabase.channel(`production-machines-${companyId}-${Math.random().toString(36).substring(7)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'production_machines', filter: `company_id=eq.${companyId}` }, () => { void fetchMachines(); })
       .subscribe();
     return () => { void supabase.removeChannel(channel); };

@@ -1,0 +1,9 @@
+{
+  "name": "pgtest-harness",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "embedded-postgres": "^18.1.0-beta.9",
+    "pg": "^8.13.1"
+  }
+}

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";
+import { ScreenTimingCard } from './components/ScreenTimingCard';
 import { Button } from "@/ui/base/button";
 import { Link } from "react-router-dom";
 import { 
@@ -14,6 +15,9 @@ import {
 } from "lucide-react";
 import WMSKpiStrip from "./components/WMSKpiStrip";
 import { SmartReplenishment } from "./components/SmartReplenishment";
+import { FactoryInboxPanel } from "./components/FactoryInboxPanel";
+import { SystemReadinessPanel } from "./components/SystemReadinessPanel";
+import { NetworkTodayPanel } from "./components/NetworkTodayPanel";
 import WMSOperationalConsole from "./components/WMSOperationalConsole";
 import { useWMSDashboardStats } from "@/hooks/wms/useWMSOperations";
 import { Skeleton } from "@/ui/base/skeleton";
@@ -170,6 +174,10 @@ export default function WMSDashboard() {
 
       </div>
 
+      <NetworkTodayPanel />
+      <SystemReadinessPanel />
+      <FactoryInboxPanel />
+      <ScreenTimingCard />
       <SmartReplenishment />
     </div>
   );
