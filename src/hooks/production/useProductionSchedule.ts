@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 import { toast } from 'sonner';
+import { cancelProductionSchedule, createClientIdempotencyKey, scheduleProductionOrder } from '@/services/production/textilePcpService';
 
 export interface ProductionScheduleRow {
   id: string;
@@ -14,6 +15,8 @@ export interface ProductionScheduleRow {
   actual_end: string | null;
   sector: string | null;
   work_center: string | null;
+  resource_id?: string | null;
+  machine_id?: string | null;
   shift: string | null;
   priority: number | null;
   status: string | null;
@@ -27,6 +30,9 @@ type NewSchedule = {
   planned_start: string;
   planned_end: string;
   sector?: string;
+  work_center?: string;
+  resource_id?: string | null;
+  machine_id?: string | null;
   shift?: string;
 };
 
@@ -63,25 +69,25 @@ export function useProductionSchedule() {
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || !schedule.production_order_id) {
       toast.error('Informe OP e intervalo planejado válido'); return false;
     }
-    const { data: order, error: orderError } = await supabase.from('production_orders')
-      .select('id,status').eq('id', schedule.production_order_id).eq('company_id', companyId).maybeSingle();
-    if (companyIdRef.current !== companyId) return false;
-    if (orderError || !order || !['planned', 'in_progress'].includes(order.status)) {
-      toast.error('OP não encontrada ou indisponível para a empresa ativa'); return false;
+    try {
+      await scheduleProductionOrder({
+        productionOrderId: schedule.production_order_id,
+        plannedStart: new Date(start).toISOString(),
+        plannedEnd: new Date(end).toISOString(),
+        idempotencyKey: createClientIdempotencyKey('schedule'),
+        resourceId: schedule.resource_id ?? null,
+        machineId: schedule.machine_id ?? null,
+        workCenter: schedule.work_center?.trim() || null,
+        sector: schedule.sector?.trim() || null,
+        shift: schedule.shift || 'diurno',
+      });
+    } catch (error) {
+      if (companyIdRef.current !== companyId) return false;
+      toast.error(error instanceof Error ? error.message : 'Erro ao criar agendamento finito');
+      return false;
     }
-    // This check improves feedback, but only a database constraint can prevent concurrent duplicates.
-    const { data: existing, error: existingError } = await supabase.from('production_schedule')
-      .select('id').eq('company_id', companyId).eq('production_order_id', schedule.production_order_id).limit(1);
     if (companyIdRef.current !== companyId) return false;
-    if (existingError || existing?.length) { toast.error('Não foi possível confirmar ausência de agendamento para esta OP'); return false; }
-    const { data, error } = await supabase.from('production_schedule').insert({
-      company_id: companyId, production_order_id: schedule.production_order_id,
-      planned_start: new Date(start).toISOString(), planned_end: new Date(end).toISOString(),
-      sector: schedule.sector?.trim() || null, shift: schedule.shift || 'diurno', status: 'scheduled',
-    } as TablesInsert<'production_schedule'>).select('id');
-    if (companyIdRef.current !== companyId) return false;
-    if (error || !data?.length) { toast.error('Erro ao criar agendamento'); return false; }
-    toast.success('Janela de programação registrada; não reserva capacidade nem conclui a OP');
+    toast.success('Capacidade reservada na janela: recurso bloqueado contra dupla alocação; isto não conclui a OP');
     await fetchData();
     return true;
   };
@@ -106,6 +112,19 @@ export function useProductionSchedule() {
     return true;
   };
 
+  const cancel = async (id: string) => {
+    if (!companyId || loadedCompanyId !== companyId) { toast.error('Carregue a programação da empresa ativa'); return false; }
+    try {
+      await cancelProductionSchedule(id);
+      toast.success('Janela cancelada e capacidade liberada');
+      await fetchData();
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao cancelar agendamento');
+      return false;
+    }
+  };
+
   return { schedules: loadedCompanyId === companyId ? schedules : [], loading, loadError, hasCompany: !!companyId,
-    refetch: fetchData, create, update };
+    refetch: fetchData, create, update, cancel };
 }
