@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAuth } from '@/hooks/system/useAuth';
 import { useEnterprise } from '../auth/EnterpriseContext';
-import { SEGMENTS } from '@/config/adaptive';
+import { SEGMENTS, isHiddenHref } from '@/config/adaptive';
 import { canPresentNicheRoute } from '@/config/nichePresentation';
 import { parseIndustrialPlanning } from '@/config/industrialProfile';
 
@@ -52,6 +52,7 @@ export function Sidebar() {
     const query = searchQuery.toLowerCase().trim();
     return contextualSections.map(section => {
       const items = section.items.flatMap(item => {
+        if (isHiddenHref(segment, item.href)) return [];
         if (!canPresentNicheRoute(segment, item.href, families)) return [];
         const children = item.children?.filter(child => canPresentNicheRoute(segment, child.href, families));
         const visibleItem = children ? { ...item, children } : item;
@@ -229,7 +230,13 @@ export function Sidebar() {
                 )}
 
                 <ul className="space-y-1">
-                  {(section.items || []).map((item) => (
+                  {(section.items || [])
+                    .map((item) => ({
+                      ...item,
+                      children: item.children?.filter((child) => !isHiddenHref(segment, child.href)),
+                    }))
+                    .filter((item) => !isHiddenHref(segment, item.href))
+                    .map((item) => (
                     <NavItemComponent
                       key={item.title}
                       item={item}

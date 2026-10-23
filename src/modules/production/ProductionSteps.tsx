@@ -5,7 +5,7 @@ import { KPICard } from '@/shared/components/KPICard';
 import { Button } from '@/ui/base/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/base/tabs';
 import { Skeleton } from '@/ui/base/skeleton';
-import { useProductionSteps, useProductionOrderSteps, type ProductionStep, type ProductionOrderStep } from '@/hooks/production/useProductionSteps';
+import { useProductionSteps, useProductionOrderSteps, type ProductionStep } from '@/hooks/production/useProductionSteps';
 import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { ArrowRight, CheckCircle, Clock, Factory, Layers, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -26,21 +26,23 @@ const emptyForm: StepFormState = {
 
 export default function ProductionStepsPage() {
   const { steps, loading, createStep, updateStep, deleteStep } = useProductionSteps();
-  const { orders } = useProductionOrders();
+  const { orders, refetch: refetchOrders } = useProductionOrders();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingStep, setEditingStep] = useState<any>(null);
+  const [editingStep, setEditingStep] = useState<ProductionStep | null>(null);
   const [form, setForm] = useState<StepFormState>(emptyForm);
 
   const [selectedOrderId, setSelectedOrderId] = useState('');
-  const { orderSteps, loading: orderStepsLoading, updateOrderStep, generateStepsForOrder } =
+  const { orderSteps, loading: orderStepsLoading, refetch: refetchOrderSteps, generateStepsForOrder } =
     useProductionOrderSteps(selectedOrderId || undefined);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [selectedStepIds, setSelectedStepIds] = useState<string[]>([]);
   const [generateOrderId, setGenerateOrderId] = useState('');
 
+  // Acompanhamento não pode perder a OP quando a última etapa a leva a
+  // finishing/quality_check: todos os estados não finais continuam visíveis.
   const activeOrders = useMemo(
-    () => orders.filter((o) => ['planned', 'in_progress', 'paused'].includes(o.status)),
+    () => orders.filter((o) => !['completed', 'cancelled'].includes(o.status)),
     [orders]
   );
 
@@ -94,19 +96,9 @@ export default function ProductionStepsPage() {
     }
     const order = orders.find((o) => o.id === generateOrderId);
     if (!order) return;
-    await generateStepsForOrder(generateOrderId, order.quantity, selectedStepIds);
+    if (!await generateStepsForOrder(generateOrderId, order.quantity, selectedStepIds)) return;
     setGenerateDialogOpen(false);
     setSelectedOrderId(generateOrderId);
-  };
-
-  const handleStepStatusChange = async (stepId: string, newStatus: string) => {
-    const updates: Partial<ProductionOrderStep> = { status: newStatus };
-    if (newStatus === 'in_progress') updates.started_at = new Date().toISOString();
-    if (newStatus === 'completed') updates.completed_at = new Date().toISOString();
-    await updateOrderStep(stepId, updates);
-    toast.success(
-      `Etapa ${newStatus === 'completed' ? 'concluída' : newStatus === 'in_progress' ? 'iniciada' : 'atualizada'}`
-    );
   };
 
   if (loading) {
@@ -151,12 +143,13 @@ export default function ProductionStepsPage() {
         <TabsContent value="tracking" className="mt-4 space-y-4">
           <OrderStepsTrackingTab
             activeOrders={activeOrders}
+            selectedOrder={activeOrders.find((order) => order.id === selectedOrderId) ?? null}
             selectedOrderId={selectedOrderId}
             onSelectOrder={setSelectedOrderId}
             orderSteps={orderSteps}
             orderStepsLoading={orderStepsLoading}
             onOpenGenerateForOrder={openGenerateForCurrentOrder}
-            onStepStatusChange={handleStepStatusChange}
+            onChanged={async () => { await Promise.all([refetchOrderSteps(), refetchOrders()]); }}
           />
         </TabsContent>
       </Tabs>

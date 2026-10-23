@@ -1,0 +1,27 @@
+-- ============================================================================
+-- Correção: trigger legado de conclusão automática interfere na conclusão
+-- transacional de OPs (e podia duplicar consumo sem lote/genealogia)
+--
+-- Evidência (harness scripts/live-manager-journey.mjs, 2026-10-19):
+--   trg_stock_from_production / generate_stock_from_production() (versão
+--   vigente de 20261001233123) dispara em TODA transição para 'completed':
+--     1) exige production_orders.branch_id NOT NULL — a conclusão via
+--        complete_production_order (que não exige unidade e é o único caminho
+--        liberado pela UI) falhava com "precisa estar vinculada a empresa e
+--        unidade para movimentar o estoque" para OP sem unidade;
+--     2) se nenhum movimento 'PROD-<order_number>' existisse ainda, lançaria
+--        consumo calculado da BOM atual ignorando lotes reservados,
+--        qualidade e genealogia — exatamente o caminho inseguro que a
+--        contenção de conclusão (UI + RPC) foi criada para impedir.
+--   A conclusão oficial já grava consumo por lote, entrada do produzido,
+--   genealogia e custo dentro de complete_production_order; o trigger só
+--   pode interferir ou duplicar.
+--
+-- Correção mínima: remove SOMENTE o trigger. A função permanece (inócua)
+-- para reversão simples e nenhum dado é alterado.
+-- Reversão (NÃO recomendada — reintroduz a interferência/duplicidade):
+--   CREATE TRIGGER trg_stock_from_production AFTER UPDATE ON public.production_orders
+--     FOR EACH ROW EXECUTE FUNCTION public.generate_stock_from_production();
+-- ============================================================================
+
+DROP TRIGGER IF EXISTS trg_stock_from_production ON public.production_orders;
