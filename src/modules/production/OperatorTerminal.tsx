@@ -7,7 +7,8 @@ import { toast } from 'sonner';
 
 import { useTimeEntries } from '@/hooks/system/useTimeEntries';
 import { useProductionOrders } from '@/hooks/production/useProductionOrders';
-import { useProductionSteps } from '@/hooks/production/useProductionSteps';
+import { useProductionOrderSteps, useProductionSteps } from '@/hooks/production/useProductionSteps';
+import { recordProductionStepProgress } from '@/services/production/textilePcpService';
 import { useProductionMachines } from '@/hooks/production/useProductionMachines';
 import { supabase } from '@/integrations/supabase/client';
 import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
@@ -21,7 +22,7 @@ import { ShiftSummaryCard } from './operator-terminal/ShiftSummaryCard';
 export default function OperatorTerminalPage() {
   const { company } = useActiveTenant();
   const { entries, loading, create, update } = useTimeEntries();
-  const { orders, update: updateOrder } = useProductionOrders();
+  const { orders } = useProductionOrders();
   const { steps } = useProductionSteps();
   const { activeMachines } = useProductionMachines();
 
@@ -43,7 +44,7 @@ export default function OperatorTerminalPage() {
   const activeOrders = useMemo(() => {
     const pMap: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
     return orders
-      .filter((o) => ['planned', 'in_progress'].includes(o.status))
+      .filter((o) => ['planned', 'in_progress', 'paused', 'waiting_material'].includes(o.status))
       .sort((a, b) => {
         const pDiff = (pMap[a.priority] ?? 9) - (pMap[b.priority] ?? 9);
         if (pDiff !== 0) return pDiff;
@@ -61,6 +62,7 @@ export default function OperatorTerminalPage() {
     : selectedOrderId
     ? orders.find((o) => o.id === selectedOrderId)
     : null;
+  const { orderSteps } = useProductionOrderSteps(currentOrder?.id);
 
   // Pauses have no persisted start/end events. Do not present elapsed time
   // or an hourly productivity as measured until that lifecycle is implemented.
@@ -73,10 +75,31 @@ export default function OperatorTerminalPage() {
     if (!company?.id || !operatorName.trim() || !selectedOrderId || currentEntry) return;
     const order = orders.find((o) => o.id === selectedOrderId);
     if (!order) return;
+    if (!selectedStep) {
+      toast.error('Selecione a operação do roteiro da OP antes de iniciar.');
+      return;
+    }
+    const matchingOrderStep = orderSteps.find((orderStep) => orderStep.step_id === selectedStep);
+    if (!matchingOrderStep) {
+      toast.error('A operação selecionada não faz parte das etapas geradas para esta OP; gere pelo roteiro antes de apontar.');
+      return;
+    }
     const stepName = steps.find((s) => s.id === selectedStep)?.name || order.work_center || 'Produção';
     const machine = activeMachines.find((m) => m.id === selectedMachineId && m.status === 'available');
     if (selectedMachineId && !machine) {
       toast.error('Equipamento não disponível na empresa selecionada. Atualize a seleção.');
+      return;
+    }
+    try {
+      await recordProductionStepProgress({
+        productionOrderStepId: matchingOrderStep.id,
+        action: 'start',
+        operatorName,
+        machineId: machine?.id ?? null,
+        workCenter: order.work_center || order.sector,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao iniciar a etapa da OP');
       return;
     }
     const created = await create({
@@ -96,30 +119,68 @@ export default function OperatorTerminalPage() {
       machine_id: machine?.id || null,
       machine_name: machine?.name || null,
     });
-    if (!created) return;
-    if (order.status === 'planned') {
-      if (!await updateOrder(order.id, { status: 'in_progress', start_date: new Date().toISOString() })) {
-        toast.error('Apontamento criado, mas a OP não avançou; avise a supervisão antes de continuar.');
-      }
+    if (!created) {
+      toast.error('Etapa iniciada no PCP, mas o registro de tempo do terminal não foi criado; avise a supervisão.');
+      return;
+    }
+  };
+
+  const syncStepPauseState = async (entry: typeof currentEntry, action: 'pause' | 'start') => {
+    if (!entry) return true;
+    const matchingOrderStep = orderSteps.find((orderStep) => orderStep.step_id === entry.operation_id);
+    if (!matchingOrderStep) return true;
+    try {
+      await recordProductionStepProgress({
+        productionOrderStepId: matchingOrderStep.id,
+        action,
+        operatorName,
+        machineId: entry.machine_id,
+        workCenter: entry.work_center,
+      });
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao sincronizar a pausa/retomada da etapa');
+      return false;
     }
   };
 
   const handlePause = async () => {
     if (!myActiveEntry) return;
+    if (!await syncStepPauseState(myActiveEntry, 'pause')) return;
     if (!await update(myActiveEntry.id, { status: 'paused' }, 'started')) return;
-    toast.info('Produção pausada');
+    toast.info('Produção e etapa pausadas');
   };
 
   const handleResume = async () => {
     if (!myPausedEntry) return;
+    if (!await syncStepPauseState(myPausedEntry, 'start')) return;
     if (!await update(myPausedEntry.id, { status: 'started' }, 'paused')) return;
-    toast.success('Produção retomada');
+    toast.success('Produção e etapa retomadas');
   };
 
   const handleFinish = async () => {
     if (!currentEntry) return;
-    if (!Number.isFinite(producedQty) || producedQty <= 0 || !Number.isFinite(rejectedQty) || rejectedQty < 0) {
-      toast.error('Informe quantidades válidas, com produção maior que zero');
+    if (!Number.isFinite(producedQty) || producedQty < 0 || !Number.isFinite(rejectedQty) || rejectedQty < 0 || producedQty + rejectedQty <= 0) {
+      toast.error('Informe quantidades válidas, com produção ou rejeito maior que zero');
+      return;
+    }
+    const matchingOrderStep = orderSteps.find((orderStep) => orderStep.step_id === currentEntry.operation_id);
+    if (!matchingOrderStep) {
+      toast.error('Este apontamento não está vinculado a uma etapa da OP; não feche pelo terminal antes de corrigir o vínculo.');
+      return;
+    }
+    try {
+      await recordProductionStepProgress({
+        productionOrderStepId: matchingOrderStep.id,
+        action: 'progress',
+        producedQuantity: producedQty,
+        rejectedQuantity: rejectedQty,
+        operatorName,
+        machineId: currentEntry.machine_id,
+        workCenter: currentEntry.work_center,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao reconciliar o apontamento com a etapa da OP');
       return;
     }
     const finished = await update(currentEntry.id, {
@@ -128,10 +189,11 @@ export default function OperatorTerminalPage() {
       produced_quantity: producedQty,
       rejected_quantity: rejectedQty,
     }, currentEntry.status === 'paused' ? 'paused' : 'started');
-    if (!finished) return;
-    // Do not mutate OP quantities here: the OP hook intentionally rejects
-    // quantity edits, and a separate client write cannot reconcile stock/quality.
-    toast.info('Apontamento concluído; quantidade da OP, estoque e qualidade aguardam conciliação transacional.');
+    if (!finished) {
+      toast.error('Etapa atualizada no PCP, mas o registro de tempo não fechou; avise a supervisão.');
+      return;
+    }
+    toast.success('Apontamento reconciliado com a etapa e a OP. Qualidade, reserva e estoque são concluídos na transação da OP.');
     setProducedQty(0);
     setRejectedQty(0);
   };
@@ -177,7 +239,7 @@ export default function OperatorTerminalPage() {
           return;
         }
       }
-      toast.success('Alerta registrado. Confirme o recebimento com a supervisão; parada estruturada ainda não disponível.');
+      toast.success('Alerta registrado e apontamento pausado. Registre a parada estruturada na Central de Tecelagem ou na Execução PCP da OP.');
       setProblemOpen(false);
       setProblemDesc('');
     } catch {
