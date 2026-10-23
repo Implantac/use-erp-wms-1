@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { PageHeader } from '@/shared/components/PageHeader';
@@ -9,7 +10,7 @@ import { Button } from '@/ui/base/button';
 import { Progress } from '@/ui/base/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
-import { useProductionOrders, type ProductionOrderRow } from '@/hooks/production/useProductionOrders';
+import { useProductionOrders } from '@/hooks/production/useProductionOrders';
 import { productionStatusConfig, priorityConfig } from '@/config/production';
 import { ListOrdered, AlertTriangle, Clock, Factory, Play, CheckCircle } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
@@ -18,12 +19,12 @@ import { cn } from '@/lib/utils';
 const priorityWeight: Record<string, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
 
 export default function ProductionQueuePage() {
-  const { orders, loading, update } = useProductionOrders();
+  const { orders, loading } = useProductionOrders();
   const [sectorFilter, setSectorFilter] = useState('all');
 
   const activeOrders = useMemo(() => {
     return orders
-      .filter(o => ['planned', 'in_progress', 'paused'].includes(o.status))
+      .filter(o => ['planned', 'in_progress', 'paused', 'waiting_material', 'finishing', 'quality_check'].includes(o.status))
       .filter(o => sectorFilter === 'all' || o.work_center === sectorFilter || o.sector === sectorFilter)
       .sort((a, b) => {
         const pw = (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0);
@@ -39,8 +40,6 @@ export default function ProductionQueuePage() {
 
   const sectors = [...new Set(orders.map(o => o.work_center || o.sector).filter(Boolean))];
   const today = new Date();
-
-  const handleStart = async (op: ProductionOrderRow) => { await update(op.id, { status: 'in_progress', start_date: new Date().toISOString() }); };
 
   return (
     <PageContainer loading={loading}>
@@ -96,8 +95,8 @@ export default function ProductionQueuePage() {
                       <TableCell><StatusBadge status={o.status} type="production" /></TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
-                          {o.status === 'planned' && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleStart(o)}><Play className="h-3 w-3 mr-1" /> Iniciar</Button>}
-                          {o.status === 'in_progress' && <Button size="sm" className="h-7 text-xs" disabled title="Conclusão transacional ainda não homologada"><CheckCircle className="h-3 w-3 mr-1" /> Conclusão bloqueada</Button>}
+                          {o.status === 'planned' && <Button size="sm" variant="outline" className="h-7 text-xs" asChild title="Abrir a execução PCP da OP"><Link to="/producao/ordens"><Play className="h-3 w-3 mr-1" /> Executar</Link></Button>}
+                          {['in_progress', 'finishing', 'quality_check'].includes(o.status) && <Button size="sm" className="h-7 text-xs" asChild title="Abrir a execução PCP da OP"><Link to="/producao/ordens"><CheckCircle className="h-3 w-3 mr-1" /> Executar/concluir</Link></Button>}
                         </div>
                       </TableCell>
                     </TableRow>

@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import WMSKpiStrip from "./components/WMSKpiStrip";
 import { SmartReplenishment } from "./components/SmartReplenishment";
+import { FactoryInboxPanel } from "./components/FactoryInboxPanel";
+import { SystemReadinessPanel } from "./components/SystemReadinessPanel";
+import { NetworkTodayPanel } from "./components/NetworkTodayPanel";
 import WMSOperationalConsole from "./components/WMSOperationalConsole";
 import { useWMSDashboardStats } from "@/hooks/wms/useWMSOperations";
 import { Skeleton } from "@/ui/base/skeleton";
@@ -170,6 +173,9 @@ export default function WMSDashboard() {
 
       </div>
 
+      <NetworkTodayPanel />
+      <SystemReadinessPanel />
+      <FactoryInboxPanel />
       <SmartReplenishment />
     </div>
   );
