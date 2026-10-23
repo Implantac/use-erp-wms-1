@@ -12,8 +12,8 @@ const manufacturingSegments = new Set<Segment>([
 const familyVerticalRoutes: Partial<Record<IndustrialProcessFamily, readonly string[]>> = {
   spinning: ['/vertical/textile', '/vertical/spinning'],
   weaving: ['/vertical/textile', '/vertical/weaving'],
-  knitting: ['/vertical/textile'],
-  dyeing: ['/vertical/textile'],
+  knitting: ['/vertical/textile', '/vertical/knitting'],
+  dyeing: ['/vertical/textile', '/vertical/dyeing'],
   finishing: ['/vertical/textile'],
   apparel: ['/vertical/apparel'],
   animal_feed: ['/vertical/food-feed'],
