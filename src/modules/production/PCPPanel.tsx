@@ -24,7 +24,7 @@ import { GenerateOPDialog } from './pcp/GenerateOPDialog';
 import { usePCPPanelState, computeDerived, handleStatusChange } from './pcp/usePCPPanel';
 
 export default function PCPPanel() {
-  const { orders: productionOrders, loading, update } = useProductionOrders();
+  const { orders: productionOrders, loading, update, refetch: refetchProductionOrders } = useProductionOrders();
   const { data: salesOrders } = useOrders();
   const { entries: timeEntries } = useTimeEntries();
   const { capacities } = useProductionCapacity();
@@ -119,6 +119,7 @@ export default function PCPPanel() {
       <GenerateOPDialog
         order={generatingFor}
         onClose={() => setGeneratingFor(null)}
+        onGenerated={refetchProductionOrders}
       />
     </PageContainer>
   );

@@ -208,3 +208,39 @@ Isto não é OEE: disponibilidade × performance × qualidade com
 calendário de turnos por máquina continua como evolução futura, sobre
 o apontamento real do piloto. Provas: typecheck limpo, suíte vitest
 verde (cálculo com testes de janela e de denominador ausente).
+
+## 10. Fluxo completo de finalização e botões mortos (26/10/2026)
+
+Relato do campo: "muitos botões sem ação nos PCPs" e "não existe fluxo
+de entrada de estoque do produto acabado". Auditoria botão a botão:
+
+- **Painel PCP → Demanda Comercial → "Gerar OP"**: abria um diálogo com
+  o botão permanentemente desabilitado ("geração atômica não
+  homologada"). **Corrigido**: o diálogo agora gera OPs reais, uma por
+  item do pedido, pela transação `create_textile_production_order`
+  (snapshot de BOM/roteiro, setor pelo roteiro), com chave de
+  idempotência estável por item — clicar de novo não duplica.
+- **Estoque de Insumos**: o botão do cabeçalho estava desabilitado
+  embora o registro de movimento existisse por linha. **Corrigido**:
+  abre o mesmo diálogo de movimentação (entrada/saída).
+- **Centrais setoriais**: reserva, apontamento, programação e conclusão
+  sempre estiveram ligados às RPCs; o que faltava era o **caminho
+  operacional contínuo** até o estoque:
+  - Painel de **qualidade inline** na central (registrar inspeção e
+    aprovar/rejeitar/quarentena sem trocar de página — a decisão formal
+    continua sendo a RPC de qualidade).
+  - Painel de conclusão renomeado para **"Finalizar OP e registrar
+    entrada em estoque"**, com **checklist de pré-requisitos** que
+    espelha as travas da transação (status, etapas, qualidade aprovada,
+    BOM) e diz exatamente o que falta.
+  - Ao concluir — e ao reabrir uma OP já concluída — a tela mostra o
+    **comprovante da entrada**: lote de saída criado, quantidade, custo
+    unitário do lote e **saldo atual do produto acabado**, com atalhos
+    para Lotes e Saldos do estoque.
+
+Backend (sem migration nova): `complete_production_order` já creditava
+lote + `stock_balances` + movimento de entrada na mesma transação —
+provado no harness PG (linha "saldos da cadeia: … tecido 385…"). Esta
+entrega é o fluxo visível e guiado sobre essa transação. Provas:
+typecheck limpo; **319 testes** vitest (incl. checklist de
+pré-requisitos) verdes. Aplicação: somente `ATUALIZAR-SEGURO.bat`.

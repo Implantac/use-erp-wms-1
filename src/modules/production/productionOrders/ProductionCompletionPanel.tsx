@@ -1,15 +1,24 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Circle, PackageCheck } from 'lucide-react';
 import { Button } from '@/ui/base/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/base/card';
 import { Input } from '@/ui/base/input';
 import { Label } from '@/ui/base/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
+import type { ProductionOrderStep } from '@/hooks/production/useProductionSteps';
+import type { QualityInspection } from '@/hooks/production/useQualityInspections';
 import type { TextileBomLine, TextileLotOption } from '@/hooks/production/useTextilePcpData';
-import { completeProductionOrder, createClientIdempotencyKey } from '@/services/production/textilePcpService';
-import { formatNumber } from '@/lib/formatters';
+import {
+  completeProductionOrder,
+  createClientIdempotencyKey,
+  fetchLatestProductionCompletion,
+  type ProductionCompletionSummary,
+} from '@/services/production/textilePcpService';
+import { computeCompletionReadiness } from '@/lib/pcp/completionReadiness';
+import { formatNumber, formatBRL } from '@/lib/formatters';
 
 const APPROVED_QUALITY = new Set(['approved', 'released', 'aprovado', 'aprovada', 'liberado', 'liberada']);
 
@@ -17,16 +26,27 @@ interface Props {
   order: ProductionOrderRow;
   bomLines: TextileBomLine[];
   lots: TextileLotOption[];
+  steps?: ProductionOrderStep[];
+  inspections?: QualityInspection[];
   onCompleted: () => Promise<void> | void;
 }
 
-export function ProductionCompletionPanel({ order, bomLines, lots, onCompleted }: Props) {
+export function ProductionCompletionPanel({ order, bomLines, lots, steps, inspections, onCompleted }: Props) {
   const [produced, setProduced] = useState('');
   const [rejected, setRejected] = useState('0');
   const [outputLotNumber, setOutputLotNumber] = useState('');
   const [allocations, setAllocations] = useState<Record<string, { lotId: string; quantity: string }>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [summary, setSummary] = useState<ProductionCompletionSummary | null>(null);
   const canComplete = ['in_progress', 'finishing', 'quality_check'].includes(order.status);
+
+  const readiness = computeCompletionReadiness({
+    orderStatus: order.status,
+    plannedQuantity: order.quantity,
+    steps: (steps ?? []).map((step) => ({ status: step.status })),
+    inspections: (inspections ?? []).map((inspection) => ({ status: inspection.status, approved_quantity: inspection.approved_quantity })),
+    bomLineCount: bomLines.length,
+  });
 
   useEffect(() => {
     const totalProcessed = Number(produced || 0) + Number(rejected || 0);
@@ -45,6 +65,15 @@ export function ProductionCompletionPanel({ order, bomLines, lots, onCompleted }
     // Recalcula somente a quantidade ao mudar o total processado/catálogo base.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order.id, bomLines, lots, produced, rejected]);
+
+  useEffect(() => {
+    if (order.status !== 'completed') return;
+    let cancelled = false;
+    fetchLatestProductionCompletion(order.id, order.product_id)
+      .then((result) => { if (!cancelled) setSummary(result); })
+      .catch(() => { /* resumo é informativo; a OP continua concluída */ });
+    return () => { cancelled = true; };
+  }, [order.id, order.status, order.product_id]);
 
   const handleComplete = async () => {
     const producedQuantity = Number(produced);
@@ -75,8 +104,10 @@ export function ProductionCompletionPanel({ order, bomLines, lots, onCompleted }
         outputLotNumber: outputLotNumber.trim() || null,
       });
       const lotNumber = typeof result.output_lot_number === 'string' ? result.output_lot_number : '';
-      toast.success(lotNumber ? `OP concluída. Lote de saída ${lotNumber} criado.` : 'OP concluída com sucesso');
+      toast.success(lotNumber ? `OP concluída. Entrada em estoque registrada no lote ${lotNumber}.` : 'OP concluída e entrada em estoque registrada');
       await onCompleted();
+      const fresh = await fetchLatestProductionCompletion(order.id, order.product_id).catch(() => null);
+      setSummary(fresh);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao concluir OP');
     } finally {
@@ -87,7 +118,28 @@ export function ProductionCompletionPanel({ order, bomLines, lots, onCompleted }
   if (order.status === 'completed') {
     return (
       <Card className="border-green-300 bg-green-50 dark:border-green-900 dark:bg-green-950/20">
-        <CardContent className="flex items-center gap-2 py-4 text-sm"><CheckCircle2 className="h-4 w-4 text-green-700" /> OP concluída pela transação auditável. Consulte as alocações de lote e a genealogia nesta tela.</CardContent>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base text-green-800 dark:text-green-200"><PackageCheck className="h-4 w-4" /> Entrada em estoque registrada</CardTitle>
+          <CardDescription className="text-green-700 dark:text-green-300">
+            A conclusão transacional baixou os lotes de entrada, criou o lote de saída do produto acabado e creditou o saldo na mesma transação.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-green-900 dark:text-green-100">
+          {summary ? (
+            <div className="grid gap-2 md:grid-cols-4">
+              <p>Lote de saída<br /><strong>{summary.outputLotNumber ?? '—'}</strong></p>
+              <p>Quantidade produzida<br /><strong>{formatNumber(summary.producedQuantity)} {order.unit}</strong>{summary.rejectedQuantity > 0 ? ` · rejeitada ${formatNumber(summary.rejectedQuantity)}` : ''}</p>
+              <p>Custo unitário do lote<br /><strong>{formatBRL(summary.outputUnitCost)}</strong></p>
+              <p>Saldo atual do produto<br /><strong>{summary.productBalance === null ? 'não consultado' : `${formatNumber(summary.productBalance)} ${order.unit}`}</strong></p>
+            </div>
+          ) : (
+            <p>OP concluída pela transação auditável. Consulte o lote de saída e o saldo do produto no estoque.</p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <Button asChild size="sm" variant="outline"><Link to="/wms/lotes">Ver lotes de estoque</Link></Button>
+            <Button asChild size="sm" variant="ghost"><Link to="/wms/saldos">Ver saldos do produto</Link></Button>
+          </div>
+        </CardContent>
       </Card>
     );
   }
@@ -95,12 +147,21 @@ export function ProductionCompletionPanel({ order, bomLines, lots, onCompleted }
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Conclusão transacional da OP</CardTitle>
+        <CardTitle className="text-base">Finalizar OP e registrar entrada em estoque</CardTitle>
         <CardDescription>
-          Baixa os lotes no ledger, cria o lote de saída, grava genealogia, consome/liberar reservas da OP e conclui na mesma transação. Qualidade formalmente aprovada e todas as etapas concluídas são obrigatórias.
+          Baixa os lotes no ledger, cria o lote de saída do produto acabado, credita o saldo em estoque, grava a genealogia e consome/libera as reservas — tudo na mesma transação.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-1.5 rounded-md border p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pré-requisitos da finalização</p>
+          {readiness.items.map((item) => (
+            <div key={item.key} className="flex items-start gap-2 text-sm">
+              {item.ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" /> : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
+              <span><strong>{item.label}</strong> — <span className="text-muted-foreground">{item.hint}</span></span>
+            </div>
+          ))}
+        </div>
         {!canComplete ? (
           <div className="flex gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> A OP precisa estar em produção, acabamento ou controle de qualidade. Inicie a execução/apontamentos antes de concluir.
@@ -131,7 +192,10 @@ export function ProductionCompletionPanel({ order, bomLines, lots, onCompleted }
             </div>
           );
         })}
-        <Button onClick={handleComplete} disabled={!canComplete || submitting || bomLines.length === 0}>{submitting ? 'Concluindo…' : 'Concluir OP e gerar lote'}</Button>
+        <Button onClick={handleComplete} disabled={!canComplete || submitting || bomLines.length === 0}>{submitting ? 'Concluindo e entrando em estoque…' : 'Concluir OP e registrar entrada em estoque'}</Button>
+        {!readiness.ready && canComplete ? (
+          <p className="text-xs text-muted-foreground">O botão executa a transação, que valida todos os pré-requisitos acima e recusa com a causa exata se algo faltar — nada é gravado parcialmente.</p>
+        ) : null}
       </CardContent>
     </Card>
   );

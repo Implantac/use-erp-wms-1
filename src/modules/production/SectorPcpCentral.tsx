@@ -22,6 +22,7 @@ import { CreateTextileOrderDialog } from './productionOrders/CreateTextileOrderD
 import { CreateSectorOrderDialog } from './productionOrders/CreateSectorOrderDialog';
 import { OrderMaterialReservationPanel, OrderStepProgressPanel } from './productionOrders/OrderExecutionPanels';
 import { ProductionCompletionPanel } from './productionOrders/ProductionCompletionPanel';
+import { ProductionQualityPanel } from '@/components/production/ProductionQualityPanel';
 import { WeavingEventsPanel, WeavingProfilePanel } from './productionOrders/WeavingOperationsPanel';
 import { LoomBoardPanel } from './productionOrders/LoomBoardPanel';
 import { SectorBoardPanel, SECTOR_BOARDS } from './productionOrders/SectorBoardPanel';
@@ -108,7 +109,7 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
   const { data: sectorAccess } = useSectorAccess();
   const sectorDenied = sectorAccess != null && !canOpenSector(sectorAccess, config.key);
   const { schedules } = useProductionSchedule();
-  const { inspections } = useQualityInspections();
+  const { inspections, create: createInspection, refetch: refetchInspections } = useQualityInspections();
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -128,7 +129,7 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
   }, [selectedOrder, selectedOrderId]);
 
   const refresh = async () => {
-    await Promise.all([refetch(), execution.refetch(), refetchSteps()]);
+    await Promise.all([refetch(), execution.refetch(), refetchSteps(), refetchInspections()]);
   };
 
   const activeOrders = sectorOrders.filter((order) => !['completed', 'cancelled'].includes(order.status));
@@ -282,15 +283,15 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
           {config.key !== 'tecelagem' && (
             <SectorEventsPanel order={selectedOrder} kind={config.key} events={execution.sectorEvents} onChanged={refresh} />
           )}
+          <ProductionQualityPanel order={selectedOrder} inspections={selectedInspections} onCreateInspection={createInspection} onChanged={refresh} />
+          <ProductionCompletionPanel order={selectedOrder} bomLines={execution.bomLines} lots={execution.lots} steps={orderSteps} inspections={selectedInspections} onCompleted={refresh} />
           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2 text-base"><PackageCheck className="h-4 w-4" /> Qualidade, conclusão e genealogia</CardTitle><CardDescription>Para aprovar/rejeitar com ação corretiva e concluir com lote de saída, use a execução completa da OP.</CardDescription></CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Button asChild><Link to="/producao/ordens">Abrir OPs e concluir</Link></Button>
-              <Button variant="outline" asChild><Link to="/producao/qualidade">Registrar/inspecionar qualidade</Link></Button>
+            <CardContent className="flex flex-wrap gap-2 py-4">
+              <Button variant="outline" asChild><Link to="/producao/ordens">Abrir OPs</Link></Button>
+              <Button variant="outline" asChild><Link to="/producao/qualidade">Controle de qualidade completo</Link></Button>
               <Button variant="outline" asChild><Link to="/producao/rastreabilidade">Rastreabilidade de lotes</Link></Button>
             </CardContent>
           </Card>
-          <ProductionCompletionPanel order={selectedOrder} bomLines={execution.bomLines} lots={execution.lots} onCompleted={refresh} />
         </div>
       )}
 

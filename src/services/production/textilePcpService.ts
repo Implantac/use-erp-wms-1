@@ -354,6 +354,65 @@ export async function fetchProductionLotGenealogy(productionOrderId: string) {
   return assertData<ProductionLotGenealogyRow[]>(response, 'Erro ao carregar genealogia da OP') ?? [];
 }
 
+export interface ProductionCompletionSummary {
+  outputLotNumber: string | null;
+  producedQuantity: number;
+  rejectedQuantity: number;
+  outputUnitCost: number;
+  /** Saldo total atual do produto acabado em stock_balances (todas as filiais/canais). */
+  productBalance: number | null;
+}
+
+/**
+ * Resumo da ENTRADA EM ESTOQUE gerada pela conclusão transacional da OP:
+ * lote de saída criado + saldo atual do produto. Lê somente registros reais
+ * (production_completion_requests + stock_lots + stock_balances).
+ */
+export async function fetchLatestProductionCompletion(
+  productionOrderId: string,
+  productId: string | null,
+): Promise<ProductionCompletionSummary | null> {
+  const response = await looseClient
+    .from<Array<{ produced_quantity: number; rejected_quantity: number; output_lot_id: string | null; output_unit_cost: number }>>('production_completion_requests')
+    .select('produced_quantity, rejected_quantity, output_lot_id, output_unit_cost')
+    .eq('production_order_id', productionOrderId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const rows = response.error ? [] : (response.data ?? []);
+  const latest = rows[0];
+  if (!latest) return null;
+
+  let outputLotNumber: string | null = null;
+  if (latest.output_lot_id) {
+    const lotResponse = await looseClient
+      .from<Array<{ lot_number: string }>>('stock_lots')
+      .select('lot_number')
+      .eq('id', latest.output_lot_id)
+      .limit(1);
+    outputLotNumber = lotResponse.error ? null : (lotResponse.data?.[0]?.lot_number ?? null);
+  }
+
+  let productBalance: number | null = null;
+  if (productId) {
+    const balanceResponse = await looseClient
+      .from<Array<{ quantity: number }>>('stock_balances')
+      .select('quantity')
+      .eq('product_id', productId)
+      .limit(2000);
+    productBalance = balanceResponse.error
+      ? null
+      : (balanceResponse.data ?? []).reduce((sum, row) => sum + (Number(row.quantity) || 0), 0);
+  }
+
+  return {
+    outputLotNumber,
+    producedQuantity: Number(latest.produced_quantity) || 0,
+    rejectedQuantity: Number(latest.rejected_quantity) || 0,
+    outputUnitCost: Number(latest.output_unit_cost) || 0,
+    productBalance,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Perfis técnicos e eventos por setor (fiação, malharia, tinturaria).
 // A tecelagem mantém as tabelas/RPCs próprias (weaving_*); os demais setores
