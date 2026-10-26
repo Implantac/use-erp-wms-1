@@ -8,12 +8,22 @@ registra **divergência** e o saldo da Loja sobe 4.
 ## Como rodar
 1. Stack no ar (`INICIAR-SISTEMA.bat`) e seeds do grupo aplicados
    (`PREPARAR-GRUPO-ZIPO.bat`, `PREPARAR-LOJAS-TEXAS.bat`);
-2. Crie o arquivo `.env.e2e` na raiz (modelo abaixo);
-3. Rode `TESTAR-E2E.bat`.
+2. Rode `TESTAR-E2E.bat`. Se o `.env.e2e` não existir, ele chama
+   `preparar-e2e-lojas.ps1`, que cria os usuários de homologação
+   (seed `seed-e2e-lojas.sql`, idempotente), descobre um produto com
+   saldo ≥ 5 no CD e as unidades Loja/CD e **gera o `.env.e2e` pronto**.
+   Para regenerar depois, rode `PREPARAR-E2E-Lojas.bat`.
+
+Usuários de homologação (somente ambiente local):
+
+| Usuário | Senha | Papel |
+|---|---|---|
+| `loja@texasfarm.example.com` | `E2eLoja@2026` | operador da Loja (pede) |
+| `gestor@zipo.example.com` | `E2eGestor@2026` | admin do grupo (vê a Fábrica, decide, expede) |
 
 ## Modelo do `.env.e2e`
 ```
-VITE_SUPABASE_URL=http://localhost:8000
+VITE_SUPABASE_URL=http://localhost:8080
 VITE_SUPABASE_PUBLISHABLE_KEY=<chave anon do .env.local>
 E2E_STORE_EMAIL=loja@texasfarm.example.com
 E2E_STORE_PASSWORD=<senha do usuário da Loja>

@@ -22,8 +22,12 @@ try {
 Ok "Instalacao local respondendo."
 
 if (-not (Test-Path ".env.e2e")) {
-  Falha ".env.e2e nao encontrado. Copie o modelo de docs/E2E-Lojas.md, preencha e rode de novo."
-  exit 1
+  Write-Host ".env.e2e nao encontrado — preparando usuarios de homologacao e gerando o arquivo..."
+  & ".\preparar-e2e-lojas.ps1"
+  if ($LASTEXITCODE -ne 0 -or -not (Test-Path ".env.e2e")) {
+    Falha "A preparacao E2E falhou (veja acima). Alternativa manual: PREPARAR-E2E-Lojas.bat."
+    exit 1
+  }
 }
 foreach ($linha in Get-Content ".env.e2e") {
   if ($linha -match "^\s*([^#=]+)=(.*)$") {
