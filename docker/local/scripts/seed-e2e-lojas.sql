@@ -70,7 +70,7 @@ BEGIN
         rec.email, v_hash, now(),
         jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
         jsonb_build_object('name', rec.nome),
-        false, false, now(), now(), '', '', '', '', '', '', '', '', ''
+        false, false, now(), now(), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
       );
     ELSE
       UPDATE auth.users
