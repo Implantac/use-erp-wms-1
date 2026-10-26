@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — mover os DADOS do Docker Desktop do C: para o D:
 #   Uso: MOVER-DOCKER-PARA-D.bat (eleva para administrador sozinho)
 #

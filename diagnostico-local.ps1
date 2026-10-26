@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — diagnóstico da instalação (gera diagnostico.txt)
 # Uso: .\diagnostico-local.ps1   (ou duplo clique em DIAGNOSTICO-SISTEMA.bat)
 # Coleta estado dos containers, se as tabelas principais existem, quantas

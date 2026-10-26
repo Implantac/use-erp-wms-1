@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — verificação das Lojas Texas Farm (camada por camada)
 # Uso: .\verificar-lojas.ps1
 # Mostra [OK]/[FALTA] de cada camada: banco, catálogo, saldos, frontend.

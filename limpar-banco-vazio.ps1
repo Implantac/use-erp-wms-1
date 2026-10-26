@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — descarta os volumes SOMENTE se o banco estiver vazio
 #
 # Usado pelo REINSTALAR-DO-ZERO.bat quando a primeira inicializacao do

@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — prepara o TESTE INTEGRADO DOS 4 SETORES na empresa BIL
 #
 # Uso:  .\preparar-integracao-setores.ps1

@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — limpeza do Docker que LIBERA o C: de verdade
 #   Uso: LIMPAR-DOCKER.bat (eleva para administrador sozinho)
 #

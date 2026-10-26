@@ -1,4 +1,4 @@
-# USE ERP (local) — backup do PostgreSQL local.
+﻿# USE ERP (local) — backup do PostgreSQL local.
 #   Uso: .\backup-local.ps1
 # Gera backups\useerp-AAAAMMDD-HHMMSS.dump (formato custom do pg_dump)
 # e guarda tambem uma copia do .env.local (sem ele, as chaves mudam na

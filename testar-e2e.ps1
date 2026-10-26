@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — roda a jornada E2E das lojas contra a instalação local.
 #   Uso: .\testar-e2e.ps1   (ou TESTAR-E2E.bat)
 # Pré-requisitos: stack no ar (INICIAR-SISTEMA), seeds aplicados
@@ -37,10 +37,10 @@ if (-not (Test-Path "node_modules")) {
   bun install --frozen-lockfile
 }
 Write-Host "Garantindo o navegador do Playwright (primeira vez demora)..."
-bunx playwright install chromium | Out-Null
+bun x playwright install chromium | Out-Null
 
 Write-Host "`nRodando a jornada E2E das lojas..."
-bun x playwright test tests/e2e/store-journey.spec.ts --project=chromium --reporter=list
+bun x playwright test --config=e2e/playwright.config.ts tests/e2e/store-journey.spec.ts tests/e2e/store-journey-ui.spec.ts --project=chromium --reporter=list
 if ($LASTEXITCODE -ne 0) {
   Falha "A jornada E2E falhou — veja as linhas acima (a mensagem indica a etapa)."
   exit 1

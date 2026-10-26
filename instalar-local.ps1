@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP — instalador da versao 100% LOCAL (Windows + Docker Desktop)
 #
 #   Uso:  .\instalar-local.ps1                 (interativo: escolhe o IP da rede)

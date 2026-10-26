@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — prepara o TESTE DE TECELAGEM PLANA na empresa BIL
 #
 # Uso:  .\preparar-tecelagem-teste.ps1

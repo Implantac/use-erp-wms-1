@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — VERIFICAÇÃO de instalação (máquina limpa ou atual)
 #   Uso: .\verificar-instalacao.ps1   (ou VERIFICAR-INSTALACAO.bat)
 # Não altera nada: só verifica e imprime PASSOU/FALHOU por item.

@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — dia operacional das Lojas (popula TODAS as telas)
 # Uso: .\preparar-operacao-lojas.ps1
 # Rode DEPOIS de PREPARAR-LOJAS-TEXAS.bat. Idempotente (marcador SEED-OP).

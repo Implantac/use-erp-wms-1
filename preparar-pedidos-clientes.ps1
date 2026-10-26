@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — prepara o FLUXO COMERCIAL: CATALOGO POR PROCESSO + PEDIDOS ATE A ENTREGA na empresa BIL
 #
 # Uso:  .\preparar-pedidos-clientes.ps1

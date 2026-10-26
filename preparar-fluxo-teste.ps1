@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — prepara o FLUXO DE TESTE têxtil completo na empresa BIL
 #
 # Uso:  .\preparar-fluxo-teste.ps1

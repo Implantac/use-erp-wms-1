@@ -15,6 +15,18 @@ jobs:
       E2E_TENANT_A_PASSWORD: ${{ secrets.E2E_TENANT_A_PASSWORD }}
       E2E_TENANT_B_EMAIL: ${{ secrets.E2E_TENANT_B_EMAIL }}
       E2E_TENANT_B_PASSWORD: ${{ secrets.E2E_TENANT_B_PASSWORD }}
+      E2E_STORE_EMAIL: ${{ secrets.E2E_STORE_EMAIL }}
+      E2E_STORE_PASSWORD: ${{ secrets.E2E_STORE_PASSWORD }}
+      E2E_MANAGER_EMAIL: ${{ secrets.E2E_MANAGER_EMAIL }}
+      E2E_MANAGER_PASSWORD: ${{ secrets.E2E_MANAGER_PASSWORD }}
+      E2E_PRODUCT_ID: ${{ secrets.E2E_PRODUCT_ID }}
+      E2E_STORE_BRANCH_ID: ${{ secrets.E2E_STORE_BRANCH_ID }}
+      E2E_CD_BRANCH_ID: ${{ secrets.E2E_CD_BRANCH_ID }}
+      E2E_WEAVING_EMAIL: ${{ secrets.E2E_WEAVING_EMAIL }}
+      E2E_WEAVING_PASSWORD: ${{ secrets.E2E_WEAVING_PASSWORD }}
+      E2E_WEAVING_PRODUCT_ID: ${{ secrets.E2E_WEAVING_PRODUCT_ID }}
+      E2E_WEAVING_COMPONENT_ID: ${{ secrets.E2E_WEAVING_COMPONENT_ID }}
+      E2E_WEAVING_LOT_ID: ${{ secrets.E2E_WEAVING_LOT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -24,7 +36,7 @@ jobs:
         id: e2e-config
         run: |
           missing=0; present=0
-          for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY E2E_TENANT_A_EMAIL E2E_TENANT_A_PASSWORD E2E_TENANT_B_EMAIL E2E_TENANT_B_PASSWORD; do
+          for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY E2E_TENANT_A_EMAIL E2E_TENANT_A_PASSWORD E2E_TENANT_B_EMAIL E2E_TENANT_B_PASSWORD E2E_STORE_EMAIL E2E_STORE_PASSWORD E2E_MANAGER_EMAIL E2E_MANAGER_PASSWORD E2E_PRODUCT_ID E2E_STORE_BRANCH_ID E2E_CD_BRANCH_ID E2E_WEAVING_EMAIL E2E_WEAVING_PASSWORD E2E_WEAVING_PRODUCT_ID E2E_WEAVING_COMPONENT_ID E2E_WEAVING_LOT_ID; do
             if [ -z "${!name}" ]; then missing=$((missing+1)); else present=$((present+1)); fi
           done
           if [ "$present" -eq 0 ]; then

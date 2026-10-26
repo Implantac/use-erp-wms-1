@@ -1,4 +1,4 @@
-# USE ERP (local) — restaura um backup gerado por .\backup-local.ps1
+﻿# USE ERP (local) — restaura um backup gerado por .\backup-local.ps1
 #   Uso: .\restaurar-local.ps1 backups\useerp-AAAAMMDD-HHMMSS.dump
 # ATENCAO: substitui os dados atuais do banco. Faca um backup antes.
 param(

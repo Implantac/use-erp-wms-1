@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # USE ERP (local) — REPARO do banco cuja inicializacao foi abortada
 #
 # Uso: .\reparar-banco.ps1   (ou duplo clique em REPARAR-BANCO.bat)
