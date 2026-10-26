@@ -30,17 +30,24 @@ $compose = @("compose", "-f", "docker-compose.local.yml", "--env-file", ".env.lo
 # e nao houver internet/DNS, abortamos ANTES de trocar qualquer coisa, com
 # instrucao clara — em vez do erro cru do BuildKit.
 function Preparar-BuildWeb {
+  # PS 5.1 + ErrorActionPreference=Stop transforma stderr de comando nativo
+  # em erro fatal mesmo com redirecionamento; relaxar so neste trecho.
+  $eapAntes = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  $erro = $null
   foreach ($base in @("oven/bun:1.4.2", "nginx:1.27-alpine")) {
-    docker image inspect $base *> $null
+    docker image inspect $base 2>$null | Out-Null
     if ($LASTEXITCODE -ne 0) {
       Write-Host "  Baixando imagem-base $base (primeira vez ou cache limpo)..."
       docker pull $base
       if ($LASTEXITCODE -ne 0) {
-        return "sem conexao com o Docker Hub ao baixar $base (DNS/internet). Conecte-se a internet e rode de novo."
+        $erro = "sem conexao com o Docker Hub ao baixar $base (DNS/internet). Conecte-se a internet e rode de novo."
+        break
       }
     }
   }
-  return $null
+  $ErrorActionPreference = $eapAntes
+  return $erro
 }
 
 # Impressao digital das fontes do frontend: se nada mudou desde o ultimo
@@ -65,7 +72,10 @@ function Get-WebFingerprint {
 
 function Build-WebNecessario {
   $stampPath = Join-Path $PSScriptRoot ".web-build-stamp"
+  $eapAntes = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
   $imgId = docker inspect -f "{{.Image}}" useerp-web 2>$null
+  $ErrorActionPreference = $eapAntes
   if (-not $imgId) { return $true }
   if (-not (Test-Path $stampPath)) { return $true }
   return ((Get-Content $stampPath -Raw).Trim() -ne (Get-WebFingerprint))

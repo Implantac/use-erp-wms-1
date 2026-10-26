@@ -39,17 +39,24 @@ $compose = @("compose", "-f", "docker-compose.local.yml", "--env-file", ".env.lo
 # e nao houver internet/DNS, abortamos ANTES de trocar qualquer coisa, com
 # instrucao clara — em vez do erro cru do BuildKit.
 function Preparar-BuildWeb {
+  # PS 5.1 + ErrorActionPreference=Stop transforma stderr de comando nativo
+  # em erro fatal mesmo com redirecionamento; relaxar so neste trecho.
+  $eapAntes = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  $erro = $null
   foreach ($base in @("oven/bun:1.4.2", "nginx:1.27-alpine")) {
-    docker image inspect $base *> $null
+    docker image inspect $base 2>$null | Out-Null
     if ($LASTEXITCODE -ne 0) {
       Write-Host "  Baixando imagem-base $base (primeira vez ou cache limpo)..."
       docker pull $base
       if ($LASTEXITCODE -ne 0) {
-        return "sem conexao com o Docker Hub ao baixar $base (DNS/internet). Conecte-se a internet e rode de novo."
+        $erro = "sem conexao com o Docker Hub ao baixar $base (DNS/internet). Conecte-se a internet e rode de novo."
+        break
       }
     }
   }
-  return $null
+  $ErrorActionPreference = $eapAntes
+  return $erro
 }
 
 # Impressao digital das fontes do frontend: se nada mudou desde o ultimo
@@ -74,7 +81,12 @@ function Get-WebFingerprint {
 
 function Build-WebNecessario {
   $stampPath = Join-Path $PSScriptRoot ".web-build-stamp"
-  $imgId = docker inspect -f "{{.Image}}" useerp-web 2>$null
+  $eapAntes = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  $ErrorActionPreference = "Continue"
+$imgId = docker inspect -f "{{.Image}}" useerp-web 2>$null
+$ErrorActionPreference = "Stop"
+  $ErrorActionPreference = $eapAntes
   if (-not $imgId) { return $true }
   if (-not (Test-Path $stampPath)) { return $true }
   return ((Get-Content $stampPath -Raw).Trim() -ne (Get-WebFingerprint))
@@ -92,7 +104,9 @@ foreach ($linha in Get-Content ".env.local") {
 function Fazer-Rollback($motivo) {
   Falha "Verificacao falhou: $motivo"
   Aviso "Fazendo rollback da imagem web para a versao anterior..."
+  $ErrorActionPreference = "Continue"
   $imgName = docker inspect -f "{{.Config.Image}}" useerp-web 2>$null
+  $ErrorActionPreference = "Stop"
   if ($imgName) {
     docker tag "useerp/rollback-web:latest" $imgName
     docker @compose up -d web | Out-Null
@@ -110,7 +124,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ".\backup-local.ps1"
 if ($LASTEXITCODE -ne 0) { Falha "Backup falhou - atualizacao abortada (nada foi alterado)."; exit 1 }
 Ok "Backup concluido."
 
+$ErrorActionPreference = "Continue"
 $imgId = docker inspect -f "{{.Image}}" useerp-web 2>$null
+$ErrorActionPreference = "Stop"
 if ($imgId) {
   docker tag $imgId "useerp/rollback-web:latest"
   Ok "Imagem web atual etiquetada para rollback (useerp/rollback-web:latest)."
