@@ -166,7 +166,7 @@ são de interface sobre RPCs existentes.
 | P2-1 fiação (mistura visível) | ✅ composição % planejada da BOM no perfil da OP |
 | P2-2 malharia (gramatura/largura) | ✅ gramatura alvo (g/m²) e largura alvo (cm) no perfil (mesma migration) |
 | P1-1 beneficiamento como 5º setor | ✅ aplicado (seção 8) |
-| P2-3 eficiência com denominador | ⏳ após apontamento real (calendário por máquina) |
+| P2-3 eficiência com denominador | ✅ v1 aplicada (seção 9): produzido ÷ (capacidade/hora cadastrada × horas programadas); OEE clássico segue fora até haver calendário de turnos por máquina |
 
 **Provas da elevação:** migration nova aplicada na cadeia completa do
 harness (**133 PASS / 0 FAIL**); typecheck limpo; **310 testes**
@@ -193,3 +193,18 @@ vitest verdes (cálculos de composição/banho/ΔE com testes próprios).
 - **Provas**: harness **133 PASS / 0 FAIL** com a migration na cadeia;
   typecheck limpo; **310 testes** verdes (o teste-espelho
   lib×migration agora cobre os quatro setores com perfil).
+
+## 9. Eficiência por máquina v1 (26/10/2026)
+
+Cada central ganhou a seção "Eficiência por máquina": **produzido
+apontado ÷ (capacidade/hora cadastrada da máquina × horas programadas
+no período)**, 30 dias. Sem capacidade/hora cadastrada ou sem janela
+programada, o percentual **não aparece** — mostramos o produzido e as
+horas, sem estimar turno nem capacidade (a regra de honestidade dos
+demais indicadores). Os eventos dos indicadores passaram a ser lidos
+paginados por completo (sem janela fixa de 1.000).
+
+Isto não é OEE: disponibilidade × performance × qualidade com
+calendário de turnos por máquina continua como evolução futura, sobre
+o apontamento real do piloto. Provas: typecheck limpo, suíte vitest
+verde (cálculo com testes de janela e de denominador ausente).

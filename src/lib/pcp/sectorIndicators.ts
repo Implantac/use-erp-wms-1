@@ -43,6 +43,82 @@ export interface SectorIndicatorEvent {
   deviation_category: string | null;
   machine_id: string | null;
   occurred_at: string;
+  /** Quantidade apontada no evento (unidade do setor: kg ou m). */
+  quantity?: number | null;
+}
+
+export interface SectorScheduleWindow {
+  machine_id: string | null;
+  planned_start: string;
+  planned_end: string;
+  status?: string | null;
+}
+
+export interface MachineEfficiency {
+  machineId: string;
+  /** Soma das quantidades apontadas em eventos da máquina no período. */
+  producedQty: number;
+  /** Horas de janelas programadas da máquina dentro do período. */
+  scheduledHours: number;
+  /** capacity_per_hour configurada × horas programadas (null sem capacidade). */
+  theoreticalQty: number | null;
+  /** producedQty / theoreticalQty (null sem denominador configurado). */
+  efficiencyPct: number | null;
+}
+
+/**
+ * Eficiência por máquina com denominador CONFIGURADO: produzido real
+ * apontado ÷ (capacidade/hora cadastrada × horas programadas no
+ * período). Sem capacidade cadastrada ou sem janela, o percentual é
+ * `null` ("sem denominador") — nunca estimamos turno nem capacidade.
+ */
+export function computeMachineEfficiency(input: {
+  events: readonly SectorIndicatorEvent[];
+  schedules: readonly SectorScheduleWindow[];
+  machines: readonly { id: string; capacity_per_hour?: number | null }[];
+  now?: Date;
+  windowDays?: number;
+}): MachineEfficiency[] {
+  const now = input.now ?? new Date();
+  const days = input.windowDays ?? 30;
+  const windowStart = now.getTime() - days * 24 * 60 * 60 * 1000;
+  const capacity = new Map(input.machines.map((m) => [m.id, num(m.capacity_per_hour)]));
+
+  const produced = new Map<string, number>();
+  for (const event of input.events) {
+    if (!event.machine_id) continue;
+    const qty = typeof event.quantity === 'number' && Number.isFinite(event.quantity) && event.quantity > 0 ? event.quantity : 0;
+    if (qty <= 0) continue;
+    const t = new Date(event.occurred_at).getTime();
+    if (!Number.isFinite(t) || t > now.getTime() || t < windowStart) continue;
+    produced.set(event.machine_id, (produced.get(event.machine_id) ?? 0) + qty);
+  }
+
+  const hours = new Map<string, number>();
+  for (const w of input.schedules) {
+    if (!w.machine_id) continue;
+    const start = Math.max(new Date(w.planned_start).getTime(), windowStart);
+    const end = Math.min(new Date(w.planned_end).getTime(), now.getTime());
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+    hours.set(w.machine_id, (hours.get(w.machine_id) ?? 0) + (end - start) / 3_600_000);
+  }
+
+  const ids = new Set([...produced.keys(), ...hours.keys()]);
+  return [...ids]
+    .map((machineId) => {
+      const producedQty = produced.get(machineId) ?? 0;
+      const scheduledHours = hours.get(machineId) ?? 0;
+      const cap = capacity.get(machineId) ?? 0;
+      const theoreticalQty = cap > 0 && scheduledHours > 0 ? cap * scheduledHours : null;
+      return {
+        machineId,
+        producedQty,
+        scheduledHours,
+        theoreticalQty,
+        efficiencyPct: theoreticalQty && theoreticalQty > 0 ? (producedQty / theoreticalQty) * 100 : null,
+      };
+    })
+    .sort((a, b) => b.producedQty - a.producedQty);
 }
 
 export interface SectorIndicatorInspection {

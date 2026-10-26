@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeSectorIndicators, computeSectorReadiness } from './sectorIndicators';
+import { computeMachineEfficiency,
+  computeSectorIndicators, computeSectorReadiness } from './sectorIndicators';
 
 const NOW = new Date('2026-10-21T12:00:00Z');
 const recent = '2026-10-15T10:00:00Z';
@@ -71,5 +72,41 @@ describe('computeSectorReadiness — dados mínimos das skills', () => {
       products: [{ id: 'p1', code: 'MALHA-30', name: 'Malha fio 30 crua' }],
     });
     expect(items.every((i) => !i.ok)).toBe(true);
+  });
+});
+
+describe('computeMachineEfficiency — denominador configurado', () => {
+  const now = new Date('2026-10-23T12:00:00Z');
+  const machines = [
+    { id: 'm1', capacity_per_hour: 10 },
+    { id: 'm2', capacity_per_hour: null },
+  ];
+  const events = [
+    { production_order_id: 'o1', event_type: 'doffing', downtime_minutes: null, deviation_category: null, machine_id: 'm1', occurred_at: '2026-10-22T10:00:00Z', quantity: 300 },
+    { production_order_id: 'o1', event_type: 'doffing', downtime_minutes: null, deviation_category: null, machine_id: 'm1', occurred_at: '2026-10-21T10:00:00Z', quantity: 60 },
+    { production_order_id: 'o2', event_type: 'roll_change', downtime_minutes: null, deviation_category: null, machine_id: 'm2', occurred_at: '2026-10-22T10:00:00Z', quantity: 50 },
+    { production_order_id: 'o1', event_type: 'doffing', downtime_minutes: null, deviation_category: null, machine_id: 'm1', occurred_at: '2026-08-01T10:00:00Z', quantity: 999 },
+  ];
+  const schedules = [
+    { machine_id: 'm1', planned_start: '2026-10-20T00:00:00Z', planned_end: '2026-10-20T10:00:00Z', status: 'scheduled' },
+    { machine_id: 'm1', planned_start: '2026-10-21T00:00:00Z', planned_end: '2026-10-21T10:00:00Z', status: 'in_progress' },
+    { machine_id: 'm2', planned_start: '2026-10-20T00:00:00Z', planned_end: '2026-10-20T05:00:00Z', status: 'scheduled' },
+  ];
+
+  it('calcula produzido ÷ (capacidade × horas programadas) só dentro da janela', () => {
+    const [m1] = computeMachineEfficiency({ events, schedules, machines, now, windowDays: 30 });
+    expect(m1.machineId).toBe('m1');
+    expect(m1.producedQty).toBe(360); // os 999 de agosto ficam fora
+    expect(m1.scheduledHours).toBe(20);
+    expect(m1.theoreticalQty).toBe(200);
+    expect(m1.efficiencyPct).toBeCloseTo(180);
+  });
+
+  it('sem capacidade cadastrada, percentual é null (não estima)', () => {
+    const rows = computeMachineEfficiency({ events, schedules, machines, now, windowDays: 30 });
+    const m2 = rows.find((r) => r.machineId === 'm2');
+    expect(m2?.producedQty).toBe(50);
+    expect(m2?.theoreticalQty).toBeNull();
+    expect(m2?.efficiencyPct).toBeNull();
   });
 });

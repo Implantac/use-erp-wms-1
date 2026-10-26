@@ -494,6 +494,7 @@ export interface SectorIndicatorEventRow {
   deviation_category: string | null;
   machine_id: string | null;
   occurred_at: string;
+  quantity?: number | null;
 }
 
 export async function fetchSectorIndicatorEvents(
@@ -501,23 +502,38 @@ export async function fetchSectorIndicatorEvents(
   kind: SectorKind,
   weavingOrderIds: readonly string[],
 ): Promise<SectorIndicatorEventRow[]> {
+  // Paginado (mil em mil): janela fixa subcontaria períodos movimentados.
   if (kind === 'tecelagem') {
     if (weavingOrderIds.length === 0) return [];
-    const response = await looseClient
-      .from<SectorIndicatorEventRow[]>('weaving_production_events')
-      .select('production_order_id, event_type, downtime_minutes, deviation_category, machine_id, occurred_at')
-      .eq('company_id', companyId)
-      .in('production_order_id', [...weavingOrderIds])
-      .order('occurred_at', { ascending: false })
-      .limit(1000);
-    return assertData<SectorIndicatorEventRow[]>(response, 'Erro ao carregar eventos para indicadores') ?? [];
+    const rows: SectorIndicatorEventRow[] = [];
+    for (let page = 0; page < 20; page++) {
+      const from = page * 1000;
+      const response = await looseClient
+        .from<Array<SectorIndicatorEventRow & { quantity_m?: number | null }>>('weaving_production_events')
+        .select('production_order_id, event_type, downtime_minutes, deviation_category, machine_id, occurred_at, quantity_m')
+        .eq('company_id', companyId)
+        .in('production_order_id', [...weavingOrderIds])
+        .order('occurred_at', { ascending: false })
+        .range(from, from + 999);
+      const pageRows = assertData<Array<SectorIndicatorEventRow & { quantity_m?: number | null }>>(response, 'Erro ao carregar eventos para indicadores') ?? [];
+      rows.push(...pageRows.map((row) => ({ ...row, quantity: row.quantity_m ?? null })));
+      if (pageRows.length < 1000) break;
+    }
+    return rows;
   }
-  const response = await looseClient
-    .from<SectorIndicatorEventRow[]>('sector_production_events')
-    .select('production_order_id, event_type, downtime_minutes, deviation_category, machine_id, occurred_at')
-    .eq('company_id', companyId)
-    .eq('sector', kind)
-    .order('occurred_at', { ascending: false })
-    .limit(1000);
-  return assertData<SectorIndicatorEventRow[]>(response, 'Erro ao carregar eventos para indicadores') ?? [];
+  const rows: SectorIndicatorEventRow[] = [];
+  for (let page = 0; page < 20; page++) {
+    const from = page * 1000;
+    const response = await looseClient
+      .from<SectorIndicatorEventRow[]>('sector_production_events')
+      .select('production_order_id, event_type, downtime_minutes, deviation_category, machine_id, occurred_at, quantity')
+      .eq('company_id', companyId)
+      .eq('sector', kind)
+      .order('occurred_at', { ascending: false })
+      .range(from, from + 999);
+    const pageRows = assertData<SectorIndicatorEventRow[]>(response, 'Erro ao carregar eventos para indicadores') ?? [];
+    rows.push(...pageRows);
+    if (pageRows.length < 1000) break;
+  }
+  return rows;
 }

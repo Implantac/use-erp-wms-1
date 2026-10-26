@@ -6,6 +6,7 @@ import { useProductionMachines } from '@/hooks/production/useProductionMachines'
 import { useSectorIndicatorData } from '@/hooks/production/useSectorIndicatorData';
 import type { SectorKind } from '@/lib/pcp/sectorProfiles';
 import {
+  computeMachineEfficiency,
   computeSectorIndicators,
   computeSectorReadiness,
   type SectorIndicatorInspection,
@@ -35,7 +36,7 @@ export function SectorIndicatorsCard({ kind, companyId, orders, inspections, ref
     () => (kind === 'tecelagem' ? orders.map((order) => order.id) : []),
     [kind, orders],
   );
-  const { events, products } = useSectorIndicatorData(companyId, kind, weavingOrderIds, refreshKey);
+  const { events, products, schedules } = useSectorIndicatorData(companyId, kind, weavingOrderIds, refreshKey);
   const { machines } = useProductionMachines();
 
   const indicators = useMemo(
@@ -45,6 +46,10 @@ export function SectorIndicatorsCard({ kind, companyId, orders, inspections, ref
   const readiness = useMemo(
     () => computeSectorReadiness({ kind, machines, products }),
     [kind, machines, products],
+  );
+  const efficiency = useMemo(
+    () => computeMachineEfficiency({ events, schedules, machines }),
+    [events, schedules, machines],
   );
   const machineName = useMemo(() => {
     const map = new Map(machines.map((machine) => [machine.id, `${machine.code} — ${machine.name}`]));
@@ -107,6 +112,29 @@ export function SectorIndicatorsCard({ kind, companyId, orders, inspections, ref
             </div>
           ))}
         </div>
+
+        {efficiency.length > 0 && (
+          <div>
+            <p className="mb-1 text-sm font-medium">Eficiência por máquina — produzido ÷ (capacidade/hora cadastrada × horas programadas, 30 dias)</p>
+            <ul className="space-y-1 text-sm">
+              {efficiency.slice(0, 5).map((row) => (
+                <li key={row.machineId} className="flex items-center justify-between gap-2">
+                  <span>{machineName(row.machineId)}</span>
+                  <span className="text-muted-foreground">
+                    {formatNumber(row.producedQty)} produzidos
+                    {row.efficiencyPct !== null
+                      ? ` · teórico ${formatNumber(row.theoreticalQty)} · ${formatNumber(row.efficiencyPct, 1)}%`
+                      : ` · ${formatNumber(row.scheduledHours, 1)} h programadas · sem capacidade/hora cadastrada`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Só aparece percentual com capacidade/hora cadastrada na máquina e janela programada —
+              sem denominador configurado, mostramos o produzido e as horas, sem estimar.
+            </p>
+          </div>
+        )}
 
         {indicators.downtimeByCategory.length > 0 && (
           <div>

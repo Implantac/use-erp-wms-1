@@ -37,6 +37,7 @@ export function useSectorIndicatorData(
 ) {
   const [events, setEvents] = useState<SectorIndicatorEventRow[]>([]);
   const [products, setProducts] = useState<YarnProductLike[]>([]);
+  const [schedules, setSchedules] = useState<Array<{ machine_id: string | null; planned_start: string; planned_end: string; status?: string | null }>>([]);
   const orderIdsKey = weavingOrderIds.join(',');
 
   useEffect(() => {
@@ -48,8 +49,11 @@ export function useSectorIndicatorData(
     let cancelled = false;
     void (async () => {
       const ids = orderIdsKey ? orderIdsKey.split(',') : [];
-      const [eventRows, productResult, categoryResult] = await Promise.all([
+      const [eventRows, productResult, categoryResult, scheduleResult] = await Promise.all([
         fetchSectorIndicatorEvents(companyId, kind, ids).catch(() => [] as SectorIndicatorEventRow[]),
+        looseClient.from<Array<{ machine_id: string | null; planned_start: string; planned_end: string; status?: string | null }>>('production_schedule')
+          .select('machine_id, planned_start, planned_end, status')
+          .eq('company_id', companyId),
         looseClient.from<ProductRow[]>('products')
           .select('id, code, name, category_id, subcategory, status')
           .eq('company_id', companyId),
@@ -58,6 +62,7 @@ export function useSectorIndicatorData(
       ]);
       if (cancelled) return;
       setEvents(eventRows);
+      setSchedules(scheduleResult.data ?? []);
       const categoryNames = new Map((categoryResult.data ?? []).map((category) => [category.id, category.name]));
       setProducts(
         (productResult.data ?? []).filter((product) => !product.status || product.status === 'active').map((product) => ({
@@ -71,5 +76,5 @@ export function useSectorIndicatorData(
     };
   }, [companyId, kind, orderIdsKey, refreshKey]);
 
-  return { events, products };
+  return { events, products, schedules };
 }
