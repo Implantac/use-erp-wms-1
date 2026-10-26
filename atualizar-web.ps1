@@ -25,10 +25,68 @@ if (-not (Test-Path ".env.local")) {
 
 $compose = @("compose", "-f", "docker-compose.local.yml", "--env-file", ".env.local")
 
-Aviso "Reconstruindo o frontend (build dentro do Docker, alguns minutos)..."
-docker @compose build web
-if ($LASTEXITCODE -ne 0) { Falha "O build do frontend falhou - me envie as ultimas linhas acima."; exit 1 }
-Ok "Build concluido."
+# --- Build do frontend: preflight de imagens-base + atalho sem mudanca -----
+# As imagens-base (oven/bun, nginx) sao baixadas uma unica vez. Se faltarem
+# e nao houver internet/DNS, abortamos ANTES de trocar qualquer coisa, com
+# instrucao clara — em vez do erro cru do BuildKit.
+function Preparar-BuildWeb {
+  foreach ($base in @("oven/bun:1.4.2", "nginx:1.27-alpine")) {
+    docker image inspect $base *> $null
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host "  Baixando imagem-base $base (primeira vez ou cache limpo)..."
+      docker pull $base
+      if ($LASTEXITCODE -ne 0) {
+        return "sem conexao com o Docker Hub ao baixar $base (DNS/internet). Conecte-se a internet e rode de novo."
+      }
+    }
+  }
+  return $null
+}
+
+# Impressao digital das fontes do frontend: se nada mudou desde o ultimo
+# build bem-sucedido, o build (que exige as imagens-base) e pulado.
+function Get-WebFingerprint {
+  $arquivos = @()
+  foreach ($dir in @("src", "public", "docker/local")) {
+    if (Test-Path $dir) {
+      $arquivos += Get-ChildItem $dir -Recurse -File | Where-Object { $_.FullName -notmatch "node_modules" }
+    }
+  }
+  foreach ($f in @("index.html", "package.json", "bun.lock", "Dockerfile.local", "vite.config.ts", "vite.config.js", "postcss.config.js", "tailwind.config.ts", "tailwind.config.js")) {
+    if (Test-Path $f) { $arquivos += Get-Item $f }
+  }
+  $linhas = $arquivos | Sort-Object FullName | ForEach-Object {
+    "$($_.FullName.Substring($PSScriptRoot.Length)):$((Get-FileHash $_.FullName -Algorithm SHA256).Hash)"
+  }
+  $bytes = [Text.Encoding]::UTF8.GetBytes(($linhas -join "`n"))
+  $sha = [Security.Cryptography.SHA256]::Create()
+  return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace("-", "")
+}
+
+function Build-WebNecessario {
+  $stampPath = Join-Path $PSScriptRoot ".web-build-stamp"
+  $imgId = docker inspect -f "{{.Image}}" useerp-web 2>$null
+  if (-not $imgId) { return $true }
+  if (-not (Test-Path $stampPath)) { return $true }
+  return ((Get-Content $stampPath -Raw).Trim() -ne (Get-WebFingerprint))
+}
+
+function Marcar-WebBuildOk {
+  (Get-WebFingerprint) | Set-Content (Join-Path $PSScriptRoot ".web-build-stamp") -Encoding ASCII
+}
+
+
+if (Build-WebNecessario) {
+  $erroBase = Preparar-BuildWeb
+  if ($erroBase) { Falha $erroBase; Falha "Nada foi alterado. Conecte-se e rode o ATUALIZAR-WEB.bat de novo."; exit 1 }
+  Aviso "Reconstruindo o frontend (build dentro do Docker, alguns minutos)..."
+  docker @compose build web
+  if ($LASTEXITCODE -ne 0) { Falha "O build do frontend falhou - me envie as ultimas linhas acima."; exit 1 }
+  Marcar-WebBuildOk
+  Ok "Build concluido."
+} else {
+  Ok "Fontes do frontend sem mudancas desde o ultimo build - build pulado (sem precisar de internet)."
+}
 
 Aviso "Recriando o container web com a nova imagem..."
 docker @compose up -d web | Out-Null
