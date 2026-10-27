@@ -972,6 +972,83 @@ try {
   let detAnonErro = '';
   try { await q(`SELECT public.group_transfer_detail($1)`, [decLoja.transfer_order_id]); } catch (e) { detAnonErro = e.message; }
   check('sem sessão, o detalhe da transferência é recusado (42501)', detAnonErro.length > 0, detAnonErro);
+  console.log('== Romaneio: o dia do gestor (expedir agrupado -> Loja recepciona o documento)');
+  // A Loja abre duas reposições para a Loja 1 e uma para a Loja 2.
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [farmUser]);
+  const romT1 = (await q(`SELECT public.create_stock_transfer_request($1, $2, $3::jsonb, 'romaneio: camiseta Loja 1') AS r`,
+    [zCdBr.id, zLojaBr.id, JSON.stringify([{ product_id: farmProd.id, quantity: 20 }])]))[0].r;
+  const romT2 = (await q(`SELECT public.create_stock_transfer_request($1, $2, $3::jsonb, 'romaneio: CM639 Loja 1') AS r`,
+    [zCdBr.id, zLojaBr.id, JSON.stringify([{ product_id: p639.id, quantity: 10 }])]))[0].r;
+  const romT3 = (await q(`SELECT public.create_stock_transfer_request($1, $2, $3::jsonb, 'romaneio: camiseta Loja 2') AS r`,
+    [zCdBr.id, Loja2Br.id, JSON.stringify([{ product_id: farmProd.id, quantity: 7 }])]))[0].r;
+  check('Loja abre 3 reposições para o gestor expedir (2 p/ Loja 1, 1 p/ Loja 2)',
+    romT1.status === 'SUGERIDA' && romT2.status === 'SUGERIDA' && romT3.status === 'SUGERIDA');
+  // Gestor no contexto do grupo (perfil na indústria) tentando misturar destinos.
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+  let romMixErro = '';
+  try { await q(`SELECT public.create_romaneio($1::uuid[])`, [[romT1.id, romT3.id]]); } catch (e) { romMixErro = e.message; }
+  check('romaneio NÃO mistura destinos (uma carga = uma Loja)', romMixErro.length > 0, romMixErro);
+  const romCdFarm0 = await balFarm(zCdBr.id); const romLojaFarm0 = await balFarm(zLojaBr.id);
+  const romCd6390 = await balTx(zCdBr.id); const romLoja6390 = await balTx(zLojaBr.id);
+  const rom = (await q(`SELECT public.create_romaneio($1::uuid[]) AS r`, [[romT1.id, romT2.id]]))[0].r;
+  check('gestor gera UM romaneio com as 2 transferências da Loja 1 (sem 6 cliques por transferência)',
+    /^ROM-/.test(rom.numero || '') && rom.transfers === 2, JSON.stringify(rom));
+  const romOrders = await q(`SELECT current_status::text AS st, romaneio_id FROM public.stock_transfer_orders WHERE id = ANY($1::uuid[])`, [[romT1.id, romT2.id]]);
+  check('ao gerar o romaneio, as transferências já estão EM TRÂNSITO vinculadas ao documento',
+    romOrders.length === 2 && romOrders.every((o) => o.st === 'EM TRÂNSITO' && o.romaneio_id === rom.id), JSON.stringify(romOrders));
+  check('expedição do romaneio baixou o CD pelo ledger (20 camisetas + 10 CM639), Loja ainda intacta',
+    (await balFarm(zCdBr.id)) === romCdFarm0 - 20 && (await balTx(zCdBr.id)) === romCd6390 - 10
+      && (await balFarm(zLojaBr.id)) === romLojaFarm0 && (await balTx(zLojaBr.id)) === romLoja6390,
+    JSON.stringify({ cdFarm: await balFarm(zCdBr.id), cd639: await balTx(zCdBr.id) }));
+  const movEmpresa = (await q(`SELECT count(*)::int AS n FROM public.stock_movements WHERE reference = $1 AND type = 'transfer_out' AND company_id = $2`, [romT1.id, farm.id]))[0];
+  check('ledger carimbado com a empresa DONA da ordem (não com a empresa de contexto do gestor)',
+    movEmpresa.n >= 1, JSON.stringify(movEmpresa));
+  const romListGestor = (await q(`SELECT public.group_romaneios() AS r`))[0].r;
+  check('gestor vê o romaneio EMITIDO na lista do grupo',
+    romListGestor.some((r) => r.id === rom.id && r.status === 'EMITIDO' && r.transfers_count === 2),
+    JSON.stringify(romListGestor.map((r) => r.numero)));
+  let romDupErro = '';
+  try { await q(`SELECT public.create_romaneio($1::uuid[])`, [[romT1.id]]); } catch (e) { romDupErro = e.message; }
+  check('transferência já expedida não entra em outro romaneio', romDupErro.length > 0, romDupErro);
+  // A Loja recepciona O DOCUMENTO (não transferência por transferência).
+  const romItem1 = (await q(`SELECT id FROM public.stock_transfer_items WHERE transfer_id = $1`, [romT1.id]))[0];
+  const romItem2 = (await q(`SELECT id FROM public.stock_transfer_items WHERE transfer_id = $1`, [romT2.id]))[0];
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [farmUser]);
+  const romListLoja = (await q(`SELECT public.group_romaneios() AS r`))[0].r;
+  check('Loja destino enxerga o romaneio a recepcionar',
+    romListLoja.some((r) => r.id === rom.id), JSON.stringify(romListLoja.map((r) => r.numero)));
+  const romRec = (await q(`SELECT public.receive_romaneio($1, $2::jsonb) AS r`,
+    [rom.id, JSON.stringify([{ item_id: romItem1.id, quantity: 18 }, { item_id: romItem2.id, quantity: 10 }])]))[0].r;
+  check('Loja recepciona o documento com falta de 2 un: romaneio vira RECEBIDO COM DIVERGÊNCIA',
+    romRec.status === 'RECEBIDO COM DIVERGÊNCIA', JSON.stringify(romRec));
+  check('recebimento do romaneio alimentou o estoque da Loja pelo ledger (só o recebido: +18 e +10)',
+    (await balFarm(zLojaBr.id)) === romLojaFarm0 + 18 && (await balTx(zLojaBr.id)) === romLoja6390 + 10,
+    JSON.stringify({ LojaFarm: await balFarm(zLojaBr.id), Loja639: await balTx(zLojaBr.id) }));
+  const romSt = await q(`SELECT id, current_status::text AS st FROM public.stock_transfer_orders WHERE id = ANY($1::uuid[])`, [[romT1.id, romT2.id]]);
+  check('status por transferência reflete a conferência (divergente x recebida)',
+    romSt.find((o) => o.id === romT1.id)?.st === 'RECEBIDA COM DIVERGÊNCIA'
+      && romSt.find((o) => o.id === romT2.id)?.st === 'RECEBIDA', JSON.stringify(romSt));
+  let romReErro = '';
+  try { await q(`SELECT public.receive_romaneio($1, $2::jsonb)`, [rom.id, '[]']); } catch (e) { romReErro = e.message; }
+  check('romaneio já recepcionado não é recebido de novo', romReErro.length > 0, romReErro);
+  // Segunda carga (Loja 2): recebimento integral.
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+  const romB = (await q(`SELECT public.create_romaneio($1::uuid[]) AS r`, [[romT3.id]]))[0].r;
+  const romItem3 = (await q(`SELECT id FROM public.stock_transfer_items WHERE transfer_id = $1`, [romT3.id]))[0];
+  const Loja2Farm0 = await balFarm(Loja2Br.id);
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [farmUser]);
+  const romRecB = (await q(`SELECT public.receive_romaneio($1, $2::jsonb) AS r`,
+    [romB.id, JSON.stringify([{ item_id: romItem3.id, quantity: 7 }])]))[0].r;
+  check('segundo romaneio (Loja 2) recebido integral: RECEBIDO e estoque +7',
+    romRecB.status === 'RECEBIDO' && (await balFarm(Loja2Br.id)) === Loja2Farm0 + 7, JSON.stringify(romRecB));
+  // O gestor executa a malha sem trocar de empresa (a dor do 42501).
+  const romT4 = (await q(`SELECT public.create_stock_transfer_request($1, $2, $3::jsonb, 'romaneio: prova do gestor') AS r`,
+    [zCdBr.id, zLojaBr.id, JSON.stringify([{ product_id: p639.id, quantity: 5 }])]))[0].r;
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+  const romAppr = (await q(`SELECT public.transition_stock_transfer($1, 'APROVADA') AS r`, [romT4.id]))[0].r;
+  check('gestor do grupo aprova transferência da Loja SEM trocar de empresa (era 42501)',
+    romAppr.status === 'APROVADA', JSON.stringify(romAppr));
+  await q(`SELECT public.transition_stock_transfer($1, 'CANCELADA')`, [romT4.id]);
   const grantSupply = (await q(`SELECT has_table_privilege('authenticated', 'public.supply_requests', 'SELECT') AS ok`))[0];
   check('PostgREST: authenticated tem SELECT em supply_requests (sem isso, 403 esconde as solicitações)', grantSupply.ok === true, JSON.stringify(grantSupply));
   const tasks = Number((await q(`SELECT count(*)::int AS n FROM public.operational_tasks WHERE company_id = $1 AND status = 'pending'`, [farm.id]))[0].n);

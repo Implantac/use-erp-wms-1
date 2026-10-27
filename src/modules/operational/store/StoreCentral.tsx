@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PageContainer } from "@/shared/components/PageContainer";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/ui/base/card";
@@ -42,12 +43,88 @@ import { useEnterprise } from "@/core/auth/EnterpriseContext";
 import { NetworkMap } from "./components/NetworkMap";
 import { PrescriptiveAlert } from "./components/PrescriptiveAlert";
 import { ReplenishmentPanel } from "./components/ReplenishmentPanel";
+import { DailyQueuePanel } from "./components/DailyQueuePanel";
+import { RomaneioReceivePanel } from "./components/RomaneioReceivePanel";
+import { SupplyAnalysisPanel, MySupplyRequestsPanel, ReplenishmentAlertsPanel } from "@/modules/store-operations/components/SupplyPanels";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/ui/base/dialog";
+import { Input } from "@/ui/base/input";
+import { Label } from "@/ui/base/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/base/select";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { createSupplyRequest } from "@/services/operational/store/supplyService";
+import { useSupplyAccess } from "@/hooks/operational/store/useSupplyAccess";
 
 
 export default function StoreCentral() {
   const { kpis, alerts, health, reliability, isLoading, refetch } = useStoreCentral();
   const { tasks, inTransit, isLoading: isLoadingExecution, isProcessing, transition } = useSupplyChainExecution();
   const { currentBranch } = useEnterprise();
+  const supplyAccess = useSupplyAccess();
+  const { currentCompany } = useEnterprise();
+  const [receiving, setReceiving] = useState<any | null>(null);
+  const [receiveQty, setReceiveQty] = useState<Record<string, string>>({});
+  const [reqProduct, setReqProduct] = useState('');
+  const [reqQty, setReqQty] = useState('');
+  const [reqNotes, setReqNotes] = useState('');
+  const [reqSaving, setReqSaving] = useState(false);
+  const storeProductsQuery = useQuery({
+    queryKey: ['store-products', currentCompany?.id],
+    enabled: !!currentCompany?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('products').select('id, code, name, unit')
+        .eq('company_id', currentCompany!.id).order('name').limit(500);
+      if (error) throw error;
+      return (data || []) as Array<{ id: string; code: string; name: string; unit: string | null }>;
+    },
+  });
+  const handleManualRequest = async () => {
+    const qty = Number(reqQty);
+    if (!currentBranch?.id || !reqProduct || !(qty > 0)) {
+      toast.error('Escolha o produto e a quantidade para solicitar');
+      return;
+    }
+    setReqSaving(true);
+    try {
+      await createSupplyRequest(currentBranch.id, reqProduct, qty);
+      toast.success('Solicitação enviada — a Fábrica vai analisar a melhor origem (Fábrica × CD × outra Loja).');
+      setReqQty(''); setReqNotes('');
+      await refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao solicitar');
+    } finally {
+      setReqSaving(false);
+    }
+  };
+  const openReceive = (order: any) => {
+    const initial: Record<string, string> = {};
+    for (const item of order.items || []) {
+      initial[item.id] = String(item.shipped_qty ?? item.requested_qty ?? 0);
+    }
+    setReceiveQty(initial);
+    setReceiving(order);
+  };
+  const handleReceive = async () => {
+    if (!receiving) return;
+    try {
+      await transition({
+        transferId: receiving.id,
+        toStatus: 'RECEBIDA',
+        itemQuantities: (receiving.items || []).map((item: any) => ({
+          itemId: item.id,
+          quantity: Number(receiveQty[item.id] ?? item.shipped_qty ?? item.requested_qty ?? 0),
+        })),
+        notes: 'Recebimento na Central da Loja',
+      });
+      toast.success('Recebimento registrado — saldo da Loja atualizado pelo fluxo oficial.');
+      setReceiving(null);
+      await refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao receber');
+    }
+  };
 
 
 
@@ -143,22 +220,22 @@ export default function StoreCentral() {
                <CardContent className="p-0">
                   <div className="divide-y divide-primary/10">
                     <Button variant="ghost" className="w-full justify-start text-xs h-10 gap-2 rounded-none px-4" asChild>
-                      <Link to="/logistica/recebimento">
+                      <Link to="/operacional/loja/operacao">
                         <Package className="h-3 w-3" /> Receber Mercadoria ({kpis?.receiving || 0})
                       </Link>
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-xs h-10 gap-2 rounded-none px-4" asChild>
-                      <Link to="/wms/reposicao">
+                      <Link to="/operacional/rede/ressuprimento">
                         <RefreshCw className="h-3 w-3" /> Solicitar Abastecimento
                       </Link>
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-xs h-10 gap-2 rounded-none px-4" asChild>
-                      <Link to="/logistica/transferencias">
+                      <Link to="/operacional/abastecimento/central">
                         <Truck className="h-3 w-3" /> Transferir Produto
                       </Link>
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-xs h-10 gap-2 rounded-none px-4" asChild>
-                      <Link to="/estoque/inventario">
+                      <Link to="/operacional/loja/operacao">
                         <ClipboardList className="h-3 w-3" /> Iniciar Inventário
                       </Link>
                     </Button>
@@ -166,6 +243,8 @@ export default function StoreCentral() {
                </CardContent>
              </Card>
           </div>
+
+          <DailyQueuePanel branchId={currentBranch?.id} />
 
           {/* Central de Operação Unificada */}
           <Tabs defaultValue="reposicao" className="w-full">
@@ -194,7 +273,11 @@ export default function StoreCentral() {
             </TabsList>
 
             <TabsContent value="reposicao">
-              <ReplenishmentPanel />
+              <div className="space-y-6">
+                <ReplenishmentPanel />
+                <MySupplyRequestsPanel branchId={currentBranch?.id} />
+                {supplyAccess.canManage ? <SupplyAnalysisPanel /> : null}
+              </div>
             </TabsContent>
 
 
@@ -368,6 +451,7 @@ export default function StoreCentral() {
                           <div className="text-right">
                             <Badge className="bg-violet-500 text-[10px] mb-1">EM TRÂNSITO</Badge>
                             <p className="text-[10px] text-muted-foreground">Previsão: Hoje</p>
+                            <Button size="sm" className="mt-2" onClick={() => openReceive(order)}>Receber mercadoria</Button>
                           </div>
                         </div>
                       ))
@@ -382,37 +466,43 @@ export default function StoreCentral() {
               </Card>
             </TabsContent>
             <TabsContent value="novo">
-
+              <div className="space-y-6">
               <Card className="border-primary/40 bg-primary/5">
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <ArrowUpCircle className="h-5 w-5 text-primary" /> Nova Solicitação de Abastecimento
                   </CardTitle>
-                  <CardDescription>Inicie uma transferência de reposição para esta unidade</CardDescription>
+                  <CardDescription>Solicite aqui mesmo — sem sair desta tela. A origem é decidida pela Fábrica.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                  <div className="p-4 rounded-full bg-primary/10 text-primary mb-4">
-                    <RefreshCw className="h-10 w-10" />
+                <CardContent className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-[2fr_1fr_auto]">
+                    <div className="space-y-1">
+                      <Label>Produto</Label>
+                      <Select value={reqProduct} onValueChange={setReqProduct}>
+                        <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                        <SelectContent>
+                          {(storeProductsQuery.data || []).map((prod) => (
+                            <SelectItem key={prod.id} value={prod.id}>{prod.code} — {prod.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Quantidade</Label>
+                      <Input type="number" min="0" step="0.0001" value={reqQty} onChange={(e) => setReqQty(e.target.value)} placeholder="Ex.: 20" />
+                    </div>
+                    <div className="flex items-end">
+                      <Button onClick={() => void handleManualRequest()} disabled={reqSaving || !currentBranch?.id}>
+                        {reqSaving ? 'Enviando…' : 'Solicitar abastecimento'}
+                      </Button>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold mb-2">Reposição Inteligente</h3>
-                  <p className="text-muted-foreground max-w-md mb-8">
-                    Utilize o motor de inteligência para identificar rupturas e sugerir as quantidades ideais baseadas no seu estoque atual e demanda.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
-                    <Button className="flex-1 gap-2" asChild>
-                      <Link to="/wms/reposicao">
-                        <TrendingUp className="h-4 w-4" /> Sugestão de IA
-                      </Link>
-                    </Button>
-                    <Button variant="outline" className="flex-1 gap-2" asChild>
-                      <Link to="/logistica/transferencias">
-                        <FileText className="h-4 w-4" /> Manual
-                      </Link>
-                    </Button>
-                  </div>
+                  <p className="text-xs text-muted-foreground">Você não escolhe a origem: a solicitação cai na caixa de entrada da Fábrica, que analisa os saldos (Fábrica × CD × outra Loja) e decide. Acompanhe na aba Reposição, em “Minhas solicitações”.</p>
                 </CardContent>
               </Card>
-            </TabsContent>
+              <ReplenishmentAlertsPanel branchId={currentBranch?.id} />
+              </div>
+</TabsContent>
 
             <TabsContent value="fiscal">
               <Card>
@@ -455,9 +545,37 @@ export default function StoreCentral() {
               </Card>
             </TabsContent>
           </Tabs>
+      <Dialog open={!!receiving} onOpenChange={(open) => { if (!open) setReceiving(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Receber mercadoria — conferência</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Confira item a item. Se receber menos que o expedido, o sistema registra <strong>divergência</strong> automaticamente e o saldo da Loja sobe só o recebido.</p>
+            {(receiving?.items || []).map((item: any) => (
+              <div key={item.id} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border p-2">
+                <div>
+                  <p className="text-sm font-medium">{item.product?.code ? `${item.product.code} — ` : ''}{item.product?.name || 'Produto'}</p>
+                  <p className="text-xs text-muted-foreground">Expedido: {item.shipped_qty ?? item.requested_qty} · Pedido: {item.requested_qty}</p>
+                </div>
+                <div className="w-28">
+                  <Label className="text-xs">Recebido</Label>
+                  <Input type="number" min="0" step="0.0001" value={receiveQty[item.id] ?? ''}
+                    onChange={(e) => setReceiveQty((prev) => ({ ...prev, [item.id]: e.target.value }))} />
+                </div>
+              </div>
+            ))}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setReceiving(null)}>Cancelar</Button>
+              <Button onClick={() => void handleReceive()} disabled={isProcessing}>Confirmar recebimento</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
 
 
+
+
+          <RomaneioReceivePanel branchId={currentBranch?.id} onReceived={refetch} />
 
           {/* Seção Operacional Secundária - Ações Rápidas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -480,7 +598,7 @@ export default function StoreCentral() {
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="text-[10px] h-7" asChild>
-                    <Link to="/logistica/transferencias">Rastrear</Link>
+                    <Link to="/operacional/abastecimento/central">Rastrear</Link>
                   </Button>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg border bg-accent/30">
@@ -494,7 +612,7 @@ export default function StoreCentral() {
                     </div>
                   </div>
                   <Button variant="default" size="sm" className="text-[10px] h-7" asChild>
-                    <Link to="/logistica/transferencias">Iniciar</Link>
+                    <Link to="/operacional/abastecimento/central">Iniciar</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -524,7 +642,7 @@ export default function StoreCentral() {
                     <span>{kpis?.unitsPending || 0} un</span>
                   </div>
                   <Button className="w-full gap-2 mt-2" asChild>
-                    <Link to="/wms/reposicao">
+                    <Link to="/operacional/rede/ressuprimento">
                       Analisar Sugestão <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
@@ -603,7 +721,7 @@ export default function StoreCentral() {
               </div>
               <p className="text-[10px] text-muted-foreground">O motor de inteligência selecionou itens de alto giro e risco de ruptura para conferência hoje.</p>
               <Button variant="default" size="sm" className="w-full text-xs font-bold shadow-sm" asChild>
-                <Link to="/estoque/inventario">Iniciar Contagem Cíclica</Link>
+                <Link to="/operacional/loja/operacao">Iniciar Contagem Cíclica</Link>
               </Button>
             </CardContent>
           </Card>
