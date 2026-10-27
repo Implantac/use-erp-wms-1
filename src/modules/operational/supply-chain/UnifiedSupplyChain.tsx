@@ -16,7 +16,8 @@ import { SUPPLY_CHAIN_STATUS_ORDER } from '@/lib/supplyChainStatus';
 import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 import { cn } from '@/lib/utils';
 import { MovementLedger } from './components/MovementLedger';
-import { NewTransferDialog } from '@/modules/wms/TransferenciasCanal';
+import { TransferDetail } from './components/TransferDetail';
+import { useNavigate } from 'react-router-dom';
 
 const STATUS_MAP: Record<string, { label: string, color: string, icon: LucideIcon }> = {
   requested: { label: 'Solicitado', color: 'bg-blue-500/10 text-blue-500', icon: Clock },
@@ -33,11 +34,12 @@ const STATUS_MAP: Record<string, { label: string, color: string, icon: LucideIco
 
 export default function UnifiedSupplyChain() {
   const { branch: currentBranch, isLoading: isEnterpriseLoading } = useActiveTenant();
-  const { movements, isLoading: isSupplyLoading } = useSupplyChain();
+  const [scope, setScope] = useState<'unit' | 'group'>('group');
+  const { movements, isLoading: isSupplyLoading } = useSupplyChain({ scope });
   
   const isLoading = isEnterpriseLoading || isSupplyLoading;
   const [selectedMovement, setSelectedMovement] = useState<string | null>(null);
-  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const unitType = (currentBranch as { tipo?: string } | null)?.tipo?.toLowerCase() || 'store';
 
@@ -56,24 +58,39 @@ export default function UnifiedSupplyChain() {
               Central de Abastecimento
             </h1>
             <p className="text-muted-foreground font-medium">
-              Malha Logística: {currentBranch?.name || '---'} ({unitType.toUpperCase()})
+              Malha Logística: {currentBranch?.name || '---'} ({unitType.toUpperCase()}) — acompanhamento das remessas do grupo; solicitar é na Central da Loja e decidir a origem é na caixa de entrada da Fábrica
             </p>
           </div>
           <div className="flex gap-2">
-            <Button 
+            <Button
               className="gap-2 font-bold uppercase text-xs"
-              onClick={() => setIsTransferDialogOpen(true)}
+              onClick={() => navigate('/operacional/loja/central')}
             >
-              <Plus className="h-4 w-4" /> Nova Solicitação
+              <Plus className="h-4 w-4" /> Nova Solicitação (Central da Loja)
             </Button>
-            <NewTransferDialog 
-              open={isTransferDialogOpen} 
-              onOpenChange={setIsTransferDialogOpen}
-              trigger={null} 
-            />
             
           </div>
         </header>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Visão:</span>
+          {(['group', 'unit'] as const).map((sc) => (
+            <Button
+              key={sc}
+              size="sm"
+              variant={scope === sc ? 'default' : 'outline'}
+              className="h-7 text-[10px] font-black uppercase"
+              onClick={() => setScope(sc)}
+            >
+              {sc === 'group' ? 'Grupo inteiro (malha)' : 'Minha unidade'}
+            </Button>
+          ))}
+          <span className="text-[11px] text-muted-foreground">
+            {scope === 'group'
+              ? 'Indústria, CD e lojas do grupo — incluindo pedidos das lojas à fábrica.'
+              : 'Somente transferências da unidade ativa.'}
+          </span>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard title="Solicitações" value={movements.filter(m => m.status === 'requested').length} icon={ClipboardList} color="blue" />
@@ -104,12 +121,16 @@ export default function UnifiedSupplyChain() {
                     <EmptyState 
                       title="Nenhuma movimentação registrada"
                       description="A malha logística está sem solicitações ativas no momento. Crie uma nova transferência para iniciar o fluxo."
-                      action={{ label: "Nova Solicitação", onClick: () => setIsTransferDialogOpen(true) }}
+                      action={{ label: "Nova Solicitação", onClick: () => navigate('/operacional/loja/central') }}
                     />
                   ) : (
                     movements.map(m => (
                       <div key={m.id} className="group border rounded-xl p-4 hover:border-primary/50 transition-all bg-card shadow-sm">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div
+                          className="flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer"
+                          onClick={() => setSelectedMovement(selectedMovement === m.id ? null : m.id)}
+                          title="Clique para abrir a origem, o destino e os itens desta transferência"
+                        >
                           <div className="flex items-center gap-4">
                             <div className={cn("p-3 rounded-full", STATUS_MAP[m.status]?.color)}>
                               {(() => {
@@ -153,7 +174,8 @@ export default function UnifiedSupplyChain() {
                         </div>
 
                         {selectedMovement === m.id && (
-                          <div className="mt-4 pt-4 border-t animate-in slide-in-from-top-2 duration-300">
+                          <div className="mt-4 pt-4 border-t animate-in slide-in-from-top-2 duration-300 space-y-4">
+                            <TransferDetail movement={m} />
                             <MovementLedger movementId={m.id} />
                           </div>
                         )}
