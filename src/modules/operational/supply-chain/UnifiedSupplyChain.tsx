@@ -16,7 +16,11 @@ import { SUPPLY_CHAIN_STATUS_ORDER } from '@/lib/supplyChainStatus';
 import { useActiveTenant } from '@/hooks/shared/useActiveTenant';
 import { cn } from '@/lib/utils';
 import { MovementLedger } from './components/MovementLedger';
-import { NewTransferDialog } from '@/modules/wms/TransferenciasCanal';
+import { FactoryInboxPanel } from '@/modules/wms/components/FactoryInboxPanel';
+import { useSupplyChainExecution } from '@/hooks/operational/network/useSupplyChainExecution';
+import { nextStatuses, type TransferStatus } from '@/services/operational/inventory/transferWorkflow';
+import { TransferDetail } from './components/TransferDetail';
+import { useNavigate } from 'react-router-dom';
 
 const STATUS_MAP: Record<string, { label: string, color: string, icon: LucideIcon }> = {
   requested: { label: 'Solicitado', color: 'bg-blue-500/10 text-blue-500', icon: Clock },
@@ -33,16 +37,31 @@ const STATUS_MAP: Record<string, { label: string, color: string, icon: LucideIco
 
 export default function UnifiedSupplyChain() {
   const { branch: currentBranch, isLoading: isEnterpriseLoading } = useActiveTenant();
-  const { movements, isLoading: isSupplyLoading } = useSupplyChain();
+  const [scope, setScope] = useState<'unit' | 'group'>('group');
+  const { movements, isLoading: isSupplyLoading } = useSupplyChain({ scope });
+  const { transition, isProcessing } = useSupplyChainExecution();
   
   const isLoading = isEnterpriseLoading || isSupplyLoading;
   const [selectedMovement, setSelectedMovement] = useState<string | null>(null);
-  const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const unitType = (currentBranch as { tipo?: string } | null)?.tipo?.toLowerCase() || 'store';
 
-  // Status progression is blocked until server-side transition and role checks are homologated.
   const statusOrder = SUPPLY_CHAIN_STATUS_ORDER;
+  // Avanço operacional DESTA central: até EM TRÂNSITO (origem executa).
+  // Recebimento/conferência são da unidade destino (Central da Loja).
+  const BOARD_ADVANCE: TransferStatus[] = ['APROVADA', 'RESERVADA', 'SEPARAÇÃO', 'CONFERÊNCIA', 'EXPEDIDA', 'EM TRÂNSITO'];
+  const [advancingId, setAdvancingId] = useState<string | null>(null);
+  const handleAdvance = async (movementId: string, toStatus: TransferStatus) => {
+    setAdvancingId(movementId);
+    try {
+      await transition({ transferId: movementId, toStatus });
+    } catch {
+      // o hook ja mostra o erro (toast)
+    } finally {
+      setAdvancingId(null);
+    }
+  };
 
   return (
     <PageContainer loading={isLoading}>
@@ -56,24 +75,41 @@ export default function UnifiedSupplyChain() {
               Central de Abastecimento
             </h1>
             <p className="text-muted-foreground font-medium">
-              Malha Logística: {currentBranch?.name || '---'} ({unitType.toUpperCase()})
+              Malha Logística: {currentBranch?.name || '---'} ({unitType.toUpperCase()}) — acompanhamento das remessas do grupo; solicitar é na Central da Loja e decidir a origem é na caixa de entrada da Fábrica
             </p>
           </div>
           <div className="flex gap-2">
-            <Button 
+            <Button
               className="gap-2 font-bold uppercase text-xs"
-              onClick={() => setIsTransferDialogOpen(true)}
+              onClick={() => navigate('/operacional/loja/central')}
             >
-              <Plus className="h-4 w-4" /> Nova Solicitação
+              <Plus className="h-4 w-4" /> Nova Solicitação (Central da Loja)
             </Button>
-            <NewTransferDialog 
-              open={isTransferDialogOpen} 
-              onOpenChange={setIsTransferDialogOpen}
-              trigger={null} 
-            />
             
           </div>
         </header>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Visão:</span>
+          {(['group', 'unit'] as const).map((sc) => (
+            <Button
+              key={sc}
+              size="sm"
+              variant={scope === sc ? 'default' : 'outline'}
+              className="h-7 text-[10px] font-black uppercase"
+              onClick={() => setScope(sc)}
+            >
+              {sc === 'group' ? 'Grupo inteiro (malha)' : 'Minha unidade'}
+            </Button>
+          ))}
+          <span className="text-[11px] text-muted-foreground">
+            {scope === 'group'
+              ? 'Indústria, CD e lojas do grupo — incluindo pedidos das lojas à fábrica.'
+              : 'Somente transferências da unidade ativa.'}
+          </span>
+        </div>
+
+        <FactoryInboxPanel />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard title="Solicitações" value={movements.filter(m => m.status === 'requested').length} icon={ClipboardList} color="blue" />
@@ -98,18 +134,22 @@ export default function UnifiedSupplyChain() {
                 <Badge variant="outline" className="text-[10px] uppercase font-bold">Total: {movements.length}</Badge>
               </CardHeader>
               <CardContent>
-                <p role="note" className="mb-4 text-sm text-muted-foreground">Avanço de etapa indisponível nesta tela: políticas de autorização, efeitos de estoque e transições ainda exigem validação no servidor.</p>
+                <p role="note" className="mb-4 text-sm text-muted-foreground">Aqui o CD/Fábrica executa: aprova, reserva, separa, confere e expede. O <strong>recebimento com conferência é na unidade destino</strong> (Central da Loja) — por isso as etapas finais não avançam nesta tela.</p>
                 <div className="space-y-4">
                   {movements.length === 0 ? (
                     <EmptyState 
                       title="Nenhuma movimentação registrada"
                       description="A malha logística está sem solicitações ativas no momento. Crie uma nova transferência para iniciar o fluxo."
-                      action={{ label: "Nova Solicitação", onClick: () => setIsTransferDialogOpen(true) }}
+                      action={{ label: "Nova Solicitação", onClick: () => navigate('/operacional/loja/central') }}
                     />
                   ) : (
                     movements.map(m => (
                       <div key={m.id} className="group border rounded-xl p-4 hover:border-primary/50 transition-all bg-card shadow-sm">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div
+                          className="flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer"
+                          onClick={() => setSelectedMovement(selectedMovement === m.id ? null : m.id)}
+                          title="Clique para abrir a origem, o destino e os itens desta transferência"
+                        >
                           <div className="flex items-center gap-4">
                             <div className={cn("p-3 rounded-full", STATUS_MAP[m.status]?.color)}>
                               {(() => {
@@ -145,15 +185,32 @@ export default function UnifiedSupplyChain() {
                             >
                               <History className="h-4 w-4" />
                             </Button>
-                            <Button size="sm" variant="secondary" disabled title="Transições indisponíveis até autorização e validação no servidor">
-                              Transição indisponível
-                            </Button>
+                            {(() => {
+                              const raw = (m as any).raw_status as TransferStatus | undefined;
+                              const nexts = raw ? nextStatuses(raw).filter((s) => BOARD_ADVANCE.includes(s)) : [];
+                              if (!raw) return null;
+                              if (nexts.length === 0) {
+                                return <span className="text-[11px] text-muted-foreground">Recebimento na unidade destino</span>;
+                              }
+                              return (
+                                <span className="flex gap-1">
+                                  {nexts.map((to) => (
+                                    <Button key={to} size="sm" variant="secondary"
+                                      disabled={isProcessing && advancingId === m.id}
+                                      onClick={(e) => { e.stopPropagation(); void handleAdvance(m.id, to); }}>
+                                      Avançar: {to}
+                                    </Button>
+                                  ))}
+                                </span>
+                              );
+                            })()}
 
                           </div>
                         </div>
 
                         {selectedMovement === m.id && (
-                          <div className="mt-4 pt-4 border-t animate-in slide-in-from-top-2 duration-300">
+                          <div className="mt-4 pt-4 border-t animate-in slide-in-from-top-2 duration-300 space-y-4">
+                            <TransferDetail movement={m} />
                             <MovementLedger movementId={m.id} />
                           </div>
                         )}

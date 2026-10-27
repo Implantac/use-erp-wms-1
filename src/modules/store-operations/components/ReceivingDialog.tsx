@@ -1,92 +1,142 @@
 import { useState } from 'react';
-import { Card, CardContent } from "@/ui/base/card";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useEnterprise } from '@/core/auth/EnterpriseContext';
+import { transferWorkflow } from '@/services/operational/inventory/transferWorkflow';
+import { toastError, toastSuccess } from '@/lib/toastHelpers';
 import { Button } from "@/ui/base/button";
-import { X, Check, Camera, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/ui/base/dialog";
 import { Input } from "@/ui/base/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/base/select";
+import { Badge } from "@/ui/base/badge";
+import { PackageCheck } from 'lucide-react';
 
-interface ReceivingDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  transferId?: string;
+interface IncomingItem {
+  id: string;
+  product_id: string;
+  requested_qty: number;
+  shipped_qty: number;
+  products?: { name: string; code: string } | null;
+}
+interface IncomingTransfer {
+  id: string;
+  current_status: string;
+  created_at: string;
+  stock_transfer_items: IncomingItem[];
 }
 
-export function ReceivingDialog({ isOpen, onClose, transferId = "TR-00182" }: ReceivingDialogProps) {
-  const [items, setItems] = useState([
-    { id: 1, name: 'Produto A', expected: 50, received: 50 },
-    { id: 2, name: 'Produto B', expected: 20, received: 18 },
-    { id: 3, name: 'Produto C', expected: 17, received: 17 },
-  ]);
+/**
+ * Conferência de recebimento da loja (fluxo real): lista o que está EM
+ * TRÂNSITO para esta unidade e confirma quantidades — a RPC move o estoque
+ * pelo ledger e classifica divergência (falta) automaticamente.
+ */
+export function ReceivingDialog({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { currentBranch } = useEnterprise();
+  const queryClient = useQueryClient();
+  const [receivedById, setReceivedById] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
 
-  const handleUpdate = (id: number, val: number) => {
-    setItems(items.map(i => i.id === id ? { ...i, received: val } : i));
+  const { data: incoming = [], isLoading } = useQuery({
+    queryKey: ['store-incoming', currentBranch?.id],
+    enabled: isOpen && !!currentBranch?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('stock_transfer_orders')
+        .select('id, current_status, created_at, stock_transfer_items(id, product_id, requested_qty, shipped_qty, products(name, code))')
+        .eq('destination_unit_id', currentBranch!.id)
+        .eq('current_status', 'EM TRÂNSITO')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as IncomingTransfer[];
+    },
+  });
+
+  const confirm = async (t: IncomingTransfer) => {
+    try {
+      setBusy(true);
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Usuário não autenticado.');
+      await transferWorkflow.transition({
+        transferId: t.id,
+        toStatus: 'RECEBIDA',
+        userId: userData.user.id,
+        itemQuantities: t.stock_transfer_items.map((i) => ({
+          itemId: i.id,
+          quantity: Number(receivedById[i.id] ?? i.shipped_qty ?? i.requested_qty),
+        })),
+      });
+      toastSuccess('Recebimento confirmado', 'Estoque atualizado pelo ledger; divergências foram classificadas.');
+      queryClient.invalidateQueries({ queryKey: ['store-incoming'] });
+      queryClient.invalidateQueries({ queryKey: ['store-kpis'] });
+      onClose();
+    } catch (e) {
+      toastError(e, 'Não foi possível confirmar o recebimento.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>CONFERÊNCIA {transferId}</DialogTitle>
+          <DialogTitle className="uppercase text-sm font-black flex items-center gap-2">
+            <PackageCheck className="h-4 w-4" /> Conferir recebimento
+          </DialogTitle>
         </DialogHeader>
-        
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 font-black text-[10px] uppercase text-muted-foreground px-4 py-2 bg-muted/50 rounded-lg">
-            <span>Produto</span>
-            <span className="text-right">Esperado</span>
-            <span className="text-right">Recebido</span>
-          </div>
-          
-          <div className="space-y-2">
-            {items.map(item => (
-              <div key={item.id} className={cn(
-                "grid grid-cols-3 items-center px-4 py-2 border rounded-lg",
-                item.received !== item.expected ? "border-amber-500/50 bg-amber-500/5" : "border-border"
-              )}>
-                <span className="text-sm font-bold">{item.name}</span>
-                <span className="text-right font-mono text-sm">{item.expected}</span>
-                <Input 
-                  type="number" 
-                  value={item.received} 
-                  onChange={(e) => handleUpdate(item.id, Number(e.target.value))}
-                  className="w-20 ml-auto h-8 text-right font-bold"
-                />
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Buscando entregas em trânsito…</p>
+        ) : incoming.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nada em trânsito para esta unidade no momento.</p>
+        ) : (
+          <div className="max-h-[55vh] space-y-4 overflow-y-auto pr-1">
+            {incoming.map((t) => (
+              <div key={t.id} className="rounded-lg border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black font-mono">{t.id.slice(0, 8)}</span>
+                  <Badge variant="outline" className="uppercase text-[9px]">{t.current_status}</Badge>
+                </div>
+                {t.stock_transfer_items.map((i) => (
+                  <div key={i.id} className="flex items-center justify-between gap-3">
+                    <span className="text-sm">
+                      {i.products?.code} — {i.products?.name}
+                      <span className="text-muted-foreground"> (expedido: {i.shipped_qty || i.requested_qty})</span>
+                    </span>
+                    <Input
+                      type="number" min="0" step="any" className="w-[110px]"
+                      value={receivedById[i.id] ?? String(i.shipped_qty || i.requested_qty)}
+                      onChange={(e) => setReceivedById((s) => ({ ...s, [i.id]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+                {(() => {
+                  const faltas = t.stock_transfer_items.reduce((acc, i) => {
+                    const enviada = Number(i.shipped_qty || i.requested_qty || 0);
+                    const recebida = Number(receivedById[i.id] ?? enviada);
+                    return acc + Math.max(enviada - recebida, 0);
+                  }, 0);
+                  return (
+                    <p className={`text-[11px] ${faltas > 0 ? 'text-amber-600 font-bold' : 'text-emerald-600'}`}>
+                      {faltas > 0
+                        ? `Faltam ${faltas} un — será registrado como DIVERGÊNCIA (recebimento parcial).`
+                        : 'Recebimento integral: quantidades conferem com o expedido.'}
+                    </p>
+                  );
+                })()}
+                <div className="flex justify-end">
+                  <Button size="sm" className="font-black text-[11px]" disabled={busy} onClick={() => confirm(t)}>
+                    CONFIRMAR RECEBIMENTO
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
+        )}
 
-          {items.some(i => i.received !== i.expected) && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-3">
-              <div className="flex items-center gap-2 text-amber-700">
-                <AlertTriangle className="h-4 w-4" />
-                <span className="font-black text-xs uppercase">Divergência detectada</span>
-              </div>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Motivo da divergência" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="qnt">Quantidade divergente</SelectItem>
-                  <SelectItem value="avaria">Produto avariado</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" className="w-full gap-2">
-                <Camera className="h-4 w-4" /> Adicionar Evidência
-              </Button>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button className="bg-emerald-600 hover:bg-emerald-700">
-            <Check className="h-4 w-4 mr-2" /> RECEBER CONFERIDO
-          </Button>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
-// Minimal cn implementation for the component locally if not importing @/lib/utils
-function cn(...classes: string[]) { return classes.filter(Boolean).join(' '); }

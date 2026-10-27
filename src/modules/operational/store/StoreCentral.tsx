@@ -42,12 +42,16 @@ import { useEnterprise } from "@/core/auth/EnterpriseContext";
 import { NetworkMap } from "./components/NetworkMap";
 import { PrescriptiveAlert } from "./components/PrescriptiveAlert";
 import { ReplenishmentPanel } from "./components/ReplenishmentPanel";
+import { DailyQueuePanel } from "./components/DailyQueuePanel";
+import { SupplyAnalysisPanel, MySupplyRequestsPanel } from "@/modules/store-operations/components/SupplyPanels";
+import { useSupplyAccess } from "@/hooks/operational/store/useSupplyAccess";
 
 
 export default function StoreCentral() {
   const { kpis, alerts, health, reliability, isLoading, refetch } = useStoreCentral();
   const { tasks, inTransit, isLoading: isLoadingExecution, isProcessing, transition } = useSupplyChainExecution();
   const { currentBranch } = useEnterprise();
+  const supplyAccess = useSupplyAccess();
 
 
 
@@ -143,22 +147,22 @@ export default function StoreCentral() {
                <CardContent className="p-0">
                   <div className="divide-y divide-primary/10">
                     <Button variant="ghost" className="w-full justify-start text-xs h-10 gap-2 rounded-none px-4" asChild>
-                      <Link to="/logistica/recebimento">
+                      <Link to="/operacional/loja/operacao">
                         <Package className="h-3 w-3" /> Receber Mercadoria ({kpis?.receiving || 0})
                       </Link>
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-xs h-10 gap-2 rounded-none px-4" asChild>
-                      <Link to="/wms/reposicao">
+                      <Link to="/operacional/rede/ressuprimento">
                         <RefreshCw className="h-3 w-3" /> Solicitar Abastecimento
                       </Link>
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-xs h-10 gap-2 rounded-none px-4" asChild>
-                      <Link to="/logistica/transferencias">
+                      <Link to="/operacional/abastecimento/central">
                         <Truck className="h-3 w-3" /> Transferir Produto
                       </Link>
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-xs h-10 gap-2 rounded-none px-4" asChild>
-                      <Link to="/estoque/inventario">
+                      <Link to="/operacional/loja/operacao">
                         <ClipboardList className="h-3 w-3" /> Iniciar Inventário
                       </Link>
                     </Button>
@@ -166,6 +170,8 @@ export default function StoreCentral() {
                </CardContent>
              </Card>
           </div>
+
+          <DailyQueuePanel branchId={currentBranch?.id} />
 
           {/* Central de Operação Unificada */}
           <Tabs defaultValue="reposicao" className="w-full">
@@ -194,7 +200,11 @@ export default function StoreCentral() {
             </TabsList>
 
             <TabsContent value="reposicao">
-              <ReplenishmentPanel />
+              <div className="space-y-6">
+                <ReplenishmentPanel />
+                <MySupplyRequestsPanel branchId={currentBranch?.id} />
+                {supplyAccess.canManage ? <SupplyAnalysisPanel /> : null}
+              </div>
             </TabsContent>
 
 
@@ -400,12 +410,12 @@ export default function StoreCentral() {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
                     <Button className="flex-1 gap-2" asChild>
-                      <Link to="/wms/reposicao">
+                      <Link to="/operacional/rede/ressuprimento">
                         <TrendingUp className="h-4 w-4" /> Sugestão de IA
                       </Link>
                     </Button>
                     <Button variant="outline" className="flex-1 gap-2" asChild>
-                      <Link to="/logistica/transferencias">
+                      <Link to="/operacional/abastecimento/central">
                         <FileText className="h-4 w-4" /> Manual
                       </Link>
                     </Button>
@@ -480,7 +490,7 @@ export default function StoreCentral() {
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="text-[10px] h-7" asChild>
-                    <Link to="/logistica/transferencias">Rastrear</Link>
+                    <Link to="/operacional/abastecimento/central">Rastrear</Link>
                   </Button>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg border bg-accent/30">
@@ -494,7 +504,7 @@ export default function StoreCentral() {
                     </div>
                   </div>
                   <Button variant="default" size="sm" className="text-[10px] h-7" asChild>
-                    <Link to="/logistica/transferencias">Iniciar</Link>
+                    <Link to="/operacional/abastecimento/central">Iniciar</Link>
                   </Button>
                 </div>
               </CardContent>
@@ -524,7 +534,7 @@ export default function StoreCentral() {
                     <span>{kpis?.unitsPending || 0} un</span>
                   </div>
                   <Button className="w-full gap-2 mt-2" asChild>
-                    <Link to="/wms/reposicao">
+                    <Link to="/operacional/rede/ressuprimento">
                       Analisar Sugestão <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
@@ -603,7 +613,7 @@ export default function StoreCentral() {
               </div>
               <p className="text-[10px] text-muted-foreground">O motor de inteligência selecionou itens de alto giro e risco de ruptura para conferência hoje.</p>
               <Button variant="default" size="sm" className="w-full text-xs font-bold shadow-sm" asChild>
-                <Link to="/estoque/inventario">Iniciar Contagem Cíclica</Link>
+                <Link to="/operacional/loja/operacao">Iniciar Contagem Cíclica</Link>
               </Button>
             </CardContent>
           </Card>
