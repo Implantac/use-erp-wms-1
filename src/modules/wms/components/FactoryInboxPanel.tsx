@@ -13,6 +13,7 @@ import {
 } from '@/services/operational/store/supplyService';
 import { useDecideGroupRequest } from '@/hooks/operational/store/useGroupReplenishment';
 import { rankSupplyCandidates } from '@/lib/store/supplyRecommendation';
+import { useSupplyAccess } from '@/hooks/operational/store/useSupplyAccess';
 
 const fmt = (n: any) => Number(n || 0).toLocaleString('pt-BR');
 
@@ -31,6 +32,7 @@ const kindLabel: Record<string, string> = {
  *    (outra Loja = remanejo, CD, ou a própria Fábrica).
  */
 export function FactoryInboxPanel() {
+  const supplyAccess = useSupplyAccess();
   const queryClient = useQueryClient();
   const decideInter = useDecideGroupRequest();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -43,6 +45,7 @@ export function FactoryInboxPanel() {
       return data as { supply: any[]; intercompany: any[] };
     },
     staleTime: 15_000,
+    enabled: supplyAccess.canManage,
   });
 
   const candidatesQuery = useQuery({
@@ -62,6 +65,10 @@ export function FactoryInboxPanel() {
     },
     onError: (e: any) => toast.error(`Não foi possível decidir: ${e?.message || 'erro inesperado'}`),
   });
+
+  // Separação de papéis: esta caixa é do gestor da indústria. Para a Loja
+  // (que só solicita e recebe) o painel nem aparece.
+  if (!supplyAccess.isLoading && !supplyAccess.canManage) return null;
 
   const supply = inboxQuery.data?.supply || [];
   const inter = inboxQuery.data?.intercompany || [];

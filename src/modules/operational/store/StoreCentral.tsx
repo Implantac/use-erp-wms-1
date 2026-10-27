@@ -44,12 +44,14 @@ import { PrescriptiveAlert } from "./components/PrescriptiveAlert";
 import { ReplenishmentPanel } from "./components/ReplenishmentPanel";
 import { DailyQueuePanel } from "./components/DailyQueuePanel";
 import { SupplyAnalysisPanel, MySupplyRequestsPanel } from "@/modules/store-operations/components/SupplyPanels";
+import { useSupplyAccess } from "@/hooks/operational/store/useSupplyAccess";
 
 
 export default function StoreCentral() {
   const { kpis, alerts, health, reliability, isLoading, refetch } = useStoreCentral();
   const { tasks, inTransit, isLoading: isLoadingExecution, isProcessing, transition } = useSupplyChainExecution();
   const { currentBranch } = useEnterprise();
+  const supplyAccess = useSupplyAccess();
 
 
 
@@ -201,7 +203,7 @@ export default function StoreCentral() {
               <div className="space-y-6">
                 <ReplenishmentPanel />
                 <MySupplyRequestsPanel branchId={currentBranch?.id} />
-                <SupplyAnalysisPanel />
+                {supplyAccess.canManage ? <SupplyAnalysisPanel /> : null}
               </div>
             </TabsContent>
 

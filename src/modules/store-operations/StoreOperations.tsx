@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { ReceivingDialog } from './components/ReceivingDialog';
 import { GroupRequestsPanel } from './components/GroupRequestsPanel';
 import { ReplenishmentAlertsPanel, SupplyAnalysisPanel } from './components/SupplyPanels';
+import { useSupplyAccess } from '@/hooks/operational/store/useSupplyAccess';
 import { StoreTransfersPanel } from './components/StoreTransfersPanel'
 import { StoreReceivingTab, StoreTransfersTab, StoreStockTab, StoreOccurrencesTab } from './components/StoreTabsPanels';
 import { RequestDialog } from './components/RequestDialog';
@@ -34,6 +35,7 @@ import { InventoryDialog } from './components/InventoryDialog';
 
 export default function StoreOperations() {
   const { currentBranch } = useEnterprise();
+  const supplyAccess = useSupplyAccess();
   const { kpis, alerts, health, isLoading } = useStoreCentral();
   const [activeTab, setActiveTab] = useState<'resumo' | 'abastecimento' | 'solicitacoes' | 'recebimentos' | 'transferencias' | 'estoque' | 'ocorrencias'>('resumo');
   const [isReceivingOpen, setIsReceivingOpen] = useState(false);
@@ -124,7 +126,7 @@ export default function StoreOperations() {
         {activeTab === 'abastecimento' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <ReplenishmentAlertsPanel branchId={currentBranch?.id} />
-            <SupplyAnalysisPanel />
+            {supplyAccess.canManage ? <SupplyAnalysisPanel /> : null}
           </div>
         )}
 
