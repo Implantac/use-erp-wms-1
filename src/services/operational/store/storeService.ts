@@ -86,12 +86,12 @@ export const storeService = {
     
     const { data: sales } = await (supabase as any)
       .from('orders')
-      .select('total_amount')
+      .select('total')
       .eq('branch_id', branchId)
       .gte('created_at', today.toISOString())
       .not('status', 'eq', 'cancelled');
 
-    const totalSales = sales?.reduce((acc: number, order: any) => acc + Number(order.total_amount), 0) || 0;
+    const totalSales = sales?.reduce((acc: number, order: any) => acc + Number(order.total), 0) || 0;
     const ticketAverage = sales?.length ? totalSales / sales.length : 0;
 
     return {

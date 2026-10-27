@@ -1,0 +1,14 @@
+-- ============================================================================
+-- Leitura de supply_requests pelo frontend (PostgREST)
+--
+-- A tabela nasceu em 20261022130000_supply_requests.sql com RLS e políticas,
+-- mas SEM o GRANT de tabela para `authenticated`. Sem grant, o PostgREST
+-- responde 403 para QUALQUER leitura direta (.from('supply_requests')),
+-- mesmo com a política liberando a linha — foi o que escondeu as
+-- solicitações das lojas nos painéis (o harness não pegou porque acessa o
+-- banco direto, sem passar pelo PostgREST).
+--
+-- Escrita continua SOMENTE via RPCs SECURITY DEFINER
+-- (create/decide_supply_request): nenhum INSERT/UPDATE é concedido aqui.
+-- ============================================================================
+GRANT SELECT ON public.supply_requests TO authenticated;

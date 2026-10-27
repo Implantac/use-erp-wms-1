@@ -911,6 +911,8 @@ try {
   check('histórico no ledger único: 5 movimentos do dia operacional', seedMoves === 5, `n=${seedMoves}`);
   const pend = Number((await q(`SELECT count(*)::int AS n FROM public.supply_requests WHERE company_id = $1 AND status = 'PENDENTE'`, [farm.id]))[0].n);
   check('análise de abastecimento tem solicitação pendente aguardando decisão', pend >= 1, `n=${pend}`);
+  const grantSupply = (await q(`SELECT has_table_privilege('authenticated', 'public.supply_requests', 'SELECT') AS ok`))[0];
+  check('PostgREST: authenticated tem SELECT em supply_requests (sem isso, 403 esconde as solicitações)', grantSupply.ok === true, JSON.stringify(grantSupply));
   const tasks = Number((await q(`SELECT count(*)::int AS n FROM public.operational_tasks WHERE company_id = $1 AND status = 'pending'`, [farm.id]))[0].n);
   check('alertas da Central da Loja populados (tarefas pendentes)', tasks >= 2, `n=${tasks}`);
   console.log('== Alertas automáticos de solicitação recebida');
