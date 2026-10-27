@@ -7,7 +7,7 @@ import { Badge } from '@/ui/base/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
 import { useEstoqueMatrix } from '@/hooks/inventory/useEstoqueMatrix';
 import { GroupOverviewPanel } from './GroupOverviewPanel';
-import { FactoryInboxPanel } from './FactoryInboxPanel';
+import { SupplyInboxLinkCard } from './SupplyInboxLinkCard';
 import { useBranches } from '@/hooks/useBranches';
 import { useCreateTransferenciaCanal } from '@/hooks/wms/useTransferenciasCanal';
 import { EmptyState } from '@/shared/components/EmptyState';
@@ -1008,7 +1008,7 @@ export function SmartReplenishment() {
         </DialogContent>
       </Dialog>
       <GroupOverviewPanel />
-      <FactoryInboxPanel />
+      <SupplyInboxLinkCard />
     </div>
   );
 }

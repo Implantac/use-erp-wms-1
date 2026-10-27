@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import WMSKpiStrip from "./components/WMSKpiStrip";
 import { SmartReplenishment } from "./components/SmartReplenishment";
-import { FactoryInboxPanel } from "./components/FactoryInboxPanel";
+import { SupplyInboxLinkCard } from "./components/SupplyInboxLinkCard";
 import { SystemReadinessPanel } from "./components/SystemReadinessPanel";
 import { NetworkTodayPanel } from "./components/NetworkTodayPanel";
 import WMSOperationalConsole from "./components/WMSOperationalConsole";
@@ -176,7 +176,7 @@ export default function WMSDashboard() {
 
       <NetworkTodayPanel />
       <SystemReadinessPanel />
-      <FactoryInboxPanel />
+      <SupplyInboxLinkCard />
       <ScreenTimingCard />
       <SmartReplenishment />
     </div>

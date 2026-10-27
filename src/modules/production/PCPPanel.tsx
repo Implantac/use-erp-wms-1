@@ -20,7 +20,6 @@ import { CapacityTab } from './pcp/CapacityTab';
 import { ProductivityTab } from './pcp/ProductivityTab';
 import { AlertsTab } from './pcp/AlertsTab';
 import { ManagerPanel } from './pcp/ManagerPanel';
-import { FactoryInboxPanel } from '@/modules/wms/components/FactoryInboxPanel';
 import { GenerateOPDialog } from './pcp/GenerateOPDialog';
 import { usePCPPanelState, computeDerived, handleStatusChange } from './pcp/usePCPPanel';
 
@@ -74,10 +73,7 @@ export default function PCPPanel() {
         </TabsList>
 
         <TabsContent value="manager" className="mt-4">
-          <div className="space-y-6">
-            <FactoryInboxPanel />
-            <ManagerPanel />
-          </div>
+          <ManagerPanel />
         </TabsContent>
 
         <TabsContent value="orders" className="mt-4">

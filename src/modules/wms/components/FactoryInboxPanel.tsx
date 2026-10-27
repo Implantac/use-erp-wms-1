@@ -13,6 +13,7 @@ import {
 } from '@/services/operational/store/supplyService';
 import { useDecideGroupRequest } from '@/hooks/operational/store/useGroupReplenishment';
 import { rankSupplyCandidates } from '@/lib/store/supplyRecommendation';
+import { createTextileProductionOrder } from '@/services/production/textilePcpService';
 import { useSupplyAccess } from '@/hooks/operational/store/useSupplyAccess';
 
 const fmt = (n: any) => Number(n || 0).toLocaleString('pt-BR');
@@ -70,6 +71,41 @@ export function FactoryInboxPanel() {
   // (que só solicita e recebe) o painel nem aparece.
   if (!supplyAccess.isLoading && !supplyAccess.canManage) return null;
 
+  // Produzir = decisão da indústria + OP gerada na hora (cai no PCP).
+  // O produto da indústria casa pelo CÓDIGO com o pedido da Loja; sem
+  // produto correspondente, a decisão fica registrada e o gestor é avisado.
+  const [producingId, setProducingId] = useState<string | null>(null);
+  const handleProduce = async (r: any) => {
+    setProducingId(r.id);
+    try {
+      await decideInter.mutateAsync({ requestId: r.id, decision: 'produzir' });
+      const rootId = (inboxQuery.data as any)?.group_root_company_id as string | undefined;
+      const { data: product } = rootId
+        ? await (supabase as any).from('products').select('id, name')
+            .eq('company_id', rootId).eq('code', r.product_code).maybeSingle()
+        : { data: null };
+      if (!product?.id) {
+        toast.warning(`Decisão "produzir" registrada, mas a indústria não tem produto com o código ${r.product_code} — cadastre/vincule para gerar a OP.`);
+        return;
+      }
+      const op = await createTextileProductionOrder({
+        productId: product.id,
+        quantity: Number(r.quantity),
+        clientName: r.company_name,
+        idempotencyKey: `inter-produz-${String(r.id).slice(0, 8)}`,
+      });
+      const replay = (op as any)?.idempotent_replay === true;
+      toast.success(replay
+        ? `OP já existia para este pedido (${(op as any)?.order_number ?? ''}) — nada duplicado. Acompanhe no PCP.`
+        : `OP ${(op as any)?.order_number ?? ''} criada e já está no PCP para programar/executar.`);
+      queryClient.invalidateQueries({ queryKey: ['factory-inbox'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao gerar a OP');
+    } finally {
+      setProducingId(null);
+    }
+  };
+
   const supply = inboxQuery.data?.supply || [];
   const inter = inboxQuery.data?.intercompany || [];
   const total = supply.length + inter.length;
@@ -120,8 +156,8 @@ export function FactoryInboxPanel() {
                     onClick={() => decideInter.mutate({ requestId: r.id, decision: 'vender' })}>Vender</Button>
                   <Button size="sm" variant="secondary" disabled={decideInter.isPending}
                     onClick={() => decideInter.mutate({ requestId: r.id, decision: 'transferir_cd' })}>Transferir CD</Button>
-                  <Button size="sm" variant="secondary" disabled={decideInter.isPending}
-                    onClick={() => decideInter.mutate({ requestId: r.id, decision: 'produzir' })}>Produzir</Button>
+                  <Button size="sm" variant="secondary" disabled={decideInter.isPending || producingId === r.id}
+                    onClick={() => void handleProduce(r)}>Produzir (gera OP)</Button>
                   <Button size="sm" variant="destructive" disabled={decideInter.isPending}
                     onClick={() => decideInter.mutate({ requestId: r.id, decision: 'rejeitar' })}>Rejeitar</Button>
                 </div>
