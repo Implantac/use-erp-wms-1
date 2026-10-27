@@ -50,7 +50,7 @@ export const storeService = {
       .from('stock_transfer_orders')
       .select('id')
       .eq('destination_unit_id', branchId)
-      .eq('status', 'IN_TRANSIT');
+      .eq('current_status', 'EM TRÂNSITO');
     
     const inTransit = inTransitMovements?.length || 0;
 
@@ -86,12 +86,12 @@ export const storeService = {
     
     const { data: sales } = await (supabase as any)
       .from('orders')
-      .select('total_amount')
+      .select('total')
       .eq('branch_id', branchId)
       .gte('created_at', today.toISOString())
       .not('status', 'eq', 'cancelled');
 
-    const totalSales = sales?.reduce((acc: number, order: any) => acc + Number(order.total_amount), 0) || 0;
+    const totalSales = sales?.reduce((acc: number, order: any) => acc + Number(order.total), 0) || 0;
     const ticketAverage = sales?.length ? totalSales / sales.length : 0;
 
     return {
@@ -192,14 +192,23 @@ export const storeService = {
     return Math.min(100, Math.max(0, accuracy));
   },
 
-  async registerLoss(_data: {
+  /** Perda oficial: RPC que lança a baixa no ledger com motivo (servidor). */
+  async registerLoss(data: {
     branch_id: string;
     product_id: string;
     quantity: number;
     reason: string;
     notes?: string;
-  }): Promise<never> {
-    throw new Error('Registro de perda indisponível: ledger e saldo exigem transação e autorização no servidor.');
+  }) {
+    const { data: result, error } = await (supabase as any).rpc('register_stock_loss', {
+      p_product_id: data.product_id,
+      p_branch_id: data.branch_id,
+      p_quantity: data.quantity,
+      p_reason: data.reason,
+      p_notes: data.notes ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return result as { product_id: string; quantity: number; type: string };
   },
 
   async getCompanyId(branchId: string): Promise<string> {

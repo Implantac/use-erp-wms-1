@@ -12,6 +12,7 @@ import { RefreshCw, Search, ArrowRight, AlertTriangle, CheckCircle, Clock } from
 import { useReplenishmentTasks } from '@/hooks/wms/useReplenishmentTasks';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/ui/base/tabs';
 import { SmartReplenishment } from './components/SmartReplenishment';
+import { SupplyInboxLinkCard } from './components/SupplyInboxLinkCard';
 
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -124,6 +125,7 @@ export default function ReplenishmentPage() {
         </TabsContent>
 
         <TabsContent value="smart">
+          <SupplyInboxLinkCard />
           <SmartReplenishment />
         </TabsContent>
       </Tabs>

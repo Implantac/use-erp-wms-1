@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { PrunedRoute } from '@/core/routes/PrunedRoute';
 import { Route, Navigate } from 'react-router-dom';
 
 const ProductionOrdersPage = lazy(() => import("../modules/production/ProductionOrders"));
@@ -54,16 +55,16 @@ export const ProductionRoutes = [
   <Route key="prod-machines" path="maquinas" element={<ProductionMachinesPage />} />,
   <Route key="prod-cap" path="capacidade" element={<ProductionCapacityPage />} />,
   <Route key="prod-trace" path="rastreabilidade" element={<ProductionTraceabilityPage />} />,
-  <Route key="prod-ia" path="ia" element={<AIProductionPage />} />,
+  <Route key="prod-ia" path="ia" element={<PrunedRoute href="/producao/ia" fallback="/producao/dashboard"><AIProductionPage /></PrunedRoute>} />,
   <Route key="prod-sched" path="programacao" element={<ProductionSchedulePage />} />,
   <Route key="prod-mrp" path="mrp" element={<MRPPage />} />,
   <Route key="prod-bi" path="bi" element={<BIIndustrialPage />} />,
-  <Route key="prod-twin" path="twin" element={<DigitalTwinPage />} />,
-  <Route key="prod-aps" path="aps" element={<APSPageComponent />} />,
-  <Route key="prod-aps-multi" path="aps/multi" element={<APSMultiPage />} />,
-  <Route key="prod-iot" path="iot" element={<IoTDashboardPage />} />,
+  <Route key="prod-twin" path="twin" element={<PrunedRoute href="/producao/twin" fallback="/producao/dashboard"><DigitalTwinPage /></PrunedRoute>} />,
+  <Route key="prod-aps" path="aps" element={<PrunedRoute href="/producao/aps" fallback="/producao/dashboard"><APSPageComponent /></PrunedRoute>} />,
+  <Route key="prod-aps-multi" path="aps/multi" element={<PrunedRoute href="/producao/aps/multi" fallback="/producao/dashboard"><APSMultiPage /></PrunedRoute>} />,
+  <Route key="prod-iot" path="iot" element={<PrunedRoute href="/producao/iot" fallback="/producao/dashboard"><IoTDashboardPage /></PrunedRoute>} />,
   <Route key="prod-oee" path="oee" element={<OEEDashboardPage />} />,
-  <Route key="prod-ml" path="previsoes" element={<MLPredictionsPage />} />,
+  <Route key="prod-ml" path="previsoes" element={<PrunedRoute href="/producao/previsoes" fallback="/producao/dashboard"><MLPredictionsPage /></PrunedRoute>} />,
   <Route key="prod-sect" path="setores" element={<ProductionSectorsPage />} />,
   <Route key="prod-lines" path="linhas" element={<ProductionLinesPage />} />,
   <Route key="prod-res" path="recursos" element={<ProductionResourcesPage />} />,

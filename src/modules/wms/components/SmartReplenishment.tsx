@@ -6,8 +6,13 @@ import { Input } from '@/ui/base/input';
 import { Badge } from '@/ui/base/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
 import { useEstoqueMatrix } from '@/hooks/inventory/useEstoqueMatrix';
+import { GroupOverviewPanel } from './GroupOverviewPanel';
+import { SupplyInboxLinkCard } from './SupplyInboxLinkCard';
 import { useBranches } from '@/hooks/useBranches';
 import { useCreateTransferenciaCanal } from '@/hooks/wms/useTransferenciasCanal';
+import { useSupplyAccess } from '@/hooks/operational/store/useSupplyAccess';
+import { createSupplyRequest } from '@/services/operational/store/supplyService';
+import { groupSmartSuggestionsForFactory } from '@/lib/store/supplySuggestionRequests';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { toast } from 'sonner';
 import { stockEngine } from '@/services/operational/inventory/stockEngine';
@@ -31,6 +36,11 @@ export function SmartReplenishment() {
   const { data: matrix = [], isLoading, error, refetch } = useEstoqueMatrix(search, true);
   const { data: branches = [] } = useBranches();
   const createTransfer = useCreateTransferenciaCanal();
+  const supplyAccess = useSupplyAccess();
+  // Separação de papéis: quem não é gestor da Fábrica usa esta tela para
+  // SOLICITAR; a origem sugerida pela IA não vira transferência direta.
+  const isStoreRequester = !supplyAccess.isLoading && !supplyAccess.canManage;
+  const [isSendingRequests, setIsSendingRequests] = useState(false);
   const [isBulkApproving, setIsBulkApproving] = useState(false);
   const [changeHistory, setChangeHistory] = useState<any[]>([]);
 
@@ -151,7 +161,20 @@ export function SmartReplenishment() {
     return list;
   }, [matrix]);
 
-  const handleExecute = (sug: any) => {
+  const handleExecute = async (sug: any) => {
+    if (isStoreRequester) {
+      setIsSendingRequests(true);
+      try {
+        await createSupplyRequest(sug.targetBranchId, sug.productId, sug.suggestedQty);
+        toast.success('Solicitação enviada para a Fábrica analisar e definir a origem.');
+      } catch (error: any) {
+        toast.error(`Não foi possível solicitar: ${error?.message || 'erro inesperado'}`);
+      } finally {
+        setIsSendingRequests(false);
+      }
+      return;
+    }
+
     createTransfer.mutate({
       origem_branch_id: sug.sourceBranchId,
       destino_branch_id: sug.targetBranchId,
@@ -195,6 +218,16 @@ export function SmartReplenishment() {
 
     return Object.values(groups);
   }, [suggestions, selectedIds, editedQuantities]);
+
+  const storeRequestBatch = useMemo(
+    () => isStoreRequester
+      ? groupSmartSuggestionsForFactory(
+          suggestions.filter((sug) => selectedIds.has(sug.id)),
+          editedQuantities,
+        )
+      : [],
+    [editedQuantities, isStoreRequester, selectedIds, suggestions],
+  );
 
   const handleUpdateQuantity = (id: string, value: number, max: number) => {
     let finalValue = value;
@@ -297,6 +330,44 @@ export function SmartReplenishment() {
     if (!bulkPreviewData || bulkPreviewData.length === 0) return;
 
     setIsBulkApproving(true);
+
+    if (isStoreRequester) {
+      const requests = groupSmartSuggestionsForFactory(
+        suggestions.filter((sug) => selectedIds.has(sug.id)),
+        editedQuantities,
+      );
+      if (requests.length === 0) {
+        toast.error('Nenhuma solicitação válida para enviar à Fábrica.');
+        setIsBulkApproving(false);
+        return;
+      }
+
+      let createdCount = 0;
+      let firstError = '';
+      for (const request of requests) {
+        try {
+          await createSupplyRequest(request.targetBranchId, request.productId, request.quantity);
+          createdCount += 1;
+        } catch (error: any) {
+          if (!firstError) firstError = error?.message || 'erro inesperado';
+        }
+      }
+
+      if (createdCount > 0) {
+        toast.success(`${createdCount} solicitação(ões) enviada(s) para a Fábrica analisar e definir a origem.`);
+      }
+      if (createdCount < requests.length) {
+        toast.error(`Algumas solicitações não foram enviadas: ${firstError}`);
+      }
+      if (createdCount === requests.length) {
+        setSelectedIds(new Set());
+        setShowBulkPreview(false);
+        setBulkConfirmStep(false);
+      }
+      setIsBulkApproving(false);
+      return;
+    }
+
     let successCount = 0;
 
     try {
@@ -311,7 +382,7 @@ export function SmartReplenishment() {
         });
         successCount += group.itens.length;
       }
-      
+
       toast.success(`${successCount} sugestões aprovadas e transferências geradas!`);
       setSelectedIds(new Set());
       setShowBulkPreview(false);
@@ -418,11 +489,18 @@ export function SmartReplenishment() {
           </div>
         </CardHeader>
         <CardContent>
+          {isStoreRequester && (
+            <div className="mb-4 rounded-lg border border-primary/30 bg-background p-3 text-sm">
+              <strong>Modo Loja:</strong> nesta tela você <strong>solicita à Fábrica</strong>. A origem exibida é apenas uma
+              sugestão da IA — nenhuma transferência é criada agora. A Fábrica analisa os saldos e decide se atende
+              pelo CD, pela Fábrica ou por outra Loja.
+            </div>
+          )}
           <div className="flex gap-2 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input 
-                placeholder="Filtrar produtos..." 
+              <Input
+                placeholder="Filtrar produtos..."
                 value={search} 
                 onChange={e => setSearch(e.target.value)} 
                 className="pl-9 bg-background" 
@@ -467,7 +545,7 @@ export function SmartReplenishment() {
                       />
                     </TableHead>
                     <TableHead>Produto</TableHead>
-                    <TableHead>Origem (Surplus)</TableHead>
+                    <TableHead>{isStoreRequester ? 'Origem sugerida pela IA' : 'Origem (Surplus)'}</TableHead>
                     <TableHead>Fluxo</TableHead>
                     <TableHead></TableHead>
                     <TableHead>Destino (Ruptura)</TableHead>
@@ -494,7 +572,7 @@ export function SmartReplenishment() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[9px] uppercase">
-                          {sug.flowType}
+                          {isStoreRequester ? 'SOLICITAÇÃO' : sug.flowType}
                         </Badge>
                       </TableCell>
                       <TableCell><ArrowRight className="h-4 w-4 text-muted-foreground" /></TableCell>
@@ -520,12 +598,12 @@ export function SmartReplenishment() {
                             <Brain className="h-3.5 w-3.5" />
                             Explicar
                           </Button>
-                          <Button 
-                            size="sm" 
-                            onClick={() => handleExecute(sug)}
-                            disabled={createTransfer.isPending}
+                          <Button
+                            size="sm"
+                            onClick={() => void handleExecute(sug)}
+                            disabled={createTransfer.isPending || isSendingRequests || supplyAccess.isLoading}
                           >
-                            Transferir
+                            {isStoreRequester ? 'Solicitar à Fábrica' : 'Transferir'}
                           </Button>
                         </div>
                       </TableCell>
@@ -649,7 +727,7 @@ export function SmartReplenishment() {
                 <p className="text-xs font-bold text-primary uppercase mb-2">Conclusão da IA</p>
                 <div className="text-xs space-y-2 text-muted-foreground leading-relaxed">
                   <p>• <strong>Gatilho:</strong> O estoque projetado ({simulatedSug.targetMetrics.projected}) está abaixo do mínimo ({simulatedSug.minStock}).</p>
-                  <p>• <strong>Recomendação:</strong> Transferir <strong>{simulatedSug.suggestedQty} unidades</strong> para restaurar a cobertura de segurança.</p>
+                  <p>• <strong>Recomendação:</strong> {isStoreRequester ? 'Solicitar' : 'Transferir'} <strong>{simulatedSug.suggestedQty} unidades</strong> para restaurar a cobertura de segurança.</p>
                 </div>
               </div>
             </div>
@@ -658,9 +736,9 @@ export function SmartReplenishment() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSimulatedSug(null)}>Cancelar</Button>
             <Button onClick={() => {
-              handleExecute(simulatedSug);
+              void handleExecute(simulatedSug);
               setSimulatedSug(null);
-            }}>Confirmar e Transferir</Button>
+            }}>{isStoreRequester ? 'Confirmar e Solicitar' : 'Confirmar e Transferir'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -677,12 +755,18 @@ export function SmartReplenishment() {
               ) : (
                 <CheckSquare className="h-6 w-6 text-primary" />
               )}
-              {bulkConfirmStep ? 'Confirmar Execução Logística' : 'Revisar Transferências Consolidadas'}
+              {bulkConfirmStep
+                ? (isStoreRequester ? 'Confirmar envio à Fábrica' : 'Confirmar Execução Logística')
+                : (isStoreRequester ? 'Revisar Solicitações para a Fábrica' : 'Revisar Transferências Consolidadas')}
             </DialogTitle>
             <DialogDescription>
-              {bulkConfirmStep 
-                ? 'Você está prestes a gerar as transferências definitivas no sistema. Esta ação não pode ser desfeita em lote.'
-                : `A IA consolidou ${selectedIds.size} itens em ${bulkPreviewData?.length || 0} transferências otimizadas para reduzir custos logísticos.`
+              {bulkConfirmStep
+                ? (isStoreRequester
+                    ? 'As solicitações ficarão pendentes na caixa de entrada da Fábrica. Nenhuma transferência será criada nesta etapa.'
+                    : 'Você está prestes a gerar as transferências definitivas no sistema. Esta ação não pode ser desfeita em lote.')
+                : (isStoreRequester
+                    ? `As ${selectedIds.size} sugestões selecionadas serão consolidadas em ${storeRequestBatch.length} solicitação(ões). A origem sugerida é apenas referência: quem decide é a Fábrica.`
+                    : `A IA consolidou ${selectedIds.size} itens em ${bulkPreviewData?.length || 0} transferências otimizadas para reduzir custos logísticos.`)
               }
             </DialogDescription>
           </DialogHeader>
@@ -754,7 +838,9 @@ export function SmartReplenishment() {
                   <div>
                     <p className="text-sm font-bold text-amber-900">Atenção</p>
                     <p className="text-xs text-amber-800 leading-relaxed">
-                      Verifique se as unidades de origem possuem capacidade operacional para realizar a separação e expedição deste volume no prazo sugerido.
+                      {isStoreRequester
+                        ? 'Confira produtos, destinos e quantidades. A Fábrica poderá atender de outra origem, parcialmente ou produzir, conforme a análise dos saldos.'
+                        : 'Verifique se as unidades de origem possuem capacidade operacional para realizar a separação e expedição deste volume no prazo sugerido.'}
                     </p>
                   </div>
                 </div>
@@ -965,7 +1051,7 @@ export function SmartReplenishment() {
                 ) : (
                   <>
                     <Rocket className="h-4 w-4 mr-2" />
-                    Confirmar e Gerar Agora
+                    {isStoreRequester ? 'Confirmar e Enviar à Fábrica' : 'Confirmar e Gerar Agora'}
                   </>
                 )}
               </Button>
@@ -1005,6 +1091,8 @@ export function SmartReplenishment() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <GroupOverviewPanel />
+      <SupplyInboxLinkCard />
     </div>
   );
 }

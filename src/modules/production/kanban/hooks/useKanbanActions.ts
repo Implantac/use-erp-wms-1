@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { type DropResult } from '@hello-pangea/dnd';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { WarModeService } from '@/lib/pcpServices';
+import { WarModeService, type WarModeResult } from '@/lib/pcpServices';
 import { VALID_TRANSITIONS, STATUS_LABELS } from '../constants';
 import { canChangeOPStatus } from '@/lib/pcp/orderTransitions';
 import type { TablesUpdate } from '@/integrations/supabase/types';
@@ -24,7 +24,7 @@ export function useKanbanActions(params: {
   const { orders, update, refetch, capacityLoad, wipLimits, intelligence, capacities } = params;
 
   const [warModeOpen, setWarModeOpen] = useState(false);
-  const [warModeResult, setWarModeResult] = useState<any>(null);
+  const [warModeResult, setWarModeResult] = useState<WarModeResult | null>(null);
   const [warModeLoading, setWarModeLoading] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const [sequenceOpen, setSequenceOpen] = useState(false);
@@ -36,7 +36,7 @@ export function useKanbanActions(params: {
   const [bottleneckOpen, setBottleneckOpen] = useState(false);
 
   const moveOrder = useCallback(async (orderId: string, newStatus: string) => {
-    if (newStatus === 'completed') { toast.error('Conclusão de OP indisponível até validação transacional'); return false; }
+    if (newStatus === 'completed') { toast.error('Conclua pela Execução PCP da OP: a transação valida etapas, qualidade, lotes, reservas e genealogia'); return false; }
     const order = orders.find(o => o.id === orderId);
     if (!order || !canChangeOPStatus(order.status, newStatus)) { toast.error('Transição de OP inválida'); return false; }
     const wcId = order && (order as { work_center_id?: string | null }).work_center_id;

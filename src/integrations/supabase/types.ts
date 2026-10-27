@@ -3759,6 +3759,54 @@ export type Database = {
           },
         ]
       }
+      company_niche_history: {
+        Row: {
+          changed_by: string | null
+          company_id: string
+          created_at: string
+          id: string
+          modules_applied: number
+          new_segment: string
+          old_segment: string | null
+          process_families: string[]
+        }
+        Insert: {
+          changed_by?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          modules_applied?: number
+          new_segment: string
+          old_segment?: string | null
+          process_families?: string[]
+        }
+        Update: {
+          changed_by?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          modules_applied?: number
+          new_segment?: string
+          old_segment?: string | null
+          process_families?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_niche_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_niche_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conference_record_items: {
         Row: {
           checked_qty: number
@@ -10373,6 +10421,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      niche_packages: {
+        Row: {
+          created_at: string
+          description: string | null
+          is_active: boolean
+          label: string
+          modules: string[]
+          segment: string
+          suggested_families: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          is_active?: boolean
+          label: string
+          modules?: string[]
+          segment: string
+          suggested_families?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          is_active?: boolean
+          label?: string
+          modules?: string[]
+          segment?: string
+          suggested_families?: string[]
+          updated_at?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -24446,6 +24527,7 @@ export type Database = {
           tier: string
         }[]
       }
+      get_company_niche: { Args: { p_company_id: string }; Returns: Json }
       get_consolidated_company_ids: {
         Args: { _company_id: string }
         Returns: {
@@ -24763,6 +24845,14 @@ export type Database = {
       }
       run_daily_reconciliation_alerts: { Args: never; Returns: undefined }
       run_financial_audit: { Args: { _mode?: string }; Returns: Json }
+      set_company_niche: {
+        Args: {
+          p_company_id: string
+          p_process_families?: string[]
+          p_segment: string
+        }
+        Returns: Json
+      }
       settle_account: {
         Args: {
           _discount?: number

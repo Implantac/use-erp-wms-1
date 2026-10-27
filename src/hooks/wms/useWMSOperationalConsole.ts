@@ -59,7 +59,7 @@ export function useWMSOperationalConsole() {
   useEffect(() => {
     fetchAll();
 
-    const channel = supabase.channel('wms-operational-console');
+    const channel = supabase.channel('wms-operational-console-' + Math.random().toString(36).substring(7));
     ['wms_receiving_orders', 'putaway_tasks', 'wms_picking_orders', 'wms_packing_orders', 'wms_shipments', 'wms_inventory_items'].forEach((table) => {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => { void fetchAll(); });
     });
