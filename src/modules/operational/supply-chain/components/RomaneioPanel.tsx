@@ -1,19 +1,36 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
 import { Badge } from '@/ui/base/badge';
 import { Button } from '@/ui/base/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/ui/base/dialog';
-import { FileText, Package, Printer, Truck } from 'lucide-react';
+import { Input } from '@/ui/base/input';
+import { Label } from '@/ui/base/label';
+import { Download, FileText, Mail, MessageCircle, Package, Printer, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { supplyChainService } from '@/services/operational/supply-chain/supplyChainService';
+import {
+  buildRomaneioText,
+  cleanPhoneBR,
+  downloadRomaneioPdf,
+  fetchBranchContact,
+  groupReadyTransfers,
+  mailtoUrl,
+  whatsappUrl,
+  type ReadyGroup,
+} from '@/lib/romaneio';
 import { cn } from '@/lib/utils';
 
 const fmt = (n: any) => Number(n || 0).toLocaleString('pt-BR');
 
-// Estados em que a transferência já foi decidida/preparada e pode entrar
-// numa carga. Expedida = já baixou da origem, só falta o embarque.
-const READY_STATUSES = ['SUGERIDA', 'APROVADA', 'RESERVADA', 'SEPARAÇÃO', 'CONFERÊNCIA', 'EXPEDIDA'];
+const READY_LABEL: Record<string, string> = {
+  SUGERIDA: 'Solicitada',
+  APROVADA: 'Aprovada',
+  RESERVADA: 'Reservada',
+  'SEPARAÇÃO': 'Separação',
+  'CONFERÊNCIA': 'Conferência',
+  EXPEDIDA: 'Expedida — só embarcar',
+};
 
 const ROMANEIO_STATUS: Record<string, { label: string; color: string }> = {
   EMITIDO: { label: 'Em trânsito — aguardando a Loja', color: 'bg-purple-500/10 text-purple-600' },
@@ -22,15 +39,6 @@ const ROMANEIO_STATUS: Record<string, { label: string; color: string }> = {
   CANCELADO: { label: 'Cancelado', color: 'bg-slate-500/10 text-slate-500' },
 };
 
-interface ReadyGroup {
-  key: string;
-  originName: string;
-  destinationName: string;
-  destinationCompany?: string;
-  transfers: any[];
-  totalItems: number;
-}
-
 interface RomaneioPanelProps {
   movements: any[];
   canManage: boolean;
@@ -38,36 +46,21 @@ interface RomaneioPanelProps {
 }
 
 /**
- * Passo "expedir" do gestor: em vez de avançar transferência por
- * transferência, agrupa o que está pronto por destino e gera o ROMANEIO —
- * o documento da carga que a Loja recepciona (estoque entra sozinho).
+ * Passo "expedir" do gestor: as solicitações prontas aparecem agrupadas por
+ * destino (podem ser de dias e produtos diferentes); o gestor MARCA o que
+ * entra na carga e gera um romaneio agrupado — ou romaneios individuais.
+ * Gerar = aprovar/separar/expedir pela máquina oficial + documento.
  */
 export function RomaneioPanel({ movements, canManage, onChanged }: RomaneioPanelProps) {
   const queryClient = useQueryClient();
   const [creatingKey, setCreatingKey] = useState<string | null>(null);
   const [docId, setDocId] = useState<string | null>(null);
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const shareFor = useRef<string | null>(null);
 
-  const readyGroups = useMemo<ReadyGroup[]>(() => {
-    const groups = new Map<string, ReadyGroup>();
-    for (const m of movements || []) {
-      if ((m as any).kind === 'intercompany') continue;
-      if (!READY_STATUSES.includes((m as any).raw_status)) continue;
-      if ((m as any).romaneio_id) continue;
-      const key = `${m.origin_id}->${m.destination_id}`;
-      const g = groups.get(key) || {
-        key,
-        originName: m.origin_name || m.origin_type || 'Origem',
-        destinationName: m.destination_name || m.destination_type || 'Destino',
-        destinationCompany: m.destination_company,
-        transfers: [],
-        totalItems: 0,
-      };
-      g.transfers.push(m);
-      g.totalItems += Number(m.items_count || 0);
-      groups.set(key, g);
-    }
-    return [...groups.values()].sort((a, b) => a.destinationName.localeCompare(b.destinationName));
-  }, [movements]);
+  const readyGroups = useMemo(() => groupReadyTransfers(movements || []), [movements]);
 
   const romaneiosQuery = useQuery({
     queryKey: ['romaneios'],
@@ -80,20 +73,83 @@ export function RomaneioPanel({ movements, canManage, onChanged }: RomaneioPanel
     queryFn: () => supplyChainService.getRomaneioDetail(docId as string),
     enabled: !!docId,
   });
+  const doc = docQuery.data;
 
-  const handleCreate = async (group: ReadyGroup) => {
+  // Envio: pré-preenche com o contato cadastrado da Loja destino.
+  useEffect(() => {
+    if (!doc?.destination_unit_id || shareFor.current === doc.id) return;
+    shareFor.current = doc.id;
+    setPhone('');
+    setEmail('');
+    void fetchBranchContact(doc.destination_unit_id).then((c) => {
+      if (c.phone) setPhone(c.phone);
+      if (c.email) setEmail(c.email);
+    });
+  }, [doc]);
+
+  const toggle = (id: string) =>
+    setExcluded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const setGroupSelection = (group: ReadyGroup, all: boolean) =>
+    setExcluded((prev) => {
+      const next = new Set(prev);
+      for (const t of group.transfers) {
+        if (all) next.delete(t.id);
+        else next.add(t.id);
+      }
+      return next;
+    });
+
+  const selectedOf = (group: ReadyGroup) => group.transfers.filter((t) => !excluded.has(t.id));
+
+  const refreshAll = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['romaneios'] });
+    onChanged?.();
+  };
+
+  const handleCreateGrouped = async (group: ReadyGroup) => {
+    const selected = selectedOf(group);
+    if (selected.length === 0) return;
     setCreatingKey(group.key);
     try {
-      const res = await supplyChainService.createRomaneio(group.transfers.map((t) => t.id));
+      const res = await supplyChainService.createRomaneio(selected.map((t) => t.id));
       toast.success(`Romaneio ${res.numero} gerado e expedido — ${res.transfers} transferência(s) em trânsito.`);
-      await queryClient.invalidateQueries({ queryKey: ['romaneios'] });
-      onChanged?.();
+      await refreshAll();
       setDocId(res.id);
     } catch (e: any) {
       toast.error(e?.message || 'Falha ao gerar o romaneio');
     } finally {
       setCreatingKey(null);
     }
+  };
+
+  const handleCreateIndividual = async (group: ReadyGroup) => {
+    const selected = selectedOf(group);
+    if (selected.length === 0) return;
+    setCreatingKey(group.key);
+    const numeros: string[] = [];
+    let failed = 0;
+    for (const t of selected) {
+      try {
+        const res = await supplyChainService.createRomaneio([t.id]);
+        numeros.push(res.numero);
+      } catch {
+        failed += 1;
+      }
+    }
+    await refreshAll();
+    if (numeros.length > 0) {
+      toast.success(`${numeros.length} romaneio(s) gerados e expedidos: ${numeros.join(', ')}`);
+    }
+    if (failed > 0) {
+      toast.error(`${failed} transferência(s) não entraram em romaneio — confira a lista.`);
+    }
+    setCreatingKey(null);
   };
 
   return (
@@ -104,8 +160,10 @@ export function RomaneioPanel({ movements, canManage, onChanged }: RomaneioPanel
             <Truck className="h-4 w-4 text-primary" /> Pronto para expedir — agrupado por Loja
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Um romaneio por carga: ao gerar, o sistema aprova/separa/expede as transferências pela máquina oficial,
-            baixa o estoque da origem e emite o documento que a Loja vai recepcionar.
+            Solicitações de dias e produtos diferentes ficam juntas aqui. Marque o que entra na carga de cada
+            Loja e gere <strong>um romaneio agrupado</strong> — ou <strong>romaneios individuais</strong>,
+            um por solicitação. Ao gerar, o sistema expede pela máquina oficial, baixa o estoque da origem e
+            emite o documento que a Loja recepciona.
           </p>
         </CardHeader>
         <CardContent>
@@ -114,35 +172,96 @@ export function RomaneioPanel({ movements, canManage, onChanged }: RomaneioPanel
               Nada aguardando expedição. As solicitações aprovadas aparecem aqui agrupadas por destino.
             </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {readyGroups.map((g) => (
-                <div key={g.key} className="rounded-xl border p-4 flex flex-col gap-3 bg-card">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Destino</p>
-                      <p className="font-black uppercase">{g.destinationName}</p>
-                      {g.destinationCompany && (
-                        <p className="text-[11px] text-muted-foreground">{g.destinationCompany}</p>
-                      )}
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Origem: {g.originName} · {g.transfers.length} transferência(s) · {g.totalItems} item(ns)
-                      </p>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              {readyGroups.map((g) => {
+                const selected = selectedOf(g);
+                const busy = creatingKey === g.key;
+                return (
+                  <div key={g.key} className="rounded-xl border p-4 flex flex-col gap-3 bg-card">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Destino</p>
+                        <p className="font-black uppercase">{g.destinationName}</p>
+                        {g.destinationCompany && (
+                          <p className="text-[11px] text-muted-foreground">{g.destinationCompany}</p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Origem: {g.originName} · {g.transfers.length} solicitação(ões) · {g.totalItems} item(ns)
+                        </p>
+                      </div>
+                      <Package className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <Package className="h-5 w-5 text-muted-foreground" />
+
+                    <div className="rounded-lg border divide-y">
+                      {g.transfers.map((t: any) => {
+                        const checked = !excluded.has(t.id);
+                        return (
+                          <label
+                            key={t.id}
+                            className={cn(
+                              'flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/40',
+                              !checked && 'opacity-50',
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 shrink-0 accent-primary"
+                              checked={checked}
+                              onChange={() => toggle(t.id)}
+                            />
+                            <span className="flex-1 min-w-0 text-xs">
+                              <span className="font-bold">Transferência #{String(t.id).split('-')[0].toUpperCase()}</span>{' '}
+                              <span className="text-muted-foreground">
+                                · {new Date(t.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                {' '}· {t.items_count} item(ns)
+                              </span>
+                            </span>
+                            <Badge variant="outline" className="text-[9px] font-bold uppercase">
+                              {READY_LABEL[t.raw_status] || t.raw_status}
+                            </Badge>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">
+                        {selected.length} de {g.transfers.length} selecionada(s)
+                      </span>
+                      <span className="flex gap-2">
+                        <button type="button" className="font-bold text-primary hover:underline" onClick={() => setGroupSelection(g, true)}>
+                          Marcar todas
+                        </button>
+                        <button type="button" className="font-bold text-muted-foreground hover:underline" onClick={() => setGroupSelection(g, false)}>
+                          Desmarcar
+                        </button>
+                      </span>
+                    </div>
+
+                    {canManage ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          className="flex-1 font-bold uppercase text-xs"
+                          disabled={busy || selected.length === 0}
+                          onClick={() => void handleCreateGrouped(g)}
+                        >
+                          {busy ? 'Gerando…' : `Romaneio agrupado (${selected.length})`}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1 font-bold uppercase text-xs"
+                          disabled={busy || selected.length === 0}
+                          onClick={() => void handleCreateIndividual(g)}
+                        >
+                          Individuais ({selected.length})
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground">Expedição é do gestor do grupo.</p>
+                    )}
                   </div>
-                  {canManage ? (
-                    <Button
-                      className="font-bold uppercase text-xs"
-                      disabled={creatingKey === g.key}
-                      onClick={() => void handleCreate(g)}
-                    >
-                      {creatingKey === g.key ? 'Gerando…' : 'Gerar romaneio e expedir'}
-                    </Button>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">Expedição é do gestor do grupo.</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -191,20 +310,79 @@ export function RomaneioPanel({ movements, canManage, onChanged }: RomaneioPanel
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              {docQuery.data ? `Romaneio ${docQuery.data.numero}` : 'Romaneio'}
+              {doc ? `Romaneio ${doc.numero}` : 'Romaneio'}
             </DialogTitle>
           </DialogHeader>
-          {docQuery.isLoading || !docQuery.data ? (
+          {docQuery.isLoading || !doc ? (
             <p className="py-6 text-sm text-muted-foreground">Carregando documento…</p>
           ) : (
-            <RomaneioDocument doc={docQuery.data} />
-          )}
-          {docQuery.data && (
-            <div className="flex justify-end pt-2">
-              <Button className="gap-2" onClick={() => printRomaneio(docQuery.data)}>
-                <Printer className="h-4 w-4" /> Imprimir romaneio
-              </Button>
-            </div>
+            <>
+              <RomaneioDocument doc={doc} />
+              <div className="space-y-3 border-t pt-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Imprimir ou enviar este romaneio
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">WhatsApp da Loja</Label>
+                    <Input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="(43) 99999-9999"
+                      inputMode="tel"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">E-mail da Loja</Label>
+                    <Input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="loja@empresa.com.br"
+                      inputMode="email"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button className="gap-2" onClick={() => printRomaneio(doc)}>
+                    <Printer className="h-4 w-4" /> Imprimir
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => void downloadRomaneioPdf(doc).catch(() => toast.error('Falha ao gerar o PDF'))}
+                  >
+                    <Download className="h-4 w-4" /> Baixar PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    disabled={!cleanPhoneBR(phone)}
+                    title={cleanPhoneBR(phone) ? 'Abrir o WhatsApp da Loja com o manifesto' : 'Informe o WhatsApp da Loja'}
+                    onClick={() => window.open(whatsappUrl(phone, buildRomaneioText(doc)), '_blank', 'noopener,noreferrer')}
+                  >
+                    <MessageCircle className="h-4 w-4" /> WhatsApp
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => {
+                      window.location.href = mailtoUrl(
+                        email,
+                        `Romaneio ${doc.numero} — ${doc.origin_name || 'Origem'} para ${doc.destination_name || 'Destino'}`,
+                        buildRomaneioText(doc),
+                      );
+                    }}
+                  >
+                    <Mail className="h-4 w-4" /> E-mail
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  WhatsApp e e-mail já abrem com o manifesto completo e o contato da Loja preenchido — baixe o
+                  PDF e anexe na conversa/e-mail. O recebimento de verdade é na Central da Loja, recepcionando
+                  este romaneio. (Envio automático com o PDF anexado exige um provedor de e-mail configurado.)
+                </p>
+              </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

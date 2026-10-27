@@ -1,7 +1,7 @@
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "lint:ci": "node scripts/lint-ci.mjs",
     "typecheck": "tsgo --noEmit",
+    "typecheck:weaving": "tsgo -p tsconfig.weaving-check.json --noEmit",
     "test": "vitest run",
     "test:rls:live": "node scripts/test-rls-live.mjs",
     "test:rls:guard": "node --test scripts/test-rls-live.test.mjs scripts/rls-static-check.test.mjs",
@@ -70,6 +71,7 @@
     "embla-carousel-react": "^8.6.0",
     "html2canvas": "1.4.1",
     "input-otp": "^1.4.2",
+    "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
