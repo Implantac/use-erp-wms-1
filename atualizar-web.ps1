@@ -45,7 +45,7 @@ function Preparar-BuildWeb {
     docker image inspect $base 2>$null | Out-Null
     if ($LASTEXITCODE -ne 0) {
       Write-Host "  Baixando imagem-base $base (primeira vez ou cache limpo)..."
-      docker pull $base
+      docker pull $base | Out-Host
       if ($LASTEXITCODE -ne 0) {
         $erro = "sem conexao com o Docker Hub ao baixar $base (DNS/internet). Conecte-se a internet e rode de novo."
         break
