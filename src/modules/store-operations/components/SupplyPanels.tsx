@@ -209,7 +209,12 @@ export function SupplyAnalysisPanel() {
       </CardHeader>
       <CardContent className="space-y-3">
         {requestsQuery.isLoading && <p className="text-sm text-muted-foreground">Carregando solicitações…</p>}
-        {!requestsQuery.isLoading && pending.length === 0 && (
+        {requestsQuery.isError && inboxQuery.isError && (
+          <p className="rounded-md border border-destructive/40 p-3 text-sm text-destructive">
+            Não foi possível carregar as solicitações: {(requestsQuery.error as any)?.message || (inboxQuery.error as any)?.message || 'erro inesperado'}
+          </p>
+        )}
+        {!requestsQuery.isLoading && pending.length === 0 && !requestsQuery.isError && (
           <p className="text-sm text-muted-foreground">Nenhuma solicitação pendente de análise.</p>
         )}
         {pending.map((r) => (
