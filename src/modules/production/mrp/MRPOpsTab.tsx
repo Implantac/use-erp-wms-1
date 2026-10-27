@@ -4,22 +4,20 @@ import { Badge } from '@/ui/base/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
 import { Progress } from '@/ui/base/progress';
 import { cn } from '@/lib/utils';
-import type { MaterialNeed } from './types';
+import { formatNumber } from '@/lib/formatters';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
-import type { TechnicalSheetRow } from '@/hooks/production/useTechnicalSheets';
-import { getOrderGrossCoverage } from './grossCoverage';
-import { getUniqueSheet } from './grossNeeds';
+import type { NetMrpBomLine, OrderMaterialCoverage } from '@/lib/pcp/netMrp';
 
 interface Props {
   activeOPs: ProductionOrderRow[];
-  sheets: TechnicalSheetRow[];
-  materialNeeds: MaterialNeed[];
+  bomLines: NetMrpBomLine[];
+  coverageByOrder: Map<string, OrderMaterialCoverage>;
 }
 
-export function MRPOpsTab({ activeOPs, sheets, materialNeeds }: Props) {
+export function MRPOpsTab({ activeOPs, bomLines, coverageByOrder }: Props) {
   return (
     <Card>
-      <CardHeader><CardTitle>OPs Ativas × Materiais</CardTitle></CardHeader>
+      <CardHeader><CardTitle>OPs ativas × cobertura líquida</CardTitle></CardHeader>
       <CardContent>
         {activeOPs.length === 0 ? (
           <EmptyState compact title="Nenhuma OP ativa" description="Libere ordens de produção para calcular necessidades." />
@@ -29,41 +27,32 @@ export function MRPOpsTab({ activeOPs, sheets, materialNeeds }: Props) {
               <TableRow>
                 <TableHead>OP</TableHead>
                 <TableHead>Produto</TableHead>
-                <TableHead className="text-right">Qtd. Pendente</TableHead>
-                <TableHead>Ficha Técnica</TableHead>
-                <TableHead>Materiais</TableHead>
-                <TableHead>Cobertura bruta estimada</TableHead>
+                <TableHead className="text-right">Qtd. pendente</TableHead>
+                <TableHead>Materiais da BOM</TableHead>
+                <TableHead>Prontidão líquida</TableHead>
+                <TableHead>Faltas</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {activeOPs.map(op => {
-                const sheet = getUniqueSheet(op, sheets);
-                const matCount = sheet ? (sheet.materials?.length || 0) : 0;
-                const remaining = Math.max(0, op.quantity - op.produced_quantity);
-
-                const opCoverage = getOrderGrossCoverage(sheet?.materials, materialNeeds);
-
+              {activeOPs.map((order) => {
+                const materialCount = order.product_id ? bomLines.filter((line) => line.productId === order.product_id).length : 0;
+                const coverage = coverageByOrder.get(order.id);
+                const remaining = Math.max(0, order.quantity - order.produced_quantity);
                 return (
-                  <TableRow key={op.id}>
-                    <TableCell className="font-mono text-sm">{op.order_number}</TableCell>
-                    <TableCell className="font-medium">{op.product_name}</TableCell>
-                    <TableCell className="text-right">{remaining}</TableCell>
+                  <TableRow key={order.id}>
+                    <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
+                    <TableCell className="font-medium">{order.product_name}</TableCell>
+                    <TableCell className="text-right">{formatNumber(remaining)} {order.unit}</TableCell>
+                    <TableCell>{materialCount > 0 ? `${materialCount} itens` : <Badge variant="destructive">BOM ausente</Badge>}</TableCell>
                     <TableCell>
-                      {sheet ? (
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">v{sheet.version}</Badge>
-                      ) : (
-                        <Badge variant="destructive">Ficha ausente ou ambígua</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>{matCount} itens</TableCell>
-                    <TableCell>
-                      {opCoverage !== null ? (
+                      {coverage?.coveragePct !== null && coverage ? (
                         <div className="flex items-center gap-2">
-                          <Progress value={opCoverage} className="w-16 h-2" />
-                          <span className={cn('text-xs font-bold', opCoverage < 100 ? 'text-destructive' : 'text-green-600')}>{opCoverage}%</span>
+                          <Progress value={coverage.coveragePct} className="h-2 w-16" />
+                          <span className={cn('text-xs font-bold', coverage.ready ? 'text-green-600' : 'text-destructive')}>{Math.round(coverage.coveragePct)}%</span>
                         </div>
-                      ) : <span className="text-xs text-muted-foreground">Não calculável: verifique ficha, código e unidade</span>}
+                      ) : <span className="text-xs text-muted-foreground">Não calculável sem BOM</span>}
                     </TableCell>
+                    <TableCell>{coverage ? coverage.missingComponents : '—'}</TableCell>
                   </TableRow>
                 );
               })}

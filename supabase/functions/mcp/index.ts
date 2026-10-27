@@ -307,13 +307,14 @@ var get_order_default = defineTool5({
 
 // src/lib/mcp/index.ts
 var projectRef = "arcuhqdiydlvekanychw";
+var issuer = "arcuhqdiydlvekanychw" ? `https://${projectRef}.supabase.co/auth/v1` : `${"https://arcuhqdiydlvekanychw.supabase.co".replace(/\/+$/, "")}/auth/v1`;
 var mcp_default = defineMcp({
   name: "use-sistemas-erp-mcp",
   title: "Use Sistemas ERP",
   version: "0.1.0",
   instructions: "Ferramentas do ERP Use Sistemas (multi-tenant, RLS por empresa). Use `whoami` para confirmar o usu\xE1rio conectado. Use `search_products` para consultar o cadastro de produtos. Use `list_payables` para revisar contas a pagar por status e vencimento. Use `list_orders` para consultar pedidos comerciais por status e intervalo de datas. Use `get_order` para obter um pedido espec\xEDfico (com itens) pelo seu UUID. Todas as consultas respeitam o escopo de empresa do usu\xE1rio autenticado.",
   auth: auth.oauth.issuer({
-    issuer: `https://${projectRef}.supabase.co/auth/v1`,
+    issuer,
     acceptedAudiences: "authenticated"
   }),
   tools: [whoami_default, search_products_default, list_payables_default, list_orders_default, get_order_default]

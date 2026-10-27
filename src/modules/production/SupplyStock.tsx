@@ -74,7 +74,7 @@ export default function SupplyStockPage() {
   return (
     <PageContainer>
       <PageHeader title="Estoque de Insumos" description="Controle de matérias-primas e insumos de produção">
-        <Button variant="outline" disabled title="Requer operação transacional de estoque homologada"><ArrowUpCircle className="h-4 w-4 mr-2" /> Movimentação indisponível</Button>
+        <Button variant="outline" onClick={() => { setMovForm({ ...movForm, direction: 'in' }); setMovementOpen(true); }}><ArrowUpCircle className="h-4 w-4 mr-2" /> Registrar movimento</Button>
         <Button onClick={() => setNewSupplyOpen(true)}><Plus className="h-4 w-4 mr-2" /> Novo Insumo</Button>
       </PageHeader>
 

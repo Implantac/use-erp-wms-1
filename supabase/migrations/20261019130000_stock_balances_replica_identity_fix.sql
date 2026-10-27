@@ -1,0 +1,24 @@
+-- ============================================================================
+-- Correção: UPDATE em stock_balances quebra com REPLICA IDENTITY FULL
+--
+-- Evidência (harness scripts/live-manager-journey.mjs, 2026-10-19):
+--   - stock_balances.available_qty é GENERATED ALWAYS AS (quantity - reserved_qty) STORED
+--     (migration 20260411012116);
+--   - 20260715194657 fez ALTER TABLE stock_balances REPLICA IDENTITY FULL e
+--     adicionou a tabela à publicação supabase_realtime.
+--   Com identidade FULL, a coluna gerada entra na identidade de réplica e,
+--   como publicações não publicam colunas geradas (PG15/16; PG17 por padrão),
+--   TODO UPDATE em stock_balances falha com:
+--     "Replica identity must not contain unpublished generated columns"
+--   Isso bloqueia reserva de materiais, consumo e conclusão de OP — qualquer
+--   escrita de saldo — na instalação local (imagem supabase/postgres = PG15).
+--
+-- Correção mínima: identidade volta a ser a PRIMARY KEY (id). O Realtime
+-- continua entregando o registro novo completo em INSERT/UPDATE; apenas o
+-- payload OLD de UPDATE/DELETE passa a conter a PK, comportamento padrão do
+-- Supabase. Nenhum dado é alterado.
+-- Reversão (NÃO recomendada — reintroduz o defeito):
+--   ALTER TABLE public.stock_balances REPLICA IDENTITY FULL;
+-- ============================================================================
+
+ALTER TABLE public.stock_balances REPLICA IDENTITY DEFAULT;
