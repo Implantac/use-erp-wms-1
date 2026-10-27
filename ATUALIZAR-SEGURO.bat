@@ -10,7 +10,8 @@ echo  Faz backup do banco, atualiza banco e telas, VERIFICA se
 echo  esta respondendo e, se algo falhar, VOLTA a versao anterior
 echo  da tela automaticamente. Nao apaga dados.
 echo.
-pause
+echo  Iniciando em 3 segundos... (feche a janela para cancelar)
+timeout /t 3 /nobreak >nul
 powershell -NoProfile -ExecutionPolicy Bypass -File "atualizar-seguro.ps1"
 if errorlevel 1 (
   echo.
