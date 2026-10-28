@@ -76,6 +76,7 @@ const UsersPage = () => {
       <UsersStats users={users} />
       <UsersFilters filter={filter} setFilter={setFilter} />
       <UsersTable users={filteredUsers} onEdit={handleEditUser} />
+      <SectorAccessCard />
 
       <UserDialog 
         open={isDialogOpen} 

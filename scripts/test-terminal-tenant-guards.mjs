@@ -15,7 +15,9 @@ test('operator field is locked on active entry and the name is explicitly not id
   assert.match(terminal, /disabled=\{!!currentEntry \|\| reportingProblem\}/);
   assert.match(terminal, /não confirma identidade nem autorização/);
 });
-test('failed separate OP status update is not silently hidden', () => {
-  assert.match(terminal, /if \(!await updateOrder\(order\.id/);
-  assert.match(terminal, /Apontamento criado, mas a OP não avançou/);
+test('terminal advances the OP only through the sequential PCP step RPC', () => {
+  assert.match(terminal, /recordProductionStepProgress/);
+  assert.match(terminal, /productionOrderStepId: matchingOrderStep\.id/);
+  assert.match(terminal, /Etapa iniciada no PCP, mas o registro de tempo/);
+  assert.doesNotMatch(terminal, /updateOrder\(/);
 });

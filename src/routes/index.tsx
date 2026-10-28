@@ -52,6 +52,7 @@ const SuppliersPage = lazy(() => import('@/pages/purchasing/Suppliers'));
 const PurchaseQuotationsPage = lazy(() => import('@/pages/purchasing/Quotations'));
 const ProcurementDashboardPage = lazy(() => import('@/pages/purchasing/ProcurementDashboard'));
 const PendenciasPage = lazy(() => import('@/pages/Pendencias'));
+const Onboarding = lazy(() => import('@/pages/Onboarding'));
 
 /**
  * Performance-optimized Page Loader
@@ -101,6 +102,11 @@ const AppRoutes = memo(() => {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
+
+      {/* Company registration: authenticated, but intentionally outside
+          MainLayout/OnboardingGuard. The guard redirects users without a
+          company to this path, so it cannot live behind that same guard. */}
+      <Route path="/onboarding" element={<Onboarding />} />
       
       {/* Protected Layout Scope */}
       <Route element={<MainLayout />}>
