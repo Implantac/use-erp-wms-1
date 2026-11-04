@@ -10,6 +10,7 @@ import { UsersStats } from './users/UsersStats';
 import { UsersFilters } from './users/UsersFilters';
 import { UsersTable } from './users/UsersTable';
 import { UserDialog } from './users/UserDialog';
+import { SectorAccessCard } from './users/SectorAccessCard';
 
 const UsersPage = () => {
   const { users, isLoading } = useUsers();

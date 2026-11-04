@@ -54,4 +54,21 @@ describe('matriz nicho -> telas', () => {
     expect(canPresentNicheRoute(null, '/vertical/textile')).toBe(false);
     expect(canPresentNicheRoute('desconhecido', '/vertical/textile')).toBe(false);
   });
+
+  it('ramo secundário (sub_segment) libera as telas dele, sem abrir os demais', () => {
+    // serviços + têxtil secundário: produção abre, vertical de confecção não
+    expect(canPresentNicheRoute('services', '/producao', [], 'textile')).toBe(true);
+    expect(canPresentNicheRoute('services', '/vertical/apparel', [], 'textile')).toBe(false);
+    // têxtil + confecção secundária: vertical de confecção abre pela família
+    expect(canPresentNicheRoute('textile', '/vertical/apparel', ['apparel'], 'apparel')).toBe(true);
+    // varejo + tecelagem secundária: vertical de tecelagem abre pelo sub-segmento
+    expect(canPresentNicheRoute('retail', '/vertical/weaving', [], 'tecelagem')).toBe(true);
+    expect(canPresentNicheRoute('retail', '/vertical/spinning', [], 'tecelagem')).toBe(false);
+    // sub-segmento inválido ou igual a um nicho sem a tela não libera nada
+    expect(canPresentNicheRoute('services', '/producao', [], 'desconhecido')).toBe(false);
+    expect(canPresentNicheRoute('services', '/producao', [], 'services')).toBe(false);
+    // sem segmento principal, o secundário sozinho libera o ramo dele
+    expect(canPresentNicheRoute(null, '/producao', [], 'fio')).toBe(true);
+    expect(canPresentNicheRoute(null, '/producao', [], null)).toBe(false);
+  });
 });

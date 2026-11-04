@@ -57,6 +57,7 @@ export interface PickOrderResult {
 /** Retorno da RPC `wms_ship_order` (jsonb). */
 export interface ShipOrderResult {
   lines_shipped?: number;
+  units_shipped?: number;
 }
 
 /** Retorno da RPC `wms_update_shipment_stage` (jsonb). */

@@ -7,6 +7,7 @@ import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { KPICard } from '@/shared/components/KPICard';
 import { SectorIndicatorsCard } from './productionOrders/SectorIndicatorsCard';
+import { WipPanel } from './productionOrders/WipPanel';
 import { Badge } from '@/ui/base/badge';
 import { Button } from '@/ui/base/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/base/card';
@@ -21,6 +22,8 @@ import { useNetMRP } from './mrp/useNetMRP';
 import { CreateTextileOrderDialog } from './productionOrders/CreateTextileOrderDialog';
 import { CreateSectorOrderDialog } from './productionOrders/CreateSectorOrderDialog';
 import { OrderMaterialReservationPanel, OrderStepProgressPanel } from './productionOrders/OrderExecutionPanels';
+import { ExternalStepPanel } from './productionOrders/ExternalStepPanel';
+import { OrderCostPanel } from './productionOrders/OrderCostPanel';
 import { ProductionCompletionPanel } from './productionOrders/ProductionCompletionPanel';
 import { ProductionQualityPanel } from '@/components/production/ProductionQualityPanel';
 import { WeavingEventsPanel, WeavingProfilePanel } from './productionOrders/WeavingOperationsPanel';
@@ -28,6 +31,10 @@ import { LoomBoardPanel } from './productionOrders/LoomBoardPanel';
 import { SectorBoardPanel, SECTOR_BOARDS } from './productionOrders/SectorBoardPanel';
 import { SectorProgrammingPanel } from './productionOrders/SectorProgrammingPanel';
 import { SectorSetupGuide } from './productionOrders/SectorSetupGuide';
+import { WeavingJourneyGuide } from './productionOrders/WeavingJourneyGuide';
+import { WeavingManagerCockpit } from './productionOrders/WeavingManagerCockpit';
+import { productionOrderPriorityLabel, productionOrderStatusLabel } from './productionOrders/orderPresentation';
+import { buildWeavingOrderJourney } from '@/lib/pcp/weavingManagerGuide';
 import { DyeingProfilePanel, FinishingProfilePanel, KnittingProfilePanel, SectorEventsPanel, SpinningProfilePanel } from './productionOrders/SectorOperationsPanels';
 import { SECTOR_MATCHERS, type SectorKind } from '@/lib/pcp/sectorProfiles';
 import { formatNumber } from '@/lib/formatters';
@@ -73,7 +80,7 @@ export const SECTOR_CENTRALS: Record<SectorCentralConfig['key'], SectorCentralCo
     key: 'tecelagem',
     noun: 'tecelagem',
     title: 'Central PCP — Tecelagem',
-    description: 'Fluxo executável do tear à conclusão: OP com snapshot, perfil de tecelagem, reserva por lote, capacidade finita, apontamento sequencial, qualidade e genealogia.',
+    description: 'Crie a OP, programe no tear, acompanhe passagens e paradas, libere a qualidade e gere o estoque do tecido — tudo nesta central.',
     newOrderLabel: 'Nova OP de tecelagem',
     matchers: SECTOR_MATCHERS.tecelagem,
   },
@@ -135,6 +142,17 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
     await Promise.all([refetch(), execution.refetch(), refetchSteps(), refetchInspections()]);
   };
 
+  const scrollToSection = (targetId: string) => {
+    window.requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const openOrderAt = (orderId: string, targetId: string) => {
+    setSelectedOrderId(orderId);
+    scrollToSection(targetId);
+  };
+
   const activeOrders = sectorOrders.filter((order) => !['completed', 'cancelled'].includes(order.status));
   const sectorOrderIds = new Set(sectorOrders.map((order) => order.id));
   const sectorActiveSchedules = schedules.filter(
@@ -155,6 +173,20 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
   const activeReservationCount = execution.reservations
     .filter((reservation) => ['reserved', 'partially_consumed'].includes(reservation.status)).length;
   const progress = selectedOrder && selectedOrder.quantity > 0 ? (selectedOrder.produced_quantity / selectedOrder.quantity) * 100 : 0;
+
+  const weavingJourney = config.key === 'tecelagem' && selectedOrder
+    ? buildWeavingOrderJourney({
+        orderStatus: selectedOrder.status,
+        hasSchedule: Boolean(selectedSchedule),
+        bomLineCount: execution.bomLines.length,
+        activeReservationCount,
+        totalSteps: orderSteps.length,
+        completedSteps,
+        plannedQuantity: selectedOrder.quantity,
+        approvedQuantity: approvedQuality,
+        blockedQuality,
+      })
+    : [];
 
   const readiness = selectedOrder ? [
     { label: 'Snapshot técnico congelado', ok: Boolean(execution.snapshotAt), detail: execution.snapshotAt ? new Date(execution.snapshotAt).toLocaleString('pt-BR') : 'OP legada usa BOM atual; nova OP congela na criação' },
@@ -197,9 +229,18 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
     <PageContainer loading={loading}>
       <PageHeader title={config.title} description={config.description}>
         <Button onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" /> {config.newOrderLabel}</Button>
-        <Button variant="outline" asChild><Link to="/producao/programacao">Programação finita</Link></Button>
-        <Button variant="outline" asChild><Link to="/producao/mrp">MRP líquido</Link></Button>
-        <Button variant="outline" asChild><Link to="/producao/qualidade">Qualidade</Link></Button>
+        {config.key === 'tecelagem' ? (
+          <>
+            <Button variant="outline" onClick={() => scrollToSection('pcp-programacao')}>Fila dos teares</Button>
+            <Button variant="outline" onClick={() => scrollToSection('pcp-mapa-teares')}>Mapa de teares</Button>
+          </>
+        ) : (
+          <>
+            <Button variant="outline" asChild><Link to="/producao/programacao">Programação finita</Link></Button>
+            <Button variant="outline" asChild><Link to="/producao/mrp">MRP líquido</Link></Button>
+            <Button variant="outline" asChild><Link to="/producao/qualidade">Qualidade</Link></Button>
+          </>
+        )}
       </PageHeader>
 
       {!hasCompany && <p role="alert" className="text-sm text-muted-foreground">Selecione uma empresa para operar o PCP de {config.noun}.</p>}
@@ -208,6 +249,15 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
       {usingFallbackOrders && <p role="alert" className="text-sm text-amber-700">Nenhuma OP está marcada por setor/centro como {config.noun}. Para não esconder trabalho existente, a lista abaixo mostra todas as OPs apenas para seleção manual; os KPIs não as classificam como {config.noun}.</p>}
 
       <SectorSetupGuide kind={config.key} noun={config.noun} />
+
+      {config.key === 'tecelagem' && !usingFallbackOrders ? (
+        <WeavingManagerCockpit
+          orders={markedOrders}
+          schedules={schedules}
+          onOpenOrder={openOrderAt}
+          onCreateOrder={() => setCreateOpen(true)}
+        />
+      ) : null}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <KPICard title={usingFallbackOrders ? `OPs ativas (sem marca ${config.noun})` : `OPs de ${config.noun} ativas`} value={activeOrders.length} icon={<Factory className="h-5 w-5" />} accentColor="primary" index={0} />
@@ -222,25 +272,38 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
         orders={markedOrders}
         inspections={inspections}
       />
-      {config.key === 'tecelagem' && <LoomBoardPanel />}
+      <WipPanel
+        orders={markedOrders}
+        noun={config.noun}
+        onOpenOrder={(orderId) => openOrderAt(orderId, 'pcp-op-atual')}
+      />
+      {config.key === 'tecelagem' && (
+        <div id="pcp-mapa-teares" className="scroll-mt-24">
+          <LoomBoardPanel onOpenOrder={openOrderAt} />
+        </div>
+      )}
       {config.key !== 'tecelagem' && (
         <SectorBoardPanel config={SECTOR_BOARDS[config.key as keyof typeof SECTOR_BOARDS]} />
       )}
 
-      <SectorProgrammingPanel
-        kind={config.key}
-        orders={markedOrders}
-        schedules={schedules}
-        canOperate={canOperateSector}
-        onRefetchSchedules={refetchSchedules}
-        onChanged={refresh}
-        onSelectOrder={setSelectedOrderId}
-      />
+      <div id="pcp-programacao" className="scroll-mt-24">
+        <SectorProgrammingPanel
+          kind={config.key}
+          orders={markedOrders}
+          schedules={schedules}
+          canOperate={canOperateSector}
+          onRefetchSchedules={refetchSchedules}
+          onChanged={refresh}
+          onSelectOrder={(orderId) => openOrderAt(orderId, 'pcp-op-atual')}
+        />
+      </div>
 
-      <Card>
+      <Card id="pcp-op-atual" className="scroll-mt-24">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><ClipboardList className="h-5 w-5" /> OP em operação</CardTitle>
-          <CardDescription>Os indicadores abaixo são consultas reais das OPs, BOM, saldos/lotes, programação, inspeções e genealogia. Sem fonte suficiente, a tela mostra a pendência em vez de estimar.</CardDescription>
+          <CardTitle className="flex items-center gap-2"><ClipboardList className="h-5 w-5" /> {config.key === 'tecelagem' ? 'Trabalhar nesta OP' : 'OP em operação'}</CardTitle>
+          <CardDescription>{config.key === 'tecelagem'
+            ? 'Escolha a OP e siga a rota: o sistema mostra a próxima ação e leva você ao painel certo.'
+            : 'Os indicadores abaixo são consultas reais das OPs, BOM, saldos/lotes, programação, inspeções e genealogia. Sem fonte suficiente, a tela mostra a pendência em vez de estimar.'}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {sectorOrders.length === 0 ? (
@@ -249,23 +312,27 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
             <>
               <Select value={selectedOrder?.id ?? ''} onValueChange={setSelectedOrderId}>
                 <SelectTrigger><SelectValue placeholder="Selecione a OP" /></SelectTrigger>
-                <SelectContent>{sectorOrders.map((order) => <SelectItem key={order.id} value={order.id}>{order.order_number} — {order.product_name} · {order.status} · {formatNumber(order.produced_quantity)}/{formatNumber(order.quantity)} {order.unit}</SelectItem>)}</SelectContent>
+                <SelectContent>{sectorOrders.map((order) => <SelectItem key={order.id} value={order.id}>{order.order_number} — {order.product_name} · {productionOrderStatusLabel(order.status)} · {formatNumber(order.produced_quantity)}/{formatNumber(order.quantity)} {order.unit}</SelectItem>)}</SelectContent>
               </Select>
               {selectedOrder && (
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge>{selectedOrder.status}</Badge>
-                    <span className="text-sm text-muted-foreground">{selectedOrder.work_center || selectedOrder.sector || 'Centro não informado'} · {execution.bomLines.length} componente(s) na BOM/snapshot; necessidade por unidade no painel de reservas</span>
+                    <Badge>{productionOrderStatusLabel(selectedOrder.status)}</Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {selectedOrder.work_center || selectedOrder.sector || 'Tear/centro não informado'} · Prioridade {productionOrderPriorityLabel(selectedOrder.priority).toLowerCase()}
+                      {selectedOrder.due_date ? ` · pronto até ${new Date(selectedOrder.due_date).toLocaleDateString('pt-BR')}` : ''}
+                      {' '}· {execution.bomLines.length} componente(s) na ficha
+                    </span>
                   </div>
                   <Progress value={Math.min(100, progress)} />
-                  <div className="grid gap-2 md:grid-cols-3">
+                  {config.key !== 'tecelagem' ? <div className="grid gap-2 md:grid-cols-3">
                     {readiness.map((item) => (
                       <div key={item.label} className="rounded-md border p-3">
                         <p className="flex items-center gap-2 text-sm font-medium">{item.ok ? <ShieldCheck className="h-4 w-4 text-green-600" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}{item.label}</p>
                         <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
                       </div>
                     ))}
-                  </div>
+                  </div> : null}
                 </div>
               )}
             </>
@@ -275,8 +342,13 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
 
       {selectedOrder && (
         <div className="space-y-4">
+          {config.key === 'tecelagem' ? (
+            <WeavingJourneyGuide order={selectedOrder} stages={weavingJourney} onNavigate={scrollToSection} />
+          ) : null}
           {config.key === 'tecelagem' && (
-            <WeavingProfilePanel order={selectedOrder} profile={execution.weavingProfile} lots={execution.lots} onChanged={refresh} />
+            <div id="pcp-perfil-tear" className="scroll-mt-24">
+              <WeavingProfilePanel order={selectedOrder} profile={execution.weavingProfile} lots={execution.lots} onChanged={refresh} />
+            </div>
           )}
           {config.key === 'fiacao' && (
             <SpinningProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} bomLines={execution.bomLines} />
@@ -290,16 +362,32 @@ export default function SectorPcpCentral({ config }: { config: SectorCentralConf
           {config.key === 'beneficiamento' && (
             <FinishingProfilePanel order={selectedOrder} profile={execution.sectorProfile} onChanged={refresh} />
           )}
-          <OrderMaterialReservationPanel order={selectedOrder} bomLines={execution.bomLines} lots={execution.lots} reservations={execution.reservations} snapshotAt={execution.snapshotAt} loading={execution.loading} onChanged={refresh} />
-          <OrderStepProgressPanel order={selectedOrder} steps={orderSteps} loading={false} onChanged={refresh} />
+          <div id="pcp-materiais" className="scroll-mt-24">
+            <OrderMaterialReservationPanel order={selectedOrder} bomLines={execution.bomLines} lots={execution.lots} reservations={execution.reservations} snapshotAt={execution.snapshotAt} loading={execution.loading} onChanged={refresh} />
+          </div>
+          <div id="pcp-passagens" className="scroll-mt-24">
+            <OrderStepProgressPanel order={selectedOrder} steps={orderSteps} loading={false} onChanged={refresh} />
+          </div>
+          <div id="pcp-terceirizacao" className="scroll-mt-24">
+            <ExternalStepPanel order={selectedOrder} steps={orderSteps} onChanged={refresh} />
+          </div>
           {config.key === 'tecelagem' && (
-            <WeavingEventsPanel order={selectedOrder} events={execution.weavingEvents} profileMachineId={execution.weavingProfile?.machine_id ?? null} onChanged={refresh} />
+            <div id="pcp-paradas" className="scroll-mt-24">
+              <WeavingEventsPanel order={selectedOrder} events={execution.weavingEvents} profileMachineId={execution.weavingProfile?.machine_id ?? null} onChanged={refresh} />
+            </div>
           )}
           {config.key !== 'tecelagem' && (
             <SectorEventsPanel order={selectedOrder} kind={config.key} events={execution.sectorEvents} onChanged={refresh} />
           )}
-          <ProductionQualityPanel order={selectedOrder} inspections={selectedInspections} onCreateInspection={createInspection} onChanged={refresh} />
-          <ProductionCompletionPanel order={selectedOrder} bomLines={execution.bomLines} lots={execution.lots} steps={orderSteps} inspections={selectedInspections} onCompleted={refresh} />
+          <div id="pcp-qualidade" className="scroll-mt-24">
+            <ProductionQualityPanel order={selectedOrder} inspections={selectedInspections} onCreateInspection={createInspection} onChanged={refresh} />
+          </div>
+          <div id="pcp-estoque" className="scroll-mt-24">
+            <ProductionCompletionPanel order={selectedOrder} bomLines={execution.bomLines} lots={execution.lots} steps={orderSteps} inspections={selectedInspections} onCompleted={refresh} />
+          </div>
+          <div id="pcp-custos" className="scroll-mt-24">
+            <OrderCostPanel order={selectedOrder} bomLines={execution.bomLines} />
+          </div>
           <Card>
             <CardContent className="flex flex-wrap gap-2 py-4">
               <Button variant="outline" asChild><Link to="/producao/ordens">Abrir OPs</Link></Button>

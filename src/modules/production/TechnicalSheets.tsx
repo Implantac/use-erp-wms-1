@@ -1,4 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useEnterprise } from '@/core/auth/EnterpriseContext';
+import { useProducts } from '@/hooks/inventory/useProducts';
+import type { ArticleSheet } from '@/lib/production/articleSheets';
+import { fetchArticleSheets } from '@/services/production/articleSheets';
+import { ArticleSheetManagerDialog } from './productionOrders/ArticleSheetManagerDialog';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { KPICard } from '@/shared/components/KPICard';
@@ -20,6 +25,19 @@ interface StepEntry { name: string; time_minutes: number; sector: string; [key: 
 interface MaterialEntry { name: string; quantity: number; unit: string; unit_cost: number; [key: string]: unknown; }
 
 export default function TechnicalSheetsPage() {
+  const { currentCompany } = useEnterprise();
+  const { data: sheetProducts = [] } = useProducts();
+  const [articleSheets, setArticleSheets] = useState<ArticleSheet[]>([]);
+  const [articleSheetManagerOpen, setArticleSheetManagerOpen] = useState(false);
+  const loadArticleSheets = useCallback(async () => {
+    if (!currentCompany?.id) return;
+    try {
+      setArticleSheets(await fetchArticleSheets(currentCompany.id));
+    } catch {
+      setArticleSheets([]);
+    }
+  }, [currentCompany?.id]);
+  useEffect(() => { void loadArticleSheets(); }, [loadArticleSheets]);
   const { sheets, loading, create, update, remove } = useTechnicalSheets();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<TechnicalSheetRow | null>(null);
@@ -28,7 +46,7 @@ export default function TechnicalSheetsPage() {
   const [materials, setMaterials] = useState<MaterialEntry[]>([]);
 
   const openNew = () => { setEditing(null); setForm({ product_code: '', product_name: '', version: '1.0', is_active: true, notes: '' }); setSteps([{ name: 'Corte', time_minutes: 15, sector: 'Corte' }]); setMaterials([{ name: 'Tecido', quantity: 1, unit: 'mt', unit_cost: 12 }]); setDialogOpen(true); };
-  const openEdit = (sheet: any) => { setEditing(sheet); setForm({ product_code: sheet.product_code, product_name: sheet.product_name, version: sheet.version, is_active: sheet.is_active, notes: sheet.notes || '' }); setSteps(Array.isArray(sheet.steps) ? sheet.steps : []); setMaterials(Array.isArray(sheet.materials) ? sheet.materials : []); setDialogOpen(true); };
+  const openEdit = (sheet: TechnicalSheetRow) => { setEditing(sheet); setForm({ product_code: sheet.product_code, product_name: sheet.product_name, version: sheet.version, is_active: sheet.is_active, notes: sheet.notes || '' }); setSteps(Array.isArray(sheet.steps) ? sheet.steps.map((step) => ({ name: step.name ?? '', time_minutes: step.time_minutes ?? 0, sector: step.work_center ?? '' })) : []); setMaterials(Array.isArray(sheet.materials) ? sheet.materials.map((material) => ({ name: material.name ?? material.componentCode ?? material.material_code ?? '', quantity: material.quantity ?? 0, unit: material.unit ?? '', unit_cost: typeof material.unit_cost === 'number' ? material.unit_cost : 0 })) : []); setDialogOpen(true); };
 
   const totalTime = steps.reduce((s, st) => s + st.time_minutes, 0);
   const totalMaterialCost = materials.reduce((s, m) => s + m.quantity * m.unit_cost, 0);
@@ -46,6 +64,7 @@ export default function TechnicalSheetsPage() {
   return (
     <PageContainer loading={loading}>
       <PageHeader title="Fichas Técnicas" description="Sequência de produção, materiais e custos por produto">
+        <Button variant="outline" onClick={() => setArticleSheetManagerOpen(true)}><FileText className="h-4 w-4 mr-2" /> Ficha do artigo (têxtil, versionada)</Button>
         <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" /> Nova Ficha</Button>
       </PageHeader>
 
@@ -130,6 +149,13 @@ export default function TechnicalSheetsPage() {
           <DialogFooter><Button onClick={handleSave}>{editing ? 'Salvar' : 'Criar'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      <ArticleSheetManagerDialog
+        open={articleSheetManagerOpen}
+        onOpenChange={setArticleSheetManagerOpen}
+        products={sheetProducts.map((product) => ({ id: product.id, code: product.code, name: product.name }))}
+        sheets={articleSheets}
+        onChanged={loadArticleSheets}
+      />
     </PageContainer>
   );
 }

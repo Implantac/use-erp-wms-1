@@ -13,12 +13,15 @@ import { EmptyState } from '@/shared/components/EmptyState';
 import { useOrdersForPicking, useShipmentInfo } from './orderPicking/useOrderPickingData';
 import { useOrderPickingMutations } from './orderPicking/useOrderPickingMutations';
 import { TrackingDialog } from './orderPicking/TrackingDialog';
+import { OrderUnitAllocationDialog } from './orderPicking/OrderUnitAllocationDialog';
 import type { OrderRow, StageForm } from './orderPicking/types';
 
 export default function OrderPicking() {
   const [search, setSearch] = useState('');
   const [stageOpen, setStageOpen] = useState(false);
   const [stageOrder, setStageOrder] = useState<OrderRow | null>(null);
+  const [unitsOpen, setUnitsOpen] = useState(false);
+  const [unitsOrder, setUnitsOrder] = useState<OrderRow | null>(null);
   const [stageForm, setStageForm] = useState<StageForm>({
     stage: 'conferred',
     tracking_number: '',
@@ -158,6 +161,15 @@ export default function OrderPicking() {
                         {o.stage === 'shipped' && (
                           <Badge variant="outline" className="text-muted-foreground">Finalizado</Badge>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { setUnitsOrder(o); setUnitsOpen(true); }}
+                          title="Vincular rolos/peças embalados deste pedido"
+                        >
+                          <PackageCheck className="h-3 w-3 mr-1" />
+                          Rolos
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => openStageDialog(o)} title="Atualizar tracking / etapa de expedição">
                           <ClipboardList className="h-3 w-3 mr-1" />
                           Tracking
@@ -171,6 +183,8 @@ export default function OrderPicking() {
           </Table>
         </CardContent>
       </Card>
+
+      <OrderUnitAllocationDialog open={unitsOpen} onOpenChange={setUnitsOpen} order={unitsOrder} />
 
       <TrackingDialog
         open={stageOpen}

@@ -17,13 +17,13 @@ const REASON_MESSAGES = {
 
 export function OperationalScopeGuard({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const { activeUnitType, activeChannel, scope, role, permissions, isReady, segment, currentCompany } = useEnterprise();
+  const { activeUnitType, activeChannel, scope, role, permissions, isReady, segment, subSegment, currentCompany } = useEnterprise();
   const families = parseIndustrialPlanning((currentCompany?.settings as Record<string, unknown> | null)?.industrial).families;
   const criteria = getRouteContextCriteria(pathname);
 
   if (isNicheSensitivePath(pathname)) {
     if (!isReady) return <div role="status" className="py-10">Aguardando perfil da empresa...</div>;
-    if (!canPresentNicheRoute(segment, pathname, families)) return (
+    if (!canPresentNicheRoute(segment, pathname, families, subSegment)) return (
       <EmptyState icon={ShieldAlert} title="Área indisponível para este ramo"
         description="O ramo da empresa não inclui esta tela. Configuração visual não substitui permissão ou homologação." />
     );

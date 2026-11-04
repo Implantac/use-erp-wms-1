@@ -9,6 +9,7 @@ import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
 import { useState } from 'react';
 import { ArrowDownToLine, ArrowLeftRight, Boxes, TriangleAlert } from 'lucide-react';
+import { TransferDecisionPanel } from './TransferDecisionPanel';
 
 /**
  * Abas operacionais da Central da Loja com dados reais:
@@ -28,6 +29,23 @@ interface TransferRow {
   destination?: { name: string } | null;
 }
 
+interface BalanceRow { quantity: number; reserved_qty: number; product_id: string }
+interface PolicyRow { min_stock: number; max_stock: number; product_id: string }
+interface ProductLiteRow { id: string; name: string; code: string; cost_price: number | null; image_url: string | null }
+interface MovementRow { id: string; type: string; quantity: number; product_name: string | null; reference: string | null; created_at: string }
+interface DivergenceRow { id: string; current_status: string; created_at: string; origin?: { name: string } | null }
+
+interface LooseQuery<T> extends PromiseLike<{ data: T | null; error: { message: string } | null }> {
+  select: (columns: string) => LooseQuery<T>;
+  eq: (column: string, value: unknown) => LooseQuery<T>;
+  in: (column: string, values: unknown[]) => LooseQuery<T>;
+  or: (filters: string) => LooseQuery<T>;
+  order: (column: string, options?: { ascending?: boolean }) => LooseQuery<T>;
+  limit: (count: number) => LooseQuery<T>;
+}
+
+const looseClient = supabase as unknown as { from<T>(table: string): LooseQuery<T> };
+
 const statusVariant = (s: string): 'default' | 'secondary' | 'destructive' | 'outline' =>
   s.includes('DIVERGÊNCIA') || s === 'REJEITADA' ? 'destructive'
   : s === 'EM TRÂNSITO' || s === 'EXPEDIDA' ? 'default'
@@ -40,14 +58,14 @@ function useUnitTransfers(limit = 30) {
     enabled: !!currentBranch?.id,
     queryFn: async () => {
       const unit = currentBranch!.id;
-      const { data, error } = await (supabase as any)
-        .from('stock_transfer_orders')
+      const { data, error } = await looseClient
+        .from<TransferRow[]>('stock_transfer_orders')
         .select('id, current_status, created_at, origin_unit_id, destination_unit_id, stock_transfer_items(id, requested_qty, shipped_qty, products(name, code)), origin:origin_unit_id(name), destination:destination_unit_id(name)')
         .or(`origin_unit_id.eq.${unit},destination_unit_id.eq.${unit}`)
         .order('created_at', { ascending: false })
         .limit(limit);
-      if (error) throw error;
-      return (data ?? []) as TransferRow[];
+      if (error) throw new Error(error.message);
+      return data ?? [];
     },
     staleTime: 30_000,
   });
@@ -119,7 +137,7 @@ export function StoreTransfersTab() {
                 </p>
                 <p className="text-[10px] text-muted-foreground">{outgoing ? 'Saindo' : 'Chegando'} · {t.stock_transfer_items?.length ?? 0} item(ns) · {new Date(t.created_at).toLocaleDateString('pt-BR')}</p>
                 <p className="text-[11px] text-foreground/80">
-                  {(t.stock_transfer_items ?? []).slice(0, 3).map((i: any) => `${i.products?.name ?? 'Produto'} ×${Number(i.requested_qty || 0)}`).join(' · ')}
+                  {(t.stock_transfer_items ?? []).slice(0, 3).map((i) => `${i.products?.name ?? 'Produto'} ×${Number(i.requested_qty || 0)}`).join(' · ')}
                   {(t.stock_transfer_items?.length ?? 0) > 3 ? ` · +${(t.stock_transfer_items?.length ?? 0) - 3}` : ''}
                 </p>
               </div>
@@ -141,17 +159,17 @@ export function StoreStockTab() {
     queryFn: async () => {
       const unit = currentBranch!.id;
       const [{ data: balances }, { data: policies }] = await Promise.all([
-        (supabase as any).from('stock_balances').select('quantity, reserved_qty, product_id').eq('branch_id', unit),
-        (supabase as any).from('replenishment_policies').select('min_stock, max_stock, product_id').eq('branch_id', unit),
+        looseClient.from<BalanceRow[]>('stock_balances').select('quantity, reserved_qty, product_id').eq('branch_id', unit),
+        looseClient.from<PolicyRow[]>('replenishment_policies').select('min_stock, max_stock, product_id').eq('branch_id', unit),
       ]);
-      const ids = [...new Set((balances ?? []).map((b: any) => b.product_id))];
+      const ids = [...new Set((balances ?? []).map((b) => b.product_id))];
       const { data: prods } = ids.length
-        ? await (supabase as any).from('products').select('id, name, code, cost_price, image_url').in('id', ids)
-        : { data: [] };
-      const prodMap = new Map((prods ?? []).map((p: any) => [p.id, p]));
+        ? await looseClient.from<ProductLiteRow[]>('products').select('id, name, code, cost_price, image_url').in('id', ids)
+        : { data: [] as ProductLiteRow[] };
+      const prodMap = new Map((prods ?? []).map((p) => [p.id, p]));
       const byProduct = new Map<string, { id: string; name: string; code: string; qty: number; min: number; max: number; cost: number; image: string | null }>();
       for (const b of balances ?? []) {
-        const pr: any = prodMap.get(b.product_id);
+        const pr = prodMap.get(b.product_id);
         const cur = byProduct.get(b.product_id) ?? { id: b.product_id, name: pr?.name ?? b.product_id, code: pr?.code ?? '', qty: 0, min: 0, max: 0, cost: Number(pr?.cost_price ?? 0), image: pr?.image_url ?? null };
         cur.qty += Number(b.quantity ?? 0) - Number(b.reserved_qty ?? 0);
         byProduct.set(b.product_id, cur);
@@ -183,7 +201,7 @@ export function StoreStockTab() {
       toast.success('Abastecimento solicitado. O almoxarifado vai analisar a melhor origem.');
       queryClient.invalidateQueries({ queryKey: ['supply-requests'] });
     },
-    onError: (e: any) => toast.error(`Não foi possível solicitar: ${e?.message || 'erro inesperado'}`),
+    onError: (e: unknown) => toast.error(`Não foi possível solicitar: ${e instanceof Error ? e.message : 'erro inesperado'}`),
   });
   const stockValue = rows.reduce((acc, r) => acc + r.qty * r.cost, 0);
   return (
@@ -245,10 +263,10 @@ export function StoreOccurrencesTab() {
     queryFn: async () => {
       const unit = currentBranch!.id;
       const [{ data: movements }, { data: divergences }] = await Promise.all([
-        (supabase as any).from('stock_movements').select('id, type, quantity, product_name, reference, created_at')
+        looseClient.from<MovementRow[]>('stock_movements').select('id, type, quantity, product_name, reference, created_at')
           .eq('branch_id', unit).in('type', ['loss', 'inventory_count'])
           .order('created_at', { ascending: false }).limit(20),
-        (supabase as any).from('stock_transfer_orders').select('id, current_status, created_at, origin:origin_unit_id(name)')
+        looseClient.from<DivergenceRow[]>('stock_transfer_orders').select('id, current_status, created_at, origin:origin_unit_id(name)')
           .eq('destination_unit_id', unit).eq('current_status', 'RECEBIDA COM DIVERGÊNCIA')
           .order('created_at', { ascending: false }).limit(10),
       ]);
@@ -263,7 +281,7 @@ export function StoreOccurrencesTab() {
         <CardContent className="p-4 pt-0 space-y-2">
           {isLoading ? <p className="text-[11px] text-muted-foreground">Carregando…</p>
           : !data || data.movements.length === 0 ? <p className="text-[11px] text-muted-foreground">Nenhuma perda ou contagem registrada.</p>
-          : data.movements.map((m: any) => (
+          : data.movements.map((m) => (
             <div key={m.id} className="flex items-center justify-between p-3 bg-background rounded-lg border shadow-sm">
               <div className="space-y-0.5">
                 <p className="text-xs font-bold uppercase tracking-tight">{m.product_name ?? 'Produto'}</p>
@@ -278,7 +296,7 @@ export function StoreOccurrencesTab() {
         <CardHeader className="p-4"><CardTitle className="text-sm font-black uppercase">Recebimentos com Divergência</CardTitle></CardHeader>
         <CardContent className="p-4 pt-0 space-y-2">
           {!data || data.divergences.length === 0 ? <p className="text-[11px] text-muted-foreground">Nenhuma divergência registrada.</p>
-          : data.divergences.map((t: any) => (
+          : data.divergences.map((t) => (
             <div key={t.id} className="flex items-center justify-between p-3 bg-background rounded-lg border shadow-sm">
               <div className="space-y-0.5">
                 <p className="text-xs font-bold uppercase tracking-tight">De {t.origin?.name ?? 'origem'}</p>

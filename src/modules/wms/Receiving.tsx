@@ -3,8 +3,10 @@ import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { KPICard } from '@/shared/components/KPICard';
 import { ExportButton } from '@/shared/components/ExportButton';
-import { Package, Clock, PlayCircle, CheckCircle } from 'lucide-react';
+import { Package, Clock, PlayCircle, CheckCircle, PackagePlus } from 'lucide-react';
+import { Button } from '@/ui/base/button';
 import { useWMSReceiving, type ReceivingOrderView } from '@/hooks/wms/useWMSOperations';
+import { FiberReceiptDialog } from './FiberReceiptDialog';
 import { formatDate } from './receiving/constants';
 import { ReceivingFilters } from './receiving/ReceivingFilters';
 import { ReceivingTable } from './receiving/ReceivingTable';
@@ -16,6 +18,7 @@ export default function ReceivingPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<ReceivingOrderView | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [fiberReceiptOpen, setFiberReceiptOpen] = useState(false);
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch =
@@ -40,7 +43,7 @@ export default function ReceivingPage() {
     refetch();
   };
 
-  const openDetails = (order: any) => {
+  const openDetails = (order: ReceivingOrderView) => {
     setSelectedOrder(order);
     setIsDetailsOpen(true);
   };
@@ -48,7 +51,11 @@ export default function ReceivingPage() {
   return (
     <PageContainer>
       <PageHeader title="Recebimento" description="Gerenciamento de recebimento de mercadorias">
-        <ExportButton
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setFiberReceiptOpen(true)} className="gap-2">
+            <PackagePlus className="h-4 w-4" /> Receber pluma/fibra
+          </Button>
+          <ExportButton
           data={filteredOrders as unknown as Record<string, unknown>[]}
           columns={[
             { key: 'orderNumber', label: 'Nº Ordem' },
@@ -57,8 +64,9 @@ export default function ReceivingPage() {
             { key: 'status', label: 'Status' },
             { key: 'expectedDate', label: 'Data Prevista', format: (v) => formatDate(v as string) },
           ]}
-          filename="recebimento_wms"
-        />
+            filename="recebimento_wms"
+          />
+        </div>
       </PageHeader>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -91,6 +99,8 @@ export default function ReceivingPage() {
         onStart={handleStart}
         onComplete={handleComplete}
       />
+
+      <FiberReceiptDialog open={fiberReceiptOpen} onOpenChange={setFiberReceiptOpen} />
     </PageContainer>
   );
 }

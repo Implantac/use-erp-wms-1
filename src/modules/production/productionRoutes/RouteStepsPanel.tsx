@@ -6,6 +6,7 @@ import { Label } from '@/ui/base/label';
 import { Badge } from '@/ui/base/badge';
 import { Skeleton } from '@/ui/base/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
+import { Switch } from '@/ui/base/switch';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { Plus, X, GitBranch, Clock, Timer, Zap, ChevronRight, Trash2 } from 'lucide-react';
 import { toSafeNumber } from '@/lib/numericValidation';
@@ -96,6 +97,10 @@ export function RouteStepsPanel({ routeId, onClose }: { routeId: string; onClose
               <div className="space-y-1"><Label className="text-xs">Setup (min)</Label><Input type="number" value={newStep.setup_time_minutes || 0} onChange={e => setNewStep({ ...newStep, setup_time_minutes: toSafeNumber(e.target.value) })} /></div>
               <div className="space-y-1"><Label className="text-xs">Operação (min)</Label><Input type="number" value={newStep.operation_time_minutes || 0} onChange={e => setNewStep({ ...newStep, operation_time_minutes: toSafeNumber(e.target.value) })} /></div>
             </div>
+            <div className="flex items-center gap-2 mb-3">
+              <Switch id="route-step-external" checked={Boolean(newStep.is_external)} onCheckedChange={checked => setNewStep({ ...newStep, is_external: checked })} />
+              <Label htmlFor="route-step-external" className="text-xs">Etapa externa (terceirizada): a OP exigirá envio/retorno de fornecedor para concluir esta etapa</Label>
+            </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={handleAdd} disabled={!selectableOperations.some(op => op.name === newStep.step_name)}>Adicionar</Button>
               <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>Cancelar</Button>
@@ -153,6 +158,7 @@ export function RouteStepsPanel({ routeId, onClose }: { routeId: string; onClose
                         <div className="flex flex-wrap items-center gap-2 mt-2">
                           {s.sector_name && <Badge variant="secondary" className="text-[10px] h-5 gap-1">{s.sector_name}</Badge>}
                           {s.resource_name && <Badge variant="outline" className="text-[10px] h-5 gap-1">{s.resource_name}</Badge>}
+                          {s.is_external && <Badge className="text-[10px] h-5 gap-1">Externa (terceirizada)</Badge>}
                         </div>
                         <div className="flex items-center gap-3 mt-2">
                           <span className="text-xs text-muted-foreground flex items-center gap-1">

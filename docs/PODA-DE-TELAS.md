@@ -27,8 +27,18 @@ Dashboards de nicho (Pacotes Verticais) já eram filtrados por nicho
 3. Remover o href de `SHOWCASE_HREFS` (os testes apontam o comportamento).
 
 ## Limites honestos
-- As **rotas continuam acessíveis por URL direta** (avaliação técnica);
-  o bloqueio de rota por nicho é o passo seguinte, se o piloto pedir.
+- **Atualizado (T99, 2026-10-29):** as rotas sensíveis a nicho NÃO abrem
+  mais por URL direta — o `OperationalScopeGuard` (montado no layout)
+  bloqueia `/producao/*` e `/vertical/*` fora do ramo, e as telas de
+  vitrine têm o `PrunedRoute` (admin de sistema mantém acesso para
+  avaliação técnica). A paleta ⌘K e o menu usam a mesma matriz
+  (`canPresentNicheRoute`), então busca não oferece tela bloqueada.
+- O ramo **secundário** (`companies.sub_segment`) agora conta na matriz:
+  libera as telas dele no guard, no menu e na busca (antes era coletado
+  no onboarding/cadastro e ignorado). Provado em
+  `src/config/nicheMatrix.test.ts`.
+- Isto é poda de **apresentação**: quem protege dado é empresa/RLS e o
+  backend por módulo (`niche_packages`/`has_module_access`, harness).
 - Dashboards setoriais genéricos antigos (executivos de nicho não-têxtil)
   seguem atrás do filtro de Pacotes Verticais; a poda deles é por nicho,
   não global.

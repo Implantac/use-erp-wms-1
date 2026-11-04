@@ -21,6 +21,7 @@ interface LooseQuery<T> extends PromiseLike<LooseResponse<T>> {
   in: (column: string, values: unknown[]) => LooseQuery<T>;
   order: (column: string, options?: { ascending?: boolean }) => LooseQuery<T>;
   limit: (count: number) => LooseQuery<T>;
+  range: (from: number, to: number) => LooseQuery<T>;
   maybeSingle: () => Promise<LooseResponse<T>>;
   single: () => Promise<LooseResponse<T>>;
 }
@@ -54,13 +55,30 @@ export interface WeavingProfileInput {
   planned_length_m?: number | null;
   setup_minutes?: number | null;
   notes?: string | null;
+  warp_preparation_status?: string | null;
+  warper_machine_id?: string | null;
+  warper_resource_id?: string | null;
+  sizing_applicable?: boolean | null;
+  size_product_id?: string | null;
+  size_lot_id?: string | null;
+  size_recipe_code?: string | null;
+  sizing_recipe_version_id?: string | null;
+  size_concentration_pct?: number | null;
+  sizing_temperature_c?: number | null;
+  sizing_speed_m_min?: number | null;
+  drying_temperature_c?: number | null;
+  warp_moisture_pct?: number | null;
+  warp_preparation_notes?: string | null;
 }
 
-export interface WeavingOrderProfileRow extends Required<Omit<WeavingProfileInput, 'notes'>> {
+export interface WeavingOrderProfileRow extends Required<Omit<WeavingProfileInput, 'notes' | 'warp_preparation_notes'>> {
   id: string;
   company_id: string;
   production_order_id: string;
   notes: string | null;
+  warp_preparation_notes: string | null;
+  warp_prepared_at?: string | null;
+  warp_prepared_by?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -432,6 +450,12 @@ export interface SectorOrderProfileRow {
   // fiação
   target_title?: string | null;
   twist_per_m?: number | null;
+  blend_components?: Array<{ name: string; pct?: number | null }> | null;
+  roving_title?: string | null;
+  draft_ratio?: number | null;
+  spindle_speed_rpm?: number | null;
+  delivery_speed_m_min?: number | null;
+  traveler_code?: string | null;
   // malharia
   gauge?: string | null;
   diameter_cm?: number | null;
@@ -448,6 +472,21 @@ export interface SectorOrderProfileRow {
   measured_lab_l?: number | null;
   measured_lab_a?: number | null;
   measured_lab_b?: number | null;
+  pretreatment_applicable?: boolean | null;
+  pretreatment_type?: string | null;
+  pretreatment_recipe_code?: string | null;
+  pretreatment_temperature_c?: number | null;
+  pretreatment_time_min?: number | null;
+  dye_recipe_code?: string | null;
+  dye_recipe_version_id?: string | null;
+  dyeing_temperature_c?: number | null;
+  dyeing_time_min?: number | null;
+  ph_target?: number | null;
+  lab_approval_required?: boolean;
+  lab_decision?: string | null;
+  lab_decision_by?: string | null;
+  lab_decision_at?: string | null;
+  lab_decision_notes?: string | null;
   // beneficiamento
   process_type?: string | null;
   target_shrinkage_pct?: number | null;
@@ -523,6 +562,25 @@ export async function recordSectorEvent(input: {
     p_operator_name: input.operatorName ?? null,
     p_deviation_category: input.deviationCategory ?? null,
     p_cause_status: input.causeStatus ?? null,
+  });
+}
+
+export async function setDyeingLabApprovalRequirement(productionOrderId: string, required: boolean) {
+  return callRpc<Record<string, unknown>>('set_dyeing_lab_approval_requirement', {
+    p_production_order_id: productionOrderId,
+    p_required: required,
+  });
+}
+
+export async function decideDyeingLabApproval(
+  productionOrderId: string,
+  decision: 'approved' | 'rejected' | 'concession',
+  notes?: string | null,
+) {
+  return callRpc<Record<string, unknown>>('decide_dyeing_lab_approval', {
+    p_production_order_id: productionOrderId,
+    p_decision: decision,
+    p_notes: notes?.trim() || null,
   });
 }
 

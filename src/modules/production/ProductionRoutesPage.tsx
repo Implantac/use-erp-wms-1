@@ -6,15 +6,16 @@ import { useProducts } from '@/hooks/inventory/useProducts';
 import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
 import { Card, CardContent } from '@/ui/base/card';
-import { Plus, Search, ChevronRight } from 'lucide-react';
+import { Plus, Search, ChevronRight, GitBranch } from 'lucide-react';
 import { emptyRoute } from './productionRoutes/constants';
 import { RoutesKPIs } from './productionRoutes/RoutesKPIs';
 import { RoutesList } from './productionRoutes/RoutesList';
 import { RouteFormDialog, DeleteRouteDialog } from './productionRoutes/RouteFormDialog';
 import { RouteStepsPanel } from './productionRoutes/RouteStepsPanel';
+import { TextileRouteTemplateDialog } from './productionRoutes/TextileRouteTemplateDialog';
 
 export default function ProductionRoutesPage() {
-  const { routes, loading, create, update, remove } = useProductionRoutes();
+  const { routes, loading, create, update, remove, refetch } = useProductionRoutes();
   const { data: products = [] } = useProducts();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ProductionRouteRow | null>(null);
@@ -22,6 +23,7 @@ export default function ProductionRoutesPage() {
   const [search, setSearch] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   const filtered = routes.filter(r =>
     r.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -55,6 +57,7 @@ export default function ProductionRoutesPage() {
           <Input placeholder="Buscar rota ou produto..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Button onClick={openNew} className="shrink-0"><Plus className="h-4 w-4 mr-2" />Nova Rota</Button>
+        <Button onClick={() => setTemplateOpen(true)} variant="outline" className="shrink-0"><GitBranch className="h-4 w-4 mr-2" />Aplicar modelo têxtil</Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -95,6 +98,16 @@ export default function ProductionRoutesPage() {
         setForm={setForm}
         products={products}
         onSave={handleSave}
+      />
+
+      <TextileRouteTemplateDialog
+        open={templateOpen}
+        onOpenChange={setTemplateOpen}
+        products={products}
+        onApplied={async (routeId) => {
+          await refetch();
+          setSelectedRoute(routeId);
+        }}
       />
 
       <DeleteRouteDialog

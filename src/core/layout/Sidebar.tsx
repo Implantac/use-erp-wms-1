@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/useAppStore';
 import { useAuth } from '@/hooks/system/useAuth';
 import { useEnterprise } from '../auth/EnterpriseContext';
-import { SEGMENTS, isHiddenHref } from '@/config/adaptive';
+import { SEGMENTS, isHiddenHref, normalizeSegment } from '@/config/adaptive';
 import { canPresentNicheRoute } from '@/config/nichePresentation';
 import { parseIndustrialPlanning } from '@/config/industrialProfile';
 
@@ -27,7 +27,7 @@ export function Sidebar() {
   const isMobile = useIsMobile();
   const sidebarCollapsed = isMobile ? false : rawCollapsed;
   const { signOut } = useAuth({ initialize: false });
-  const { segment, currentCompany, activeUnitType, activeChannel, scope, role, permissions } = useEnterprise();
+  const { segment, subSegment, currentCompany, activeUnitType, activeChannel, scope, role, permissions } = useEnterprise();
   const families = useMemo(() => parseIndustrialPlanning((currentCompany?.settings as Record<string, unknown> | null)?.industrial).families, [currentCompany?.settings]);
 
   const contextualSections = useMemo(() => getNavigationForContext({
@@ -53,8 +53,8 @@ export function Sidebar() {
     return contextualSections.map(section => {
       const items = section.items.flatMap(item => {
         if (isHiddenHref(segment, item.href)) return [];
-        if (!canPresentNicheRoute(segment, item.href, families)) return [];
-        const children = item.children?.filter(child => canPresentNicheRoute(segment, child.href, families));
+        if (!canPresentNicheRoute(segment, item.href, families, subSegment)) return [];
+        const children = item.children?.filter(child => canPresentNicheRoute(segment, child.href, families, subSegment));
         const visibleItem = children ? { ...item, children } : item;
         if (!query) return [visibleItem];
         const matches = item.title.toLowerCase().includes(query) || item.href.toLowerCase().includes(query)
@@ -63,10 +63,11 @@ export function Sidebar() {
       });
       return items.length ? { ...section, items } : null;
     }).filter((section): section is (typeof contextualSections)[number] => section !== null);
-  }, [contextualSections, searchQuery, segment, families]);
+  }, [contextualSections, searchQuery, segment, subSegment, families]);
 
   const flatItems = useMemo(() => {
-    const items: any[] = [];
+    type FlatNavItem = (typeof filteredSections)[number]['items'][number] & { isChild?: boolean };
+    const items: FlatNavItem[] = [];
     filteredSections.forEach(section => {
       section.items.forEach(item => {
         items.push(item);
@@ -205,10 +206,12 @@ export function Sidebar() {
             if (!section) return null;
             
             // No configured niche means no operational sections, never all sections.
+            const subNormalized = normalizeSegment(subSegment);
             const isVisible = segment !== 'unconfigured' && !!section.label && (
               section.label === 'Pacotes Verticais'
-                ? section.items.some(item => canPresentNicheRoute(segment, item.href, families))
+                ? section.items.some(item => canPresentNicheRoute(segment, item.href, families, subSegment))
                 : SEGMENTS[segment].allowedSections.includes(section.label)
+                  || (subNormalized !== null && SEGMENTS[subNormalized].allowedSections.includes(section.label))
             );
 
             if (!isVisible) return null;

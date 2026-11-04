@@ -6,6 +6,7 @@ import { Label } from "@/ui/base/label";
 import { Textarea } from "@/ui/base/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/base/select";
 import type { Decision, Lot } from "./types";
+import { formatFiberClassificationSummary } from "@/lib/wms/fiberReceipt";
 
 export function InspectDialog({
   open,
@@ -59,6 +60,11 @@ export function InspectDialog({
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               <strong>{lot.product_code}</strong> · {lot.product_name} · Fornecedor {lot.supplier ?? "—"}
+              {formatFiberClassificationSummary(lot.fiber_classification) && (
+                <div className="mt-1 text-xs">
+                  Classificação informada: {formatFiberClassificationSummary(lot.fiber_classification)}
+                </div>
+              )}
             </div>
             <div>
               <Label>Decisão</Label>

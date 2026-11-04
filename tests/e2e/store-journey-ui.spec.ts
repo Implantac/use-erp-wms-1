@@ -1,9 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 /**
  * Smoke de CLIQUE da jornada (navegador de verdade): login da Loja abre a
- * Central com a Fila do Dia; login do gestor abre o WMS com a caixa de
- * entrada da Fábrica; a tela de NF-e mostra o Assistente fiscal.
+ * Central com a Fila do Dia e formulário; login do gestor abre a Central
+ * de Abastecimento com a caixa da Fábrica; NF-e mostra o Assistente fiscal.
  *
  * Não depende de massa operacional: valida que as telas-assinatura de
  * cada papel renderizam. A jornada transacional completa (pedir ->
@@ -18,7 +18,7 @@ const managerEmail = process.env.E2E_MANAGER_EMAIL;
 const managerPassword = process.env.E2E_MANAGER_PASSWORD;
 const configured = Boolean(storeEmail && storePassword && managerEmail && managerPassword);
 
-async function login(page: any, email: string, password: string) {
+async function login(page: Page, email: string, password: string) {
   await page.goto('/login');
   await page.locator('input[type="email"]').first().fill(email);
   await page.locator('input[type="password"]').first().fill(password);
@@ -33,13 +33,19 @@ test.describe('Smoke de clique por papel', () => {
     await login(page, storeEmail!, storePassword!);
     await page.goto('/operacional/loja/central');
     await expect(page.getByText('Fila do dia').first()).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('tab', { name: 'Solicitar', exact: true }).click();
+    await expect(page.getByText('Nova Solicitação de Abastecimento')).toBeVisible();
+    await expect(page.getByLabel('Produto', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Quantidade', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Solicitar abastecimento', exact: true })).toBeVisible();
+    // Não envia: este smoke não deve criar solicitações nem movimentar estoque.
   });
 
-  test('Gestor: WMS abre com Operação da rede hoje e caixa da Fábrica', async ({ page }) => {
+  test('Gestor: abre a Central de Abastecimento e a caixa da Fábrica', async ({ page }) => {
     await login(page, managerEmail!, managerPassword!);
-    await page.goto('/wms/dashboard');
-    await expect(page.getByText('Operação da rede hoje').first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText('Caixa de entrada da Fábrica').first()).toBeVisible({ timeout: 20_000 });
+    await page.goto('/operacional/abastecimento');
+    await expect(page.getByRole('heading', { name: 'Central de Abastecimento' })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/Solicitações das Lojas — caixa de entrada da Fábrica/i)).toBeVisible({ timeout: 20_000 });
   });
 
   test('Fiscal: NF-e abre com o Assistente fiscal da empresa', async ({ page }) => {

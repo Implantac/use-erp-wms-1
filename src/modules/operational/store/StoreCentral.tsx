@@ -10,7 +10,6 @@ import { useSupplyChainExecution } from "@/hooks/operational/network/useSupplyCh
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/base/tabs";
 import { 
   Store, 
-  TrendingUp, 
   Package, 
   AlertTriangle, 
   Truck, 
@@ -184,14 +183,12 @@ export default function StoreCentral() {
               title="Vendas Hoje" 
               value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(kpis?.sales || 0)} 
               icon={DollarSign}
-              trend="+12%"
               variant="default"
             />
             <KPICard 
               title="Ticket Médio" 
               value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(kpis?.ticketAverage || 0)} 
               icon={Ticket}
-              trend="+5%"
               variant="default"
             />
             <KPICard 
@@ -450,7 +447,6 @@ export default function StoreCentral() {
                           </div>
                           <div className="text-right">
                             <Badge className="bg-violet-500 text-[10px] mb-1">EM TRÂNSITO</Badge>
-                            <p className="text-[10px] text-muted-foreground">Previsão: Hoje</p>
                             <Button size="sm" className="mt-2" onClick={() => openReceive(order)}>Receber mercadoria</Button>
                           </div>
                         </div>
@@ -477,9 +473,9 @@ export default function StoreCentral() {
                 <CardContent className="space-y-4">
                   <div className="grid gap-3 md:grid-cols-[2fr_1fr_auto]">
                     <div className="space-y-1">
-                      <Label>Produto</Label>
+                      <Label htmlFor="supply-request-product">Produto</Label>
                       <Select value={reqProduct} onValueChange={setReqProduct}>
-                        <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                        <SelectTrigger id="supply-request-product"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
                         <SelectContent>
                           {(storeProductsQuery.data || []).map((prod) => (
                             <SelectItem key={prod.id} value={prod.id}>{prod.code} — {prod.name}</SelectItem>
@@ -488,8 +484,8 @@ export default function StoreCentral() {
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <Label>Quantidade</Label>
-                      <Input type="number" min="0" step="0.0001" value={reqQty} onChange={(e) => setReqQty(e.target.value)} placeholder="Ex.: 20" />
+                      <Label htmlFor="supply-request-quantity">Quantidade</Label>
+                      <Input id="supply-request-quantity" type="number" min="0" step="0.0001" value={reqQty} onChange={(e) => setReqQty(e.target.value)} placeholder="Ex.: 20" />
                     </div>
                     <div className="flex items-end">
                       <Button onClick={() => void handleManualRequest()} disabled={reqSaving || !currentBranch?.id}>
@@ -731,11 +727,10 @@ export default function StoreCentral() {
   );
 }
 
-function KPICard({ title, value, icon: Icon, trend, variant = 'default' }: { 
+function KPICard({ title, value, icon: Icon, variant = 'default' }: {
   title: string, 
   value: string | number, 
   icon: any, 
-  trend?: string,
   variant?: 'default' | 'info' | 'warning' | 'success'
 }) {
   return (
@@ -750,9 +745,6 @@ function KPICard({ title, value, icon: Icon, trend, variant = 'default' }: {
           <div className="space-y-1">
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
             <p className="text-xl font-bold">{value}</p>
-            {trend && (
-              <p className="text-[10px] font-bold text-success">{trend} <TrendingUp className="inline h-2 w-2" /></p>
-            )}
           </div>
           <Icon className={cn(
             "h-4 w-4",

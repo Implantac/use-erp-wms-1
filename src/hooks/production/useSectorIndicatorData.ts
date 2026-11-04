@@ -51,14 +51,14 @@ export function useSectorIndicatorData(
       const ids = orderIdsKey ? orderIdsKey.split(',') : [];
       const [eventRows, productResult, categoryResult, scheduleResult] = await Promise.all([
         fetchSectorIndicatorEvents(companyId, kind, ids).catch(() => [] as SectorIndicatorEventRow[]),
-        looseClient.from<Array<{ machine_id: string | null; planned_start: string; planned_end: string; status?: string | null }>>('production_schedule')
-          .select('machine_id, planned_start, planned_end, status')
-          .eq('company_id', companyId),
         looseClient.from<ProductRow[]>('products')
           .select('id, code, name, category_id, subcategory, status')
           .eq('company_id', companyId),
         looseClient.from<Array<{ id: string; name: string }>>('categories')
           .select('id, name'),
+        looseClient.from<Array<{ machine_id: string | null; planned_start: string; planned_end: string; status?: string | null }>>('production_schedule')
+          .select('machine_id, planned_start, planned_end, status')
+          .eq('company_id', companyId),
       ]);
       if (cancelled) return;
       setEvents(eventRows);

@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { isHiddenHref } from '@/config/adaptive';
+import { canPresentNicheRoute } from '@/config/nichePresentation';
+import { parseIndustrialPlanning } from '@/config/industrialProfile';
 import { useNavigate } from 'react-router-dom';
 import {
   CommandDialog,
@@ -53,10 +55,25 @@ interface FlatItem {
   group: string;
 }
 
+interface ProductHitRow { id: string; name: string; code: string | null }
+interface ProductionOrderHitRow { id: string; order_number: string; current_status_view: string | null; products: { name: string } | null }
+interface PurchaseOrderHitRow { id: string; number: string; supplier_name: string | null; status: string | null }
+
+interface HitQuery<T> extends PromiseLike<{ data: T[] | null }> {
+  select: (columns: string) => HitQuery<T>;
+  eq: (column: string, value: unknown) => HitQuery<T>;
+  or: (filters: string) => HitQuery<T>;
+  ilike: (column: string, pattern: string) => HitQuery<T>;
+  limit: (count: number) => HitQuery<T>;
+}
+
+const loose = supabase as unknown as { from<T>(table: string): HitQuery<T> };
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const { activeUnitType, activeChannel, scope, role, permissions, segment, currentCompany } = useEnterprise();
+  const { activeUnitType, activeChannel, scope, role, permissions, segment, subSegment, currentCompany } = useEnterprise();
+  const families = useMemo(() => parseIndustrialPlanning((currentCompany?.settings as Record<string, unknown> | null)?.industrial).families, [currentCompany?.settings]);
   const context = useMemo(() => ({ unitType: activeUnitType, channel: activeChannel, scope, role, permissions }),
     [activeUnitType, activeChannel, scope, role, permissions]);
   const visibleTasks = useMemo(() => taskActions.filter((action) => {
@@ -84,18 +101,20 @@ export function CommandPalette() {
     getNavigationForContext(context).forEach((section) => {
       section.items.forEach((item) => {
         if (isHiddenHref(segment, item.href)) return;
+        if (!canPresentNicheRoute(segment, item.href, families, subSegment)) return;
         if (!item.children || item.children.length === 0) {
           items.push({ title: item.title, href: item.href, icon: item.icon, group: section.label || 'Navegação' });
         } else {
           item.children.forEach((child) => {
             if (isHiddenHref(segment, child.href)) return;
+            if (!canPresentNicheRoute(segment, child.href, families, subSegment)) return;
             items.push({ title: child.title, href: child.href, icon: child.icon, group: item.title });
           });
         }
       });
     });
     return items;
-  }, [context, segment]);
+  }, [context, segment, subSegment, families]);
 
   const groups = useMemo(() => {
     const map = new Map<string, FlatItem[]>();
@@ -123,20 +142,20 @@ export function CommandPalette() {
       const companyId = currentCompany.id;
       const like = `%${q}%`;
       const [products, prodOrders, purchOrders] = await Promise.all([
-        (supabase as any)
-          .from('products')
+        loose
+          .from<ProductHitRow>('products')
           .select('id, name, code')
           .eq('company_id', companyId)
           .or(`name.ilike.${like},code.ilike.${like}`)
           .limit(5),
-        (supabase as any)
-          .from('production_orders')
+        loose
+          .from<ProductionOrderHitRow>('production_orders')
           .select('id, order_number, current_status_view:status, products:product_id(name)')
           .eq('company_id', companyId)
           .ilike('order_number', like)
           .limit(5),
-        (supabase as any)
-          .from('purchase_orders')
+        loose
+          .from<PurchaseOrderHitRow>('purchase_orders')
           .select('id, number, supplier_name, status')
           .eq('company_id', companyId)
           .ilike('number', like)
@@ -144,19 +163,19 @@ export function CommandPalette() {
       ]);
       if (cancelled) return;
       setDataResults([
-        ...((products.data || []).map((r: any) => ({
+        ...((products.data || []).map((r) => ({
           title: r.name,
           sub: `Produto · ${r.code || 'sem código'}`,
           href: `/estoque/produtos?q=${encodeURIComponent(r.code || r.name)}`,
           kind: 'produto',
         }))),
-        ...((prodOrders.data || []).map((r: any) => ({
+        ...((prodOrders.data || []).map((r) => ({
           title: `OP ${r.order_number}`,
           sub: `Produção · ${r.products?.name || ''} · ${r.current_status_view || ''}`,
           href: `/producao/ordens?q=${encodeURIComponent(r.order_number)}`,
           kind: 'op',
         }))),
-        ...((purchOrders.data || []).map((r: any) => ({
+        ...((purchOrders.data || []).map((r) => ({
           title: `Pedido ${r.number}`,
           sub: `Compras · ${r.supplier_name || ''} · ${r.status || ''}`,
           href: `/compras/pedidos?q=${encodeURIComponent(r.number)}`,

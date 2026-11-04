@@ -256,6 +256,282 @@ try {
   check('eventos classificados por desvio nos 3 setores com eventos próprios',
     classified.length === 3, JSON.stringify(classified));
 
+  console.log('== recebimento estruturado de pluma/fibra (T81/P0)');
+  const plumaProduct = (await q(
+    `SELECT id FROM public.products WHERE code = 'PLUMA-INT' AND company_id = $1`, [company.id]))[0].id;
+  const fiberClassification = {
+    bale_count: 5,
+    gross_weight_kg: 128,
+    net_weight_kg: 125.5,
+    moisture_pct: 7.8,
+    micronaire: 4.2,
+    staple_length_mm: 28.5,
+    strength_g_tex: 29.4,
+    trash_pct: 2.1,
+    color_grade: '31-3',
+    classification_grade: 'SLM',
+  };
+  const fiberReceipt = (await q(
+    `SELECT public.register_fiber_receipt($1, 'PLUMA-T81-LOTE-001', 125.5, 'fiber-receipt-t81-001', NULL, 'Fornecedor Algodão T81', 'DOCA-01', 'NF-e T81-001', 0, NULL, NULL, $2::jsonb) AS r`,
+    [plumaProduct, JSON.stringify(fiberClassification)]))[0].r;
+  const fiberLot = (await q(
+    `SELECT id, supplier, remaining_qty::float AS remaining, quality_status
+       FROM public.stock_lots WHERE lot_number = 'PLUMA-T81-LOTE-001'`))[0];
+  const fiberBalance = Number((await q(
+    `SELECT COALESCE(sum(quantity), 0)::float AS q FROM public.stock_balances WHERE lot_id = $1`, [fiberLot.id]))[0].q);
+  const fiberMovement = (await q(
+    `SELECT count(*)::int AS n FROM public.stock_movements WHERE lot_id = $1 AND source = 'fiber_receipt'`, [fiberLot.id]))[0];
+  const fiberClassRow = (await q(
+    `SELECT moisture_pct::float AS moisture, micronaire::float AS micronaire,
+            staple_length_mm::float AS length, classification_grade
+       FROM public.fiber_lot_classifications WHERE lot_id = $1`, [fiberLot.id]))[0];
+  check('recebimento da pluma cria lote pendente com fornecedor e saldo pelo mesmo lot_id',
+    fiberReceipt.lot_id === fiberLot.id && fiberLot.supplier === 'Fornecedor Algodão T81'
+      && fiberLot.remaining === 125.5 && fiberLot.quality_status === 'pending'
+      && fiberBalance === 125.5 && fiberMovement.n === 1,
+    JSON.stringify({ fiberReceipt, fiberLot, fiberBalance, fiberMovement }));
+  check('classificação informada da fibra persiste sem valores presumidos',
+    fiberClassRow?.moisture === 7.8 && fiberClassRow?.micronaire === 4.2
+      && fiberClassRow?.length === 28.5 && fiberClassRow?.classification_grade === 'SLM',
+    JSON.stringify(fiberClassRow));
+
+  const fiberReplay = (await q(
+    `SELECT public.register_fiber_receipt($1, 'PLUMA-T81-LOTE-001', 125.5, 'fiber-receipt-t81-001', NULL, 'Fornecedor Algodão T81', 'DOCA-01', 'NF-e T81-001', 0, NULL, NULL, $2::jsonb) AS r`,
+    [plumaProduct, JSON.stringify(fiberClassification)]))[0].r;
+  const fiberBalanceAfterReplay = Number((await q(
+    `SELECT COALESCE(sum(quantity), 0)::float AS q FROM public.stock_balances WHERE lot_id = $1`, [fiberLot.id]))[0].q);
+  check('repetir o mesmo recebimento é idempotente (não duplica saldo)',
+    fiberReplay.idempotent_replay === true && fiberReplay.lot_id === fiberLot.id && fiberBalanceAfterReplay === 125.5,
+    JSON.stringify({ fiberReplay, fiberBalanceAfterReplay }));
+
+  let duplicateFiberLotRejected = false;
+  try {
+    await q(
+      `SELECT public.register_fiber_receipt($1, 'PLUMA-T81-LOTE-001', 10, 'fiber-receipt-t81-duplicate', NULL, 'Outro Fornecedor', NULL, NULL, 0, NULL, NULL, '{}'::jsonb)`,
+      [plumaProduct]);
+  } catch { duplicateFiberLotRejected = true; }
+  check('mesmo lote de fibra com outra chave é rejeitado (sem duplicar estoque)', duplicateFiberLotRejected);
+
+  await q(
+    `SELECT public.classify_fiber_lot($1, $2::jsonb)`,
+    [fiberLot.id, JSON.stringify({ ...fiberClassification, moisture_pct: 8.1 })]);
+  await q(
+    `INSERT INTO public.wms_quality_checks (company_id, lot_id, inspector_id, decision, sample_size, defects_found)
+     VALUES ($1, $2, $3, 'approved', 10, 0)`, [company.id, fiberLot.id, admin.id]);
+  const fiberLotAfterQuality = (await q(
+    `SELECT quality_status FROM public.stock_lots WHERE id = $1`, [fiberLot.id]))[0];
+  const fiberClassAfterUpdate = (await q(
+    `SELECT moisture_pct::float AS moisture FROM public.fiber_lot_classifications WHERE lot_id = $1`, [fiberLot.id]))[0];
+  check('classificação pode ser corrigida e a qualidade aprovada libera o lote recebido',
+    fiberClassAfterUpdate.moisture === 8.1 && fiberLotAfterQuality.quality_status === 'approved',
+    JSON.stringify({ fiberClassAfterUpdate, fiberLotAfterQuality }));
+
+  const hqBranchForReceipt = (await q(
+    `SELECT id FROM public.branches WHERE company_id = $1 AND is_headquarters LIMIT 1`, [company.id]))[0].id;
+  const receivingOrder = (await q(
+    `INSERT INTO public.wms_receiving_orders (company_id, order_number, supplier, status, items_count, branch_id, canal_operacional)
+     VALUES ($1, 'REC-T81-001', 'Fornecedor Conferência T81', 'in_progress', 1, $2, 'ATACADO_INDUSTRIA') RETURNING id`,
+    [company.id, hqBranchForReceipt]))[0];
+  const conference = (await q(
+    `INSERT INTO public.wms_conference_records (company_id, conference_number, conference_type, reference_type, reference_id, reference_number, status, operator)
+     VALUES ($1, 'CONF-T81-001', 'receiving', 'receiving', $2, 'REC-T81-001', 'in_progress', 'Harness T81') RETURNING id`,
+    [company.id, receivingOrder.id]))[0];
+  await q(
+    `INSERT INTO public.wms_conference_items (company_id, conference_id, product_id, product_code, product_name, expected_qty, checked_qty, lot_number, status)
+     VALUES ($1, $2, $3, 'PLUMA-INT', 'Algodão em pluma (integração)', 40, 40, 'PLUMA-T81-CONF-001', 'checked')`,
+    [company.id, conference.id, plumaProduct]);
+  await q(`SELECT public.finalize_receiving_conference($1)`, [conference.id]);
+  const conferenceLot = (await q(
+    `SELECT id, remaining_qty::float AS remaining, quality_status FROM public.stock_lots WHERE lot_number = 'PLUMA-T81-CONF-001'`))[0];
+  const conferenceBalance = Number((await q(
+    `SELECT COALESCE(sum(quantity), 0)::float AS q FROM public.stock_balances WHERE lot_id = $1`, [conferenceLot.id]))[0].q);
+  const conferenceMovement = (await q(
+    `SELECT count(*)::int AS n FROM public.stock_movements WHERE lot_id = $1 AND source = 'wms_receiving'`, [conferenceLot.id]))[0];
+  check('conferência WMS também nasce em lote pendente e saldo vinculado ao lote',
+    conferenceLot.remaining === 40 && conferenceLot.quality_status === 'pending'
+      && conferenceBalance === 40 && conferenceMovement.n === 1,
+    JSON.stringify({ conferenceLot, conferenceBalance, conferenceMovement }));
+
+  console.log('== rolos/peças do lote (T81/P0)');
+  const tecidoLotForUnits = (await q(
+    `SELECT id, quantity::float AS quantity FROM public.stock_lots WHERE lot_number = 'TECIDO-INT-LOTE-001'`))[0];
+  const unitDrafts = [
+    { unit_code: 'ROLO-T81-001', unit_type: 'roll', quantity: 100, length_m: 100, width_cm: 150, weight_kg: 42 },
+    { unit_code: 'ROLO-T81-002', unit_type: 'roll', quantity: 80, length_m: 80, width_cm: 150, weight_kg: 34 },
+  ];
+  const registeredUnits = (await q(
+    `SELECT public.register_stock_lot_units($1, $2::jsonb, 'lot-units-t81-001') AS r`,
+    [tecidoLotForUnits.id, JSON.stringify(unitDrafts)]))[0].r;
+  const unitRows = await q(
+    `SELECT id, unit_code, quantity::float AS quantity, quality_status, status
+       FROM public.stock_lot_units WHERE lot_id = $1 ORDER BY unit_code`, [tecidoLotForUnits.id]);
+  check('lote de tecido pode ser dividido em rolos identificados, sem novo saldo',
+    registeredUnits.unit_count === 2 && unitRows.length === 2
+      && unitRows.every((row) => row.quality_status === 'pending' && row.status === 'available'),
+    JSON.stringify({ registeredUnits, unitRows }));
+
+  const replayedUnits = (await q(
+    `SELECT public.register_stock_lot_units($1, $2::jsonb, 'lot-units-t81-001') AS r`,
+    [tecidoLotForUnits.id, JSON.stringify(unitDrafts)]))[0].r;
+  const unitCountAfterReplay = Number((await q(
+    `SELECT count(*)::int AS n FROM public.stock_lot_units WHERE lot_id = $1`, [tecidoLotForUnits.id]))[0].n);
+  check('repetir a divisão de rolos é idempotente (não duplica unidades)',
+    replayedUnits.idempotent_replay === true && unitCountAfterReplay === 2,
+    JSON.stringify({ replayedUnits, unitCountAfterReplay }));
+
+  let excessUnitsRejected = false;
+  try {
+    await q(
+      `SELECT public.register_stock_lot_units($1, $2::jsonb, 'lot-units-t81-excess')`,
+      [tecidoLotForUnits.id, JSON.stringify([{ unit_code: 'ROLO-T81-EXCESSO', unit_type: 'roll', quantity: 300 }])]);
+  } catch { excessUnitsRejected = true; }
+  check('soma dos rolos não pode passar da quantidade física do lote', excessUnitsRejected);
+
+  const firstUnit = unitRows.find((row) => row.unit_code === 'ROLO-T81-001');
+  const secondUnit = unitRows.find((row) => row.unit_code === 'ROLO-T81-002');
+  await q(`SELECT public.inspect_stock_lot_unit($1, 'approved', NULL, 'sem defeito observado', 0)`, [firstUnit.id]);
+  await q(`SELECT public.inspect_stock_lot_unit($1, 'quarantine', 'defeito visual na borda', NULL, 2)`, [secondUnit.id]);
+  let quarantinePackRejected = false;
+  try {
+    await q(`SELECT public.set_stock_lot_unit_packing_status($1, 'packed')`, [secondUnit.id]);
+  } catch { quarantinePackRejected = true; }
+  const packedUnit = (await q(
+    `SELECT public.set_stock_lot_unit_packing_status($1, 'packed') AS r`, [firstUnit.id]))[0].r;
+  const unitInspectionCount = Number((await q(
+    `SELECT count(*)::int AS n FROM public.stock_lot_unit_inspections WHERE unit_id IN ($1, $2)`,
+    [firstUnit.id, secondUnit.id]))[0].n);
+  check('inspeção é por rolo: aprovado embala, quarentena não embala',
+    quarantinePackRejected && packedUnit.status === 'packed' && unitInspectionCount === 2,
+    JSON.stringify({ quarantinePackRejected, packedUnit, unitInspectionCount }));
+
+  console.log('== expedição por rolo/peça (T81/P1)');
+  const expeditionProduct = (await q(
+    `INSERT INTO public.products (company_id, code, name, type, unit, item_kind)
+     VALUES ($1, 'TECIDO-EXP-T81', 'Tecido expedição por rolo', 'finished', 'm', 'acabado')
+     RETURNING id`, [company.id]))[0].id;
+  await q(`SELECT set_config('session_replication_role', 'replica', false)`);
+  const expeditionLot = (await q(
+    `INSERT INTO public.stock_lots (company_id, product_id, product_code, product_name, lot_number, quantity, remaining_qty, status, quality_status)
+     VALUES ($1, $2, 'TECIDO-EXP-T81', 'Tecido expedição por rolo', 'EXP-T81-LOTE-001', 150, 150, 'available', 'approved')
+     RETURNING id`, [company.id, expeditionProduct]))[0].id;
+  await q(
+    `INSERT INTO public.stock_balances (company_id, product_id, lot_id, branch_id, canal_operacional, product_code, product_name, quantity, reserved_qty)
+     VALUES ($1, $2, $3, $4, 'ATACADO_INDUSTRIA', 'TECIDO-EXP-T81', 'Tecido expedição por rolo', 150, 0)`,
+    [company.id, expeditionProduct, expeditionLot, hqBranchForReceipt]);
+  await q(`SELECT set_config('session_replication_role', 'origin', false)`);
+  const expeditionUnits = (await q(
+    `SELECT public.register_stock_lot_units($1, $2::jsonb, 'expedition-units-t81') AS r`,
+    [expeditionLot, JSON.stringify([
+      { unit_code: 'ROLO-EXP-T81-001', unit_type: 'roll', quantity: 60, length_m: 60 },
+      { unit_code: 'ROLO-EXP-T81-002', unit_type: 'roll', quantity: 40, length_m: 40 },
+    ])]))[0].r;
+  const expeditionUnitRows = await q(
+    `SELECT id, unit_code FROM public.stock_lot_units WHERE lot_id = $1 ORDER BY unit_code`, [expeditionLot]);
+  for (const unit of expeditionUnitRows) {
+    await q(`SELECT public.inspect_stock_lot_unit($1, 'approved', NULL, 'aprovado', 0)`, [unit.id]);
+    await q(`SELECT public.set_stock_lot_unit_packing_status($1, 'packed')`, [unit.id]);
+  }
+  const expeditionOrder = (await q(
+    `INSERT INTO public.orders (company_id, number, client_name, status)
+     VALUES ($1, 'PV-T81-EXP-001', 'Cliente Expedição T81', 'confirmed') RETURNING id`, [company.id]))[0];
+  await q(
+    `INSERT INTO public.order_items (company_id, order_id, product_id, product_name, product_code, quantity, unit_price, total)
+     VALUES ($1, $2, $3, 'Tecido expedição por rolo', 'TECIDO-EXP-T81', 60, 10, 600)`,
+    [company.id, expeditionOrder.id, expeditionProduct]);
+  await q(`SELECT public.wms_reserve_order_stock($1)`, [expeditionOrder.id]);
+  const expeditionReservation = (await q(
+    `SELECT lot_id, status FROM public.stock_reservations WHERE order_id = $1`, [expeditionOrder.id]))[0];
+  const firstExpeditionUnit = expeditionUnitRows.find((row) => row.unit_code === 'ROLO-EXP-T81-001');
+  const secondExpeditionUnit = expeditionUnitRows.find((row) => row.unit_code === 'ROLO-EXP-T81-002');
+  const allocationResult = (await q(
+    `SELECT public.allocate_stock_lot_units_to_order($1, ARRAY[$2]::uuid[], 'exp-allocation-t81-001') AS r`,
+    [expeditionOrder.id, firstExpeditionUnit.id]))[0].r;
+  const allocationReplay = (await q(
+    `SELECT public.allocate_stock_lot_units_to_order($1, ARRAY[$2]::uuid[], 'exp-allocation-t81-001') AS r`,
+    [expeditionOrder.id, firstExpeditionUnit.id]))[0].r;
+  const allocationCount = Number((await q(
+    `SELECT count(*)::int AS n FROM public.stock_lot_unit_allocations WHERE order_id = $1 AND status IN ('allocated', 'picked')`,
+    [expeditionOrder.id]))[0].n);
+  check('pedido reserva o lote e vincula o rolo embalado de forma idempotente',
+    expeditionUnits.unit_count === 2 && expeditionReservation.lot_id === expeditionLot
+      && allocationResult.unit_count === 1 && allocationReplay.idempotent_replay === true && allocationCount === 1,
+    JSON.stringify({ expeditionUnits, expeditionReservation, allocationResult, allocationReplay, allocationCount }));
+  let excessAllocationRejected = false;
+  try {
+    await q(
+      `SELECT public.allocate_stock_lot_units_to_order($1, ARRAY[$2]::uuid[], 'exp-allocation-t81-excess')`,
+      [expeditionOrder.id, secondExpeditionUnit.id]);
+  } catch { excessAllocationRejected = true; }
+  check('rolo além da quantidade reservada do lote é rejeitado', excessAllocationRejected);
+  await q(`SELECT public.wms_pick_order_stock($1)`, [expeditionOrder.id]);
+  const allocationAfterPick = (await q(
+    `SELECT status FROM public.stock_lot_unit_allocations WHERE order_id = $1 AND unit_id = $2`,
+    [expeditionOrder.id, firstExpeditionUnit.id]))[0];
+  const expeditionLotAfterPick = (await q(
+    `SELECT remaining_qty::float AS remaining FROM public.stock_lots WHERE id = $1`, [expeditionLot]))[0];
+  const shipResult = (await q(
+    `SELECT public.wms_ship_order($1) AS r`, [expeditionOrder.id]))[0].r;
+  const expeditionAfterShip = (await q(
+    `SELECT (SELECT status FROM public.stock_lot_unit_allocations WHERE order_id = $1 AND unit_id = $2) AS allocation_status,
+            (SELECT status FROM public.stock_lot_units WHERE id = $2) AS unit_status,
+            (SELECT status FROM public.stock_reservations WHERE order_id = $1) AS reservation_status`,
+    [expeditionOrder.id, firstExpeditionUnit.id]))[0];
+  let shippedReleaseRejected = false;
+  try {
+    await q(`SELECT public.release_stock_lot_unit_allocation($1)`, [allocationResult.allocation_ids[0]]);
+  } catch { shippedReleaseRejected = true; }
+  check('separar marca o rolo e expedir marca alocação/unidade/reserva na mesma operação',
+    allocationAfterPick.status === 'picked' && expeditionLotAfterPick.remaining === 90
+      && shipResult.lines_shipped === 1 && shipResult.units_shipped === 1
+      && expeditionAfterShip.allocation_status === 'shipped' && expeditionAfterShip.unit_status === 'shipped'
+      && expeditionAfterShip.reservation_status === 'shipped' && shippedReleaseRejected,
+    JSON.stringify({ allocationAfterPick, expeditionLotAfterPick, shipResult, expeditionAfterShip, shippedReleaseRejected }));
+
+  console.log('== modelos de roteiro têxtil (T81/P1)');
+  const templateProducts = (await q(
+    `INSERT INTO public.products (company_id, code, name, type, unit, item_kind) VALUES
+       ($1, 'FIO-TPL-30', 'Fio modelo T81', 'raw_material', 'kg', 'insumo'),
+       ($1, 'TECIDO-TPL-01', 'Tecido modelo T81', 'finished', 'm', 'acabado'),
+       ($1, 'MALHA-TPL-TING', 'Malha para tingir modelo T81', 'raw_material', 'kg', 'insumo'),
+       ($1, 'TECIDO-TPL-ACAB', 'Tecido para acabar modelo T81', 'finished', 'm', 'acabado')
+     RETURNING id, code`, [company.id]));
+  const templateProductByCode = Object.fromEntries(templateProducts.map((row) => [row.code, row.id]));
+  const applyTemplate = async (productCode, templateKey, key) => (await q(
+    `SELECT public.apply_textile_route_template($1, $2, $3) AS r`,
+    [templateProductByCode[productCode], templateKey, key]))[0].r;
+  const routeStepNames = async (routeId) => (await q(
+    `SELECT step_name FROM public.production_route_steps WHERE route_id = $1 ORDER BY sequence`, [routeId])).map((row) => row.step_name);
+  const productRouteId = async (productCode) => (await q(
+    `SELECT production_route_id FROM public.products WHERE company_id = $1 AND code = $2`, [company.id, productCode]))[0]?.production_route_id;
+
+  const spinningTemplate = await applyTemplate('FIO-TPL-30', 'fiacao_completa', 'route-template-t81-fiacao');
+  const spinningSteps = await routeStepNames(spinningTemplate.route_id);
+  check('modelo de fiação cria a sequência completa e vira o roteiro do produto',
+    spinningTemplate.step_count === 7
+      && spinningSteps[0] === 'Abertura' && spinningSteps[6] === 'Bobinagem / Conicagem'
+      && (await productRouteId('FIO-TPL-30')) === spinningTemplate.route_id,
+    JSON.stringify({ spinningTemplate, spinningSteps }));
+  const spinningReplay = await applyTemplate('FIO-TPL-30', 'fiacao_completa', 'route-template-t81-fiacao');
+  check('aplicar o mesmo modelo com a mesma chave é idempotente',
+    spinningReplay.idempotent_replay === true && spinningReplay.route_id === spinningTemplate.route_id,
+    JSON.stringify(spinningReplay));
+
+  const weavingTemplate = await applyTemplate('TECIDO-TPL-01', 'tecelagem_com_engomagem', 'route-template-t81-tecelagem');
+  const weavingSteps = await routeStepNames(weavingTemplate.route_id);
+  check('modelo de tecelagem tem urdideira e engomagem como operações próprias',
+    weavingSteps.join('|') === 'Urdideira|Engomagem|Preparação dos teares|Tecelagem plana',
+    JSON.stringify(weavingSteps));
+
+  const dyeingTemplate = await applyTemplate('MALHA-TPL-TING', 'tinturaria_completa', 'route-template-t81-tinturaria');
+  const dyeingSteps = await routeStepNames(dyeingTemplate.route_id);
+  const finishingTemplate = await applyTemplate('TECIDO-TPL-ACAB', 'acabamento_compactacao', 'route-template-t81-acabamento');
+  const finishingSteps = await routeStepNames(finishingTemplate.route_id);
+  check('modelos separam tinturaria de acabamento e respeitam a variante rama/compactação',
+    dyeingSteps[0] === 'Inspeção do tecido/malha crua' && dyeingSteps[4] === 'Lavagem / enxágue'
+      && finishingSteps.includes('Compactação') && !finishingSteps.includes('Rama')
+      && finishingSteps[finishingSteps.length - 1] === 'Embalagem',
+    JSON.stringify({ dyeingSteps, finishingSteps }));
+
   console.log('== testes negativos (aceite das skills)');
   const tecProduct = (await q(`SELECT id FROM public.products WHERE code = 'TECIDO-INT-01' AND company_id = $1`, [company.id]))[0].id;
   const fioProduct = (await q(`SELECT id FROM public.products WHERE code = 'FIO-INT-30' AND company_id = $1`, [company.id]))[0].id;
@@ -309,6 +585,414 @@ try {
     await q(`SELECT public.record_sector_event($1, 'tinturaria', 'fiber_break')`, [dyeOrder]);
   } catch { raised = true; }
   check('N4: evento de fiação (fiber_break) é rejeitado na tinturaria', raised);
+
+  console.log('== preparação do urdume/engomagem (T81/P1)');
+  await q(
+    `SELECT public.upsert_weaving_order_profile($1, $2::jsonb)`,
+    [negA, JSON.stringify({
+      warp_preparation_status: 'sized',
+      sizing_applicable: true,
+      size_recipe_code: 'ENG-T81',
+      size_concentration_pct: 8.5,
+      sizing_temperature_c: 92,
+      warp_moisture_pct: 7.2,
+    })]);
+  const warpProfile = (await q(
+    `SELECT warp_preparation_status, sizing_applicable, size_recipe_code,
+            size_concentration_pct::float AS concentration,
+            sizing_temperature_c::float AS temperature,
+            warp_moisture_pct::float AS moisture, warp_prepared_at IS NOT NULL AS prepared
+       FROM public.weaving_order_profiles WHERE production_order_id = $1`, [negA]))[0];
+  check('urdume/engomagem gravados no perfil da OP com receita informada pela empresa',
+    warpProfile?.warp_preparation_status === 'sized' && warpProfile?.sizing_applicable === true
+      && warpProfile?.size_recipe_code === 'ENG-T81' && warpProfile?.concentration === 8.5
+      && warpProfile?.temperature === 92 && warpProfile?.moisture === 7.2 && warpProfile?.prepared === true,
+    JSON.stringify(warpProfile));
+  raised = false;
+  try {
+    await q(
+      `SELECT public.upsert_weaving_order_profile($1, $2::jsonb)`,
+      [negA, JSON.stringify({ warp_preparation_status: 'sized', sizing_applicable: false })]);
+  } catch { raised = true; }
+  check('estado engomado sem engomagem aplicável é rejeitado', raised);
+
+  console.log('== receita de engomagem versionada (T82/P1)');
+  const sizingDraft1 = (await q(
+    `SELECT public.create_sizing_recipe_draft('ENG-T82', 'Receita harness', NULL, $1::jsonb, $2::jsonb, NULL) AS r`,
+    [JSON.stringify([{ name: 'Goma informada', quantity: 5, unit: 'kg' }]),
+     JSON.stringify({ concentration_pct: 8.5, bath_temperature_c: 92, speed_m_min: 40, drying_temperature_c: 110, warp_moisture_pct: 7 })]))[0].r;
+  check('receita de engomagem nasce como rascunho v1 da empresa',
+    sizingDraft1.version === 1 && sizingDraft1.status === 'draft', JSON.stringify(sizingDraft1));
+  raised = false;
+  try {
+    await q(
+      `SELECT public.upsert_weaving_order_profile($1, $2::jsonb)`,
+      [negA, JSON.stringify({ sizing_applicable: true, sizing_recipe_version_id: sizingDraft1.id })]);
+  } catch { raised = true; }
+  check('OP não pode usar receita de engomagem ainda em rascunho', raised);
+  await q(`SELECT public.approve_sizing_recipe_version($1)`, [sizingDraft1.id]);
+  const sizingDraft2 = (await q(
+    `SELECT public.create_sizing_recipe_draft('ENG-T82', 'Receita harness revisada', NULL, '[]'::jsonb, $1::jsonb, NULL) AS r`,
+    [JSON.stringify({ concentration_pct: 9, bath_temperature_c: 90 })]))[0].r;
+  const sizingApproved2 = (await q(
+    `SELECT public.approve_sizing_recipe_version($1) AS r`, [sizingDraft2.id]))[0].r;
+  const sizingV1After = (await q(
+    `SELECT status FROM public.textile_sizing_recipes WHERE id = $1`, [sizingDraft1.id]))[0];
+  await q(
+    `SELECT public.upsert_weaving_order_profile($1, $2::jsonb)`,
+    [negA, JSON.stringify({
+      sizing_applicable: true,
+      warp_preparation_status: 'sized',
+      sizing_recipe_version_id: sizingDraft2.id,
+    })]);
+  const profileWithRecipe = (await q(
+    `SELECT sizing_recipe_version_id, size_recipe_code, size_concentration_pct::float AS concentration,
+            sizing_temperature_c::float AS temperature
+       FROM public.weaving_order_profiles WHERE production_order_id = $1`, [negA]))[0];
+  check('aprovar v2 substitui v1 e a OP copia os parâmetros da versão aprovada',
+    sizingDraft2.version === 2 && sizingApproved2.status === 'approved' && sizingV1After.status === 'superseded'
+      && profileWithRecipe.sizing_recipe_version_id === sizingDraft2.id
+      && profileWithRecipe.size_recipe_code === 'ENG-T82 v2'
+      && profileWithRecipe.concentration === 9 && profileWithRecipe.temperature === 90,
+    JSON.stringify({ sizingDraft2, sizingApproved2, sizingV1After, profileWithRecipe }));
+
+  console.log('== parâmetros próprios de fiação/tinturaria (T82/P1)');
+  const spinParamOrder = (await q(
+    `SELECT (public.create_textile_production_order($1, 10, 'params-spinning-t82', 'medium', now() + interval '3 days', NULL, NULL, NULL, NULL, NULL, '{}'::jsonb) ->> 'production_order_id')::uuid AS id`,
+    [fioProduct]))[0].id;
+  await q(
+    `SELECT public.upsert_sector_order_profile($1, 'fiacao', $2::jsonb)`,
+    [spinParamOrder, JSON.stringify({
+      target_title: 'Ne 30/1',
+      blend_components: [{ name: 'Algodão', pct: 70 }, { name: 'Poliéster', pct: 30 }],
+      draft_ratio: 28,
+      spindle_speed_rpm: 12000,
+      delivery_speed_m_min: 18,
+      traveler_code: 'VIAJ-T82',
+    })]);
+  const spinProfile = (await q(
+    `SELECT blend_components, draft_ratio::float AS draft, spindle_speed_rpm::float AS spindle, traveler_code
+       FROM public.spinning_order_profiles WHERE production_order_id = $1`, [spinParamOrder]))[0];
+  check('fiação guarda mistura estruturada e parâmetros do filatório configurados',
+    spinProfile.blend_components?.length === 2 && spinProfile.draft === 28
+      && spinProfile.spindle === 12000 && spinProfile.traveler_code === 'VIAJ-T82',
+    JSON.stringify(spinProfile));
+  raised = false;
+  try {
+    await q(
+      `SELECT public.upsert_sector_order_profile($1, 'fiacao', $2::jsonb)`,
+      [spinParamOrder, JSON.stringify({ blend_components: [{ name: 'Algodão', pct: 80 }, { name: 'Poliéster', pct: 30 }] })]);
+  } catch { raised = true; }
+  check('mistura de fiação acima de 100% é rejeitada', raised);
+
+  const dyeParamProduct = (await q(
+    `SELECT id FROM public.products WHERE code = 'MALHA-INT-TING-30' AND company_id = $1`, [company.id]))[0].id;
+  const dyeParamOrder = (await q(
+    `SELECT (public.create_textile_production_order($1, 10, 'params-dyeing-t82', 'medium', now() + interval '3 days', NULL, NULL, NULL, NULL, NULL, '{}'::jsonb) ->> 'production_order_id')::uuid AS id`,
+    [dyeParamProduct]))[0].id;
+  raised = false;
+  try {
+    await q(
+      `SELECT public.upsert_sector_order_profile($1, 'tinturaria', $2::jsonb)`,
+      [dyeParamOrder, JSON.stringify({ pretreatment_applicable: true })]);
+  } catch { raised = true; }
+  check('pré-tratamento aplicável sem tipo/receita da empresa é rejeitado', raised);
+  await q(
+    `SELECT public.upsert_sector_order_profile($1, 'tinturaria', $2::jsonb)`,
+    [dyeParamOrder, JSON.stringify({
+      color_name: 'Azul T82',
+      pretreatment_applicable: true,
+      pretreatment_type: 'Preparação configurada',
+      pretreatment_temperature_c: 90,
+      pretreatment_time_min: 30,
+      dyeing_temperature_c: 95,
+      dyeing_time_min: 45,
+      ph_target: 7,
+    })]);
+  const dyeProfile = (await q(
+    `SELECT pretreatment_type, pretreatment_temperature_c::float AS pre_temp, dyeing_time_min::float AS dye_time, ph_target::float AS ph
+       FROM public.dyeing_order_profiles WHERE production_order_id = $1`, [dyeParamOrder]))[0];
+  check('tinturaria guarda pré-tratamento e parâmetros do banho configurados',
+    dyeProfile.pretreatment_type === 'Preparação configurada' && dyeProfile.pre_temp === 90
+      && dyeProfile.dye_time === 45 && dyeProfile.ph === 7,
+    JSON.stringify(dyeProfile));
+
+  console.log('== laboratório como portão da tinturaria (T84/P1)');
+  await q(`SELECT public.set_dyeing_lab_approval_requirement($1, true)`, [dyeParamOrder]);
+  const tryComplete = async () => {
+    try { await q(`UPDATE public.production_orders SET status = 'completed' WHERE id = $1`, [dyeParamOrder]); return ''; }
+    catch (e) { return String(e?.message ?? ''); }
+  };
+  const pendingMsg = await tryComplete();
+  await q(`SELECT public.decide_dyeing_lab_approval($1, 'rejected', 'cor fora do padrão')`, [dyeParamOrder]);
+  const rejectedMsg = await tryComplete();
+  check('com aprovação exigida, OP não conclui com decisão pendente nem rejeitada',
+    /laboratório/i.test(pendingMsg) && /laboratório/i.test(rejectedMsg),
+    JSON.stringify({ pendingMsg, rejectedMsg }));
+  raised = false;
+  try { await q(`SELECT public.decide_dyeing_lab_approval($1, 'concession', NULL)`, [dyeParamOrder]); }
+  catch { raised = true; }
+  check('liberação sob concessão sem justificativa é rejeitada', raised);
+  await q(`SELECT public.decide_dyeing_lab_approval($1, 'concession', 'desvio aceito e registrado')`, [dyeParamOrder]);
+  // Com o portão do laboratório liberado, quem passa a barrar é a guarda de
+  // conclusão verificada (consumo/qualidade/genealogia) — prova de que o
+  // portão do laboratório deixou passar.
+  const concededMsg = await tryComplete();
+  const labRow = (await q(
+    `SELECT lab_decision, lab_decision_by IS NOT NULL AS decided, lab_decision_notes
+       FROM public.dyeing_order_profiles WHERE production_order_id = $1`, [dyeParamOrder]))[0];
+  check('concessão justificada passa pelo portão do laboratório e fica auditada',
+    !/laboratório/i.test(concededMsg) && /complete_production_order/.test(concededMsg)
+      && labRow.lab_decision === 'concession' && labRow.decided === true
+      && labRow.lab_decision_notes === 'desvio aceito e registrado',
+    JSON.stringify({ concededMsg, labRow }));
+
+  console.log('== receita de tingimento versionada (T85/P1)');
+  const dyeDraft1 = (await q(
+    `SELECT public.create_dye_recipe_draft('TING-T85', 'Receita harness', $1::jsonb, $2::jsonb, NULL) AS r`,
+    [JSON.stringify([{ name: 'Corante informado', quantity: 2, unit: '%' }]),
+     JSON.stringify({ bath_ratio: 8, dyeing_temperature_c: 95, dyeing_time_min: 45, ph_target: 7 })]))[0].r;
+  check('receita de tingimento nasce como rascunho v1 da empresa',
+    dyeDraft1.version === 1 && dyeDraft1.status === 'draft', JSON.stringify(dyeDraft1));
+  raised = false;
+  try { await q(`SELECT public.set_dyeing_recipe_version($1, $2)`, [dyeParamOrder, dyeDraft1.id]); }
+  catch { raised = true; }
+  check('OP não pode usar receita de tingimento ainda em rascunho', raised);
+  await q(`SELECT public.approve_dye_recipe_version($1)`, [dyeDraft1.id]);
+  const dyeDraft2 = (await q(
+    `SELECT public.create_dye_recipe_draft('TING-T85', 'Receita harness revisada', '[]'::jsonb, $1::jsonb, NULL) AS r`,
+    [JSON.stringify({ bath_ratio: 10, dyeing_temperature_c: 90 })]))[0].r;
+  await q(`SELECT public.approve_dye_recipe_version($1)`, [dyeDraft2.id]);
+  const dyeV1After = (await q(
+    `SELECT status FROM public.textile_dye_recipes WHERE id = $1`, [dyeDraft1.id]))[0];
+  await q(`SELECT public.set_dyeing_recipe_version($1, $2)`, [dyeParamOrder, dyeDraft2.id]);
+  const profileWithDyeRecipe = (await q(
+    `SELECT dye_recipe_version_id, dye_recipe_code, bath_ratio::float AS bath, dyeing_temperature_c::float AS temp
+       FROM public.dyeing_order_profiles WHERE production_order_id = $1`, [dyeParamOrder]))[0];
+  check('aprovar v2 substitui v1 e a OP copia banho/temperatura da versão aprovada',
+    dyeDraft2.version === 2 && dyeV1After.status === 'superseded'
+      && profileWithDyeRecipe.dye_recipe_version_id === dyeDraft2.id
+      && profileWithDyeRecipe.dye_recipe_code === 'TING-T85 v2'
+      && profileWithDyeRecipe.bath === 10 && profileWithDyeRecipe.temp === 90,
+    JSON.stringify({ dyeDraft2, dyeV1After, profileWithDyeRecipe }));
+
+  console.log('== carga validada da máquina de tingir (T83/P1)');
+  const jetMachine = (await q(
+    `SELECT id FROM public.production_machines WHERE code = 'JET-INT-01' AND company_id = $1`, [company.id]))[0].id;
+  await q(
+    `UPDATE public.production_machines SET min_load_kg = 50, max_load_kg = 100, useful_bath_volume_l = 800 WHERE id = $1`,
+    [jetMachine]);
+  const dyeLoadOrder = (await q(
+    `SELECT (public.create_textile_production_order($1, 10, 'params-dyeing-load-t83', 'medium', now() + interval '3 days', NULL, NULL, NULL, NULL, NULL, '{}'::jsonb) ->> 'production_order_id')::uuid AS id`,
+    [dyeParamProduct]))[0].id;
+  raised = false;
+  try {
+    await q(
+      `SELECT public.upsert_sector_order_profile($1, 'tinturaria', $2::jsonb)`,
+      [dyeLoadOrder, JSON.stringify({ machine_id: jetMachine, planned_output_kg: 120, bath_ratio: 8 })]);
+  } catch { raised = true; }
+  check('partida acima da carga máxima configurada da máquina é rejeitada', raised);
+  raised = false;
+  try {
+    await q(
+      `SELECT public.upsert_sector_order_profile($1, 'tinturaria', $2::jsonb)`,
+      [dyeLoadOrder, JSON.stringify({ machine_id: jetMachine, planned_output_kg: 80, bath_ratio: 20 })]);
+  } catch { raised = true; }
+  check('volume do banho acima do volume útil configurado é rejeitado', raised);
+  await q(
+    `SELECT public.upsert_sector_order_profile($1, 'tinturaria', $2::jsonb)`,
+    [dyeLoadOrder, JSON.stringify({ machine_id: jetMachine, planned_output_kg: 80, bath_ratio: 8 })]);
+  const dyeLoadProfile = (await q(
+    `SELECT planned_output_kg::float AS planned FROM public.dyeing_order_profiles WHERE production_order_id = $1`,
+    [dyeLoadOrder]))[0];
+  check('partida dentro da carga e do volume configurados é aceita',
+    dyeLoadProfile.planned === 80, JSON.stringify(dyeLoadProfile));
+  await q(
+    `UPDATE public.production_machines SET min_load_kg = NULL, max_load_kg = NULL, useful_bath_volume_l = NULL WHERE id = $1`,
+    [jetMachine]);
+
+  console.log('== tempos de setup/limpeza por troca na programação (T87/P1)');
+  await q(
+    `UPDATE public.production_machines SET setup_time_minutes = 30, cleaning_time_minutes = 20 WHERE id = $1`,
+    [jetMachine]);
+  const mkCoOrder = async (product, key) => (await q(
+    `SELECT (public.create_textile_production_order($1, 10, $2, 'medium', now() + interval '3 days', NULL, NULL, NULL, NULL, NULL, '{}'::jsonb) ->> 'production_order_id')::uuid AS id`,
+    [product, key]))[0].id;
+  const coA = await mkCoOrder(dyeParamProduct, 't87-co-a');
+  await q(`SELECT public.schedule_production_order($1, now() + interval '200 hours', now() + interval '204 hours', 't87-sched-a', NULL, $2, NULL, NULL, 'diurno')`, [coA, jetMachine]);
+  const coB = await mkCoOrder(dyeParamProduct, 't87-co-b');
+  let coErr = '';
+  try {
+    await q(`SELECT public.schedule_production_order($1, now() + interval '204 hours', now() + interval '208 hours', 't87-sched-b', NULL, $2, NULL, NULL, 'diurno')`, [coB, jetMachine]);
+  } catch (e) { coErr = String(e?.message ?? ''); }
+  check('mesmo artigo em sequência na mesma máquina NÃO exige tempo de troca', coErr === '', coErr);
+  const coC = await mkCoOrder(fioProduct, 't87-co-c');
+  raised = false;
+  let coMsg = '';
+  try {
+    await q(`SELECT public.schedule_production_order($1, now() + interval '208 hours', now() + interval '212 hours', 't87-sched-c', NULL, $2, NULL, NULL, 'diurno')`, [coC, jetMachine]);
+  } catch (e) { raised = true; coMsg = String(e?.message ?? ''); }
+  check('troca de artigo sem o intervalo setup+limpeza configurado é rejeitada',
+    raised && /troca de artigo/.test(coMsg), coMsg);
+  await q(`SELECT public.schedule_production_order($1, now() + interval '209 hours', now() + interval '212 hours', 't87-sched-c2', NULL, $2, NULL, NULL, 'diurno')`, [coC, jetMachine]);
+  const coSchedC = (await q(
+    `SELECT count(*)::int AS n FROM public.production_schedule WHERE production_order_id = $1 AND status = 'scheduled'`, [coC]))[0];
+  check('com o intervalo de troca respeitado, a troca de artigo programa normalmente', coSchedC.n === 1, JSON.stringify(coSchedC));
+  await q(
+    `UPDATE public.production_machines SET setup_time_minutes = NULL, cleaning_time_minutes = NULL WHERE id = $1`,
+    [jetMachine]);
+  const coD = await mkCoOrder(dyeParamProduct, 't87-co-d');
+  coErr = '';
+  try {
+    await q(`SELECT public.schedule_production_order($1, now() + interval '212 hours', now() + interval '213 hours', 't87-sched-d', NULL, $2, NULL, NULL, 'diurno')`, [coD, jetMachine]);
+  } catch (e) { coErr = String(e?.message ?? ''); }
+  check('sem tempos configurados na máquina, nenhum tempo de troca é presumido', coErr === '', coErr);
+  raised = false;
+  try {
+    await q(`UPDATE public.production_machines SET setup_time_minutes = -5 WHERE id = $1`, [jetMachine]);
+  } catch { raised = true; }
+  check('tempo de setup negativo é rejeitado no cadastro da máquina', raised);
+
+  console.log('== ficha técnica do artigo versionada (T88/P1)');
+  const sheetV1 = (await q(
+    `SELECT public.create_article_sheet_draft($1, $2::jsonb, NULL) AS r`,
+    [tecProduct, JSON.stringify({ composition: 'Composição harness', target_gsm: 180, gsm_tolerance_pct: 3, target_width_cm: 160 })]))[0].r;
+  check('ficha do artigo nasce como rascunho v1 do produto',
+    sheetV1.version === 1 && sheetV1.status === 'draft', JSON.stringify(sheetV1));
+  const sheetOrder = (await q(
+    `SELECT (public.create_textile_production_order($1, 10, 't88-op-ficha', 'medium', now() + interval '3 days', NULL, NULL, NULL, NULL, NULL, '{}'::jsonb) ->> 'production_order_id')::uuid AS id`,
+    [tecProduct]))[0].id;
+  raised = false;
+  try { await q(`SELECT public.set_order_article_sheet($1, $2)`, [sheetOrder, sheetV1.id]); }
+  catch { raised = true; }
+  check('OP não pode usar ficha do artigo ainda em rascunho', raised);
+  await q(`SELECT public.approve_article_sheet_version($1)`, [sheetV1.id]);
+  const sheetV2 = (await q(
+    `SELECT public.create_article_sheet_draft($1, $2::jsonb, NULL) AS r`,
+    [tecProduct, JSON.stringify({ construction: 'Construção harness', target_gsm: 200 })]))[0].r;
+  await q(`SELECT public.approve_article_sheet_version($1)`, [sheetV2.id]);
+  const sheetV1After = (await q(
+    `SELECT status FROM public.textile_article_sheets WHERE id = $1`, [sheetV1.id]))[0];
+  await q(`SELECT public.set_order_article_sheet($1, $2)`, [sheetOrder, sheetV2.id]);
+  const orderSheet = (await q(
+    `SELECT article_sheet_version_id, article_sheet_snapshot FROM public.production_orders WHERE id = $1`, [sheetOrder]))[0];
+  check('aprovar v2 substitui v1 e a OP guarda snapshot da versão aprovada',
+    sheetV2.version === 2 && sheetV1After.status === 'superseded'
+      && orderSheet.article_sheet_version_id === sheetV2.id
+      && Number(orderSheet.article_sheet_snapshot.target_gsm) === 200
+      && Number(orderSheet.article_sheet_snapshot.version) === 2,
+    JSON.stringify({ sheetV2, sheetV1After, orderSheet }));
+  const otherSheet = (await q(
+    `SELECT public.create_article_sheet_draft($1, $2::jsonb, NULL) AS r`,
+    [fioProduct, JSON.stringify({ target_width_cm: 100 })]))[0].r;
+  await q(`SELECT public.approve_article_sheet_version($1)`, [otherSheet.id]);
+  raised = false;
+  try { await q(`SELECT public.set_order_article_sheet($1, $2)`, [sheetOrder, otherSheet.id]); }
+  catch { raised = true; }
+  check('OP não aceita ficha aprovada de outro artigo', raised);
+  raised = false;
+  try {
+    await q(`SELECT public.create_article_sheet_draft($1, $2::jsonb, NULL)`,
+      [tecProduct, JSON.stringify({ gsm_tolerance_pct: 3 })]);
+  } catch { raised = true; }
+  check('ficha só com tolerância (sem gramatura alvo) é rejeitada', raised);
+
+  console.log('== sequenciamento formal de cor por máquina (T90/P1)');
+  // Máquina própria do cenário: a JET do seed já tem fila com L* no histórico.
+  const jetT90 = (await q(
+    `INSERT INTO public.production_machines (company_id, code, name, type, sector, status, active, color_sequencing_rule)
+     VALUES ($1, 'JET-T90-01', 'Jet do cenário T90', 'jet', 'Tinturaria', 'available', true, 'light_to_dark')
+     RETURNING id`, [company.id]))[0].id;
+  const mkDyeOrder = async (key, labL) => {
+    const id = (await q(
+      `SELECT (public.create_textile_production_order($1, 10, $2, 'medium', now() + interval '3 days', NULL, NULL, NULL, NULL, NULL, '{}'::jsonb) ->> 'production_order_id')::uuid AS id`,
+      [dyeParamProduct, key]))[0].id;
+    if (labL !== null) {
+      await q(`SELECT public.upsert_sector_order_profile($1, 'tinturaria', $2::jsonb)`,
+        [id, JSON.stringify({ color_name: 'Cor harness', lab_l: labL })]);
+    }
+    return id;
+  };
+  const schedOnJet = (orderId, key, startH, endH) => q(
+    `SELECT public.schedule_production_order($1, '2027-06-01T08:00:00Z'::timestamptz + ($3 || ' hours')::interval, '2027-06-01T08:00:00Z'::timestamptz + ($4 || ' hours')::interval, $2, NULL, $5, NULL, NULL, 'diurno')`,
+    [orderId, key, String(startH), String(endH), jetT90]);
+  const dyeA = await mkDyeOrder('t90-dye-a', 80);
+  await schedOnJet(dyeA, 't90-sched-a', 300, 302);
+  const dyeB = await mkDyeOrder('t90-dye-b', 40);
+  await schedOnJet(dyeB, 't90-sched-b', 302, 304);
+  const dyeSchedCount = (await q(
+    `SELECT count(*)::int AS n FROM public.production_schedule WHERE production_order_id IN ($1, $2) AND status = 'scheduled'`,
+    [dyeA, dyeB]))[0];
+  check('sequência claro->escuro (L* 80 depois 40) programa normalmente na máquina com regra',
+    dyeSchedCount.n === 2, JSON.stringify(dyeSchedCount));
+  const dyeC = await mkDyeOrder('t90-dye-c', 70);
+  raised = false;
+  let dyeMsg = '';
+  try { await schedOnJet(dyeC, 't90-sched-c', 304, 306); }
+  catch (e) { raised = true; dyeMsg = String(e?.message ?? ''); }
+  check('clareamento (L* 70 depois de L* 40) é rejeitado na máquina com regra formal',
+    raised && /Sequenciamento de cor/.test(dyeMsg), dyeMsg);
+  const dyeD = await mkDyeOrder('t90-dye-d', 30);
+  raised = false;
+  dyeMsg = '';
+  try { await schedOnJet(dyeD, 't90-sched-d', 298, 300); }
+  catch (e) { raised = true; dyeMsg = String(e?.message ?? ''); }
+  check('inserir escuro antes do claro também é rejeitado (próxima clarearia)',
+    raised && /Sequenciamento de cor/.test(dyeMsg), dyeMsg);
+  const dyeE = await mkDyeOrder('t90-dye-e', null);
+  let dyeErr = '';
+  try { await schedOnJet(dyeE, 't90-sched-e', 304, 306); }
+  catch (e) { dyeErr = String(e?.message ?? ''); }
+  check('partida sem L* informado não é bloqueada (sem referência, nada presumido)', dyeErr === '', dyeErr);
+  await q(
+    `UPDATE public.production_machines SET color_sequencing_rule = NULL WHERE id = $1`,
+    [jetT90]);
+  dyeErr = '';
+  try { await schedOnJet(dyeC, 't90-sched-c2', 306, 308); }
+  catch (e) { dyeErr = String(e?.message ?? ''); }
+  check('sem regra configurada na máquina, o banco não bloqueia clareamento (continua só sugestão)', dyeErr === '', dyeErr);
+
+  console.log('== etapa externa (make-or-buy) no roteiro da OP (T91/P1)');
+  const extOrder = (await q(
+    `SELECT (public.create_textile_production_order($1, 10, 't91-op-externa', 'medium', now() + interval '3 days', NULL, NULL, NULL, NULL, NULL, '{}'::jsonb) ->> 'production_order_id')::uuid AS id`,
+    [tecProduct]))[0].id;
+  const extStep = (await q(
+    `SELECT id, quantity_pending::float AS pending FROM public.production_order_steps
+      WHERE production_order_id = $1 ORDER BY sequence LIMIT 1`, [extOrder]))[0];
+  await q(`UPDATE public.production_order_steps SET is_external = true WHERE id = $1`, [extStep.id]);
+  const tryCompleteExtStep = async () => {
+    try {
+      await q(`SELECT public.record_production_step_progress($1, 'complete', $2, 0, 'Operador Harness', NULL, NULL, NULL, NULL, NULL)`,
+        [extStep.id, extStep.pending]);
+      return '';
+    } catch (e) { return String(e?.message ?? ''); }
+  };
+  const extMsg1 = await tryCompleteExtStep();
+  check('etapa externa NÃO conclui sem retorno do fornecedor',
+    /Etapa externa/.test(extMsg1), extMsg1);
+  const extSend = (await q(
+    `SELECT public.send_order_step_to_supplier($1, 'Fornecedor Harness', $2, NULL, 'Serviço harness', 't91-send-1') AS r`,
+    [extStep.id, extStep.pending]))[0].r;
+  await q(`SELECT public.receive_order_step_from_supplier($1, 4, 0)`, [extSend.outsourcing_order_id]);
+  const extMsg2 = await tryCompleteExtStep();
+  check('retorno parcial (4 de 10) ainda NÃO libera a conclusão da etapa externa',
+    /Etapa externa/.test(extMsg2), extMsg2);
+  await q(`SELECT public.receive_order_step_from_supplier($1, 6, 0)`, [extSend.outsourcing_order_id]);
+  const extMsg3 = await tryCompleteExtStep();
+  const extStepAfter = (await q(
+    `SELECT status FROM public.production_order_steps WHERE id = $1`, [extStep.id]))[0];
+  check('com o retorno bom cobrindo a boa apontada, a etapa externa conclui',
+    extMsg3 === '' && extStepAfter.status === 'completed', extMsg3 || JSON.stringify(extStepAfter));
+  const intOrder = (await q(
+    `SELECT (public.create_textile_production_order($1, 10, 't91-op-interna', 'medium', now() + interval '3 days', NULL, NULL, NULL, NULL, NULL, '{}'::jsonb) ->> 'production_order_id')::uuid AS id`,
+    [tecProduct]))[0].id;
+  const intStep = (await q(
+    `SELECT id FROM public.production_order_steps WHERE production_order_id = $1 ORDER BY sequence LIMIT 1`, [intOrder]))[0];
+  raised = false;
+  try {
+    await q(`SELECT public.send_order_step_to_supplier($1, 'Fornecedor Harness', 5, NULL, NULL, 't91-send-int')`, [intStep.id]);
+  } catch { raised = true; }
+  check('envio a fornecedor em etapa NÃO marcada como externa é rejeitado', raised);
 
   console.log('== catálogo por processo + fluxo comercial (pedido -> entrega)');
   await runFile('seed-catalogo-processos', path.join(scripts, 'seed-catalogo-processos.sql'));
@@ -677,6 +1361,87 @@ try {
   const fioLotAfter2 = (await q(`SELECT remaining_qty FROM public.stock_lots WHERE lot_number = 'FIO-JORNADA-L1'`))[0];
   check('passagem entre setores: malharia consome o fio gerado pela fiação (100 -> 47,5)',
     !jErr && Number(fioLotAfter2?.remaining_qty) === 47.5, jErr || JSON.stringify(fioLotAfter2));
+
+  console.log('== ordem de reprocesso com genealogia (T86/P2)');
+  let rwErr = '';
+  const rw = {};
+  try {
+    await asUserTx(admin.id, 'etcsuporte889@gmail.com', async () => {
+      const created = (await client.query(
+        `SELECT public.create_rework_order($1, $2, 10, 'Motivo registrado no harness', 't86-rework-1') AS r`,
+        [jornada.opId, jornada.outputLotId])).rows[0].r;
+      rw.id = created.rework_id;
+      rw.orderId = created.rework_order_id;
+      const st = (await client.query(
+        `SELECT id FROM public.production_order_steps WHERE production_order_id = $1 ORDER BY sequence`, [rw.orderId])).rows;
+      rw.steps = st.length;
+      await client.query(
+        `SELECT public.record_production_step_progress($1, 'complete', 10, 0, 'Operador Reprocesso', NULL, NULL, NULL, NULL, NULL)`,
+        [st[0].id]);
+      const insp = (await client.query(
+        `INSERT INTO public.quality_inspections (company_id, production_order_id, inspector, inspection_date, approved_quantity, rejected_quantity, status)
+         VALUES ($1, $2, 'Inspetor Reprocesso', now(), 9, 1, 'open') RETURNING id`,
+        [company.id, rw.orderId])).rows[0];
+      await client.query(`SELECT public.decide_production_quality_inspection($1, 'approved', NULL, NULL)`, [insp.id]);
+      const done = (await client.query(
+        `SELECT public.complete_rework_order($1, 't86-rework-done', 9, 1, 'FIO-REPROC-L1') AS r`, [rw.orderId])).rows[0].r;
+      rw.outputLotId = done.output_lot_id;
+    });
+  } catch (e) { rwErr = `${errCode(e)} ${errMsg(e)}`; }
+  const fioLotAfterRw = (await q(`SELECT remaining_qty FROM public.stock_lots WHERE lot_number = 'FIO-JORNADA-L1'`))[0];
+  const rwOutLot = (await q(`SELECT remaining_qty FROM public.stock_lots WHERE lot_number = 'FIO-REPROC-L1'`))[0];
+  const rwGene = (await q(
+    `SELECT count(*)::int AS n FROM public.production_lot_genealogy
+      WHERE production_order_id = $1 AND conversion_reference LIKE 'Reprocesso%' AND output_quantity = 9`, [rw.orderId]))[0];
+  const rwReg = (await q(
+    `SELECT status, output_lot_id FROM public.production_rework_orders WHERE id = $1`, [rw.id]))[0];
+  check('reprocesso: OP própria executa e gera lote resultante de 9 (original 47,5 -> 37,5)',
+    !rwErr && rw.steps >= 1 && Number(fioLotAfterRw?.remaining_qty) === 37.5 && Number(rwOutLot?.remaining_qty) === 9,
+    rwErr || JSON.stringify({ fioLotAfterRw, rwOutLot, rw }));
+  check('reprocesso: genealogia original->resultante e registro concluído com o lote de saída',
+    rwGene.n === 1 && rwReg.status === 'completed' && rwReg.output_lot_id === rw.outputLotId,
+    JSON.stringify({ rwGene, rwReg }));
+  raised = false;
+  try {
+    await asUserTx(admin.id, 'etcsuporte889@gmail.com', async () => {
+      await client.query(`SELECT public.create_rework_order($1, $2, 999, 'acima do saldo', 't86-rework-neg')`,
+        [jornada.opId, jornada.outputLotId]);
+    });
+  } catch { raised = true; }
+  check('reprocesso acima do saldo restante do lote é rejeitado', raised);
+
+  // Origem da OP: nasce de um pedido de venda (ou avulsa, como as demais)
+  jErr = '';
+  try {
+    await asUserTx(admin.id, 'etcsuporte889@gmail.com', async () => {
+      const pedido = (await client.query(
+        `INSERT INTO public.orders (company_id, number, client_name, status)
+         VALUES ($1, 'PED-JORNADA-001', 'Cliente Jornada', 'confirmed') RETURNING id`, [company.id])).rows[0];
+      jornada.pedidoId = pedido.id;
+      const item = (await client.query(
+        `INSERT INTO public.order_items (company_id, order_id, product_id, product_name, product_code, quantity)
+         VALUES ($1, $2, $3, 'Fio (jornada PCP)', 'FIO-JORNADA', 40) RETURNING id`,
+        [company.id, pedido.id, fioJ])).rows[0];
+      jornada.itemId = item.id;
+      const created = (await client.query(
+        `SELECT public.create_textile_production_order($1, 40, 'jornada-pedido-item1', 'medium', NULL, NULL, $2, $3, NULL, 'Cliente Jornada', '{}'::jsonb) AS r`,
+        [fioJ, pedido.id, item.id])).rows[0].r;
+      jornada.opPedidoId = created.production_order_id;
+      const replay = (await client.query(
+        `SELECT public.create_textile_production_order($1, 40, 'jornada-pedido-item1', 'medium', NULL, NULL, $2, $3, NULL, 'Cliente Jornada', '{}'::jsonb) AS r`,
+        [fioJ, pedido.id, item.id])).rows[0].r;
+      jornada.replay = replay.idempotent_replay === true;
+    });
+  } catch (e) { jErr = `${errCode(e)} ${errMsg(e)}`; }
+  const opPedido = jornada.opPedidoId
+    ? (await q(`SELECT sales_order_id, order_item_id, sector FROM public.production_orders WHERE id = $1`, [jornada.opPedidoId]))[0]
+    : null;
+  const opsDoItem = (await q(`SELECT count(*)::int AS n FROM public.production_orders WHERE order_item_id = $1`, [jornada.itemId]))[0];
+  check('OP nasce vinculada ao pedido (origem pedido) e o setor vem do roteiro',
+    !jErr && opPedido?.sales_order_id === jornada.pedidoId && opPedido?.order_item_id === jornada.itemId && opPedido?.sector === 'Fiação',
+    jErr || JSON.stringify(opPedido));
+  check('repetir a geração do mesmo item NÃO duplica a OP (idempotência)',
+    jornada.replay === true && opsDoItem.n === 1, `replay=${jornada.replay} ops=${opsDoItem.n}`);
 
   console.log('== Grupo multi-CNPJ: visão consolidada + reposição intercompany');
   // Química vira empresa do grupo da BIL (indústria = raiz)
@@ -1314,6 +2079,24 @@ try {
   const claimed = await q(`SELECT id, status FROM public.claim_fiscal_jobs(5)`);
   const myClaim = claimed.find((r) => r.id === (job.id ?? job));
   check('worker: claim move o job para processing (aguarda transmissor)', claimed.length >= 1 && claimed.every((r) => r.status === 'processing'), `claimed=${claimed.length}`);
+  // T97: falha transitória reenfileira (não rejeita); teto de tentativas encerra;
+  // job travado em processing é recuperado automaticamente.
+  const jobRow97 = (await q(`SELECT id, attempt_count FROM public.fiscal_emission_jobs WHERE document_id = $1`, [docNfe.id]))[0];
+  const rq1 = (await q(`SELECT status, last_error FROM public.requeue_fiscal_emission($1, 'token do provedor não configurado', 5)`, [jobRow97.id]))[0];
+  check('T97 fila fiscal: falha transitória REENFILEIRA o job (sem rejeitar)', rq1.status === 'queued' && rq1.last_error.includes('token'), JSON.stringify(rq1));
+  const claim2 = await q(`SELECT id, status, attempt_count FROM public.claim_fiscal_jobs(5)`);
+  const mine2 = claim2.find((r) => r.id === jobRow97.id);
+  check('T97 fila fiscal: job reenfileirado é reivindicado de novo (attempt 2)', !!mine2 && mine2.status === 'processing' && mine2.attempt_count === 2, JSON.stringify(mine2 ?? null));
+  await q(`UPDATE public.fiscal_emission_jobs SET attempt_count = 5 WHERE id = $1`, [jobRow97.id]);
+  const rq2 = (await q(`SELECT status, last_error, completed_at FROM public.requeue_fiscal_emission($1, 'provedor indisponível', 5)`, [jobRow97.id]))[0];
+  check('T97 fila fiscal: tentativas esgotadas encerram como rejected com motivo', rq2.status === 'rejected' && rq2.last_error.includes('tentativas esgotadas') && !!rq2.completed_at, JSON.stringify(rq2));
+  let requeueFinalBlocked = false;
+  try { await q(`SELECT public.requeue_fiscal_emission($1, 'tarde demais', 5)`, [jobRow97.id]); } catch { requeueFinalBlocked = true; }
+  check('T97 fila fiscal: job encerrado NÃO pode ser reenfileirado', requeueFinalBlocked);
+  await q(`UPDATE public.fiscal_emission_jobs SET status = 'processing', started_at = now() - interval '30 minutes', attempt_count = 1, completed_at = NULL WHERE id = $1`, [jobRow97.id]);
+  const recovered = (await q(`SELECT public.recover_stale_fiscal_jobs(15, 5) AS n`))[0].n;
+  const afterRec = (await q(`SELECT status FROM public.fiscal_emission_jobs WHERE id = $1`, [jobRow97.id]))[0];
+  check('T97 fila fiscal: job travado em processing é recuperado para a fila', recovered >= 1 && afterRec.status === 'queued', `recovered=${recovered} status=${afterRec.status}`);
 
 
   console.log('== Compras -> Financeiro: recebimento gera título a pagar');

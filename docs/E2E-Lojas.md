@@ -1,42 +1,43 @@
-# E2E — Jornada das lojas (como rodar)
+# E2E — Lojas e smoke de navegador
 
-Teste automatizado que faz, **com login e permissões reais** (não é
-atalho de banco): a Loja pede 5 → o gestor vê na caixa de entrada da
-Fábrica → decide pelo CD → o CD expede → a Loja recebe 4 → o sistema
-registra **divergência** e o saldo da Loja sobe 4.
+## Segurança: somente homologação isolada
 
-## Como rodar
-1. Stack no ar (`INICIAR-SISTEMA.bat`) e seeds do grupo aplicados
-   (`PREPARAR-GRUPO-ZIPO.bat`, `PREPARAR-LOJAS-TEXAS.bat`);
-2. Rode `TESTAR-E2E.bat`. Se o `.env.e2e` não existir, ele chama
-   `preparar-e2e-lojas.ps1`, que cria os usuários de homologação
-   (seed `seed-e2e-lojas.sql`, idempotente), descobre um produto com
-   saldo ≥ 5 no CD e as unidades Loja/CD e **gera o `.env.e2e` pronto**.
-   Para regenerar depois, rode `PREPARAR-E2E-Lojas.bat`.
+A jornada transacional **cria solicitação e transferência, movimenta estoque e altera saldos**. Use uma instalação e banco separados da operação real. O script pede confirmação explícita, mas não consegue verificar se o banco realmente é isolado: a responsabilidade de conferir o destino é do operador. Em caso de dúvida, não execute. Não há limpeza automática; falhas intermediárias podem deixar registros e reservas. Repetições consomem saldo do CD.
 
-Usuários de homologação (somente ambiente local):
+## O que cada teste comprova
 
-| Usuário | Senha | Papel |
-|---|---|---|
-| `loja@texasfarm.example.com` | `E2eLoja@2026` | operador da Loja (pede) |
-| `gestor@zipo.example.com` | `E2eGestor@2026` | admin do grupo (vê a Fábrica, decide, expede) |
+- `store-journey-ui.spec.ts`: login e abertura de três telas por papel. É um **smoke de interface**, não realiza a jornada completa com cliques.
+- `store-journey.spec.ts`: solicitação, decisão, expedição, recebimento com divergência e saldo, por **API real**, com autenticação/RLS.
+- `e2e/public/login.spec.ts`: cliques na tela de login e redirecionamento de rota protegida, sem backend; servidor dedicado e rede externa bloqueada. Não comprova autenticação real nem processos operacionais.
 
-## Modelo do `.env.e2e`
-```
+A jornada completa de solicitação → decisão → execução → recebimento **por cliques**, com verificação dos efeitos persistidos, ainda precisa ser implementada e executada. A suíte legada possui outras especificações que também dependem de credenciais e massa; não considerar testes ignorados como aprovados.
+
+## Executar Lojas em homologação
+
+1. Confira que aplicação e Supabase apontam exclusivamente para ambiente isolado, migrado e iniciado. Prepare manualmente usuários, produto com saldo suficiente e unidades de homologação. Os scripts de seed existentes alteram o banco: leia-os e use somente no banco isolado; o executor não os chama automaticamente.
+2. Crie `.env.e2e` na raiz (não versionar, não compartilhar senhas) com os valores abaixo. Confirme especialmente que URLs do navegador e da API correspondem ao mesmo ambiente.
+3. Rode `TESTAR-E2E.bat`, leia o aviso e digite `HOMOLOGACAO` apenas após conferir o isolamento. É necessário Bun, dependências e acesso para instalar Chromium na primeira vez. O script falha se variáveis estiverem ausentes, um teste for ignorado ou o Playwright falhar. O código de saída é propagado pelo `.bat`.
+4. Guarde a saída e revise resíduos/saldos no ambiente de homologação. Um teste aprovado não é homologação de produção.
+
+```dotenv
+E2E_BASE_URL=http://localhost:8080
 VITE_SUPABASE_URL=http://localhost:8080
-VITE_SUPABASE_PUBLISHABLE_KEY=<chave anon do .env.local>
-E2E_STORE_EMAIL=loja@texasfarm.example.com
-E2E_STORE_PASSWORD=<senha do usuário da Loja>
-E2E_MANAGER_EMAIL=<e-mail do gestor>
-E2E_MANAGER_PASSWORD=<senha do gestor>
-E2E_PRODUCT_ID=<id de um produto com saldo no CD>
-E2E_STORE_BRANCH_ID=<id da unidade da Loja>
-E2E_CD_BRANCH_ID=<id da unidade do CD com saldo>
+VITE_SUPABASE_PUBLISHABLE_KEY=<chave anon do ambiente isolado>
+E2E_STORE_EMAIL=<usuario da loja de homologacao>
+E2E_STORE_PASSWORD=<senha>
+E2E_MANAGER_EMAIL=<gestor de homologacao>
+E2E_MANAGER_PASSWORD=<senha>
+E2E_PRODUCT_ID=<produto com saldo suficiente no CD de homologacao>
+E2E_STORE_BRANCH_ID=<unidade loja de homologacao>
+E2E_CD_BRANCH_ID=<unidade CD de homologacao>
 ```
-Os IDs aparecem nas telas de cadastro (ou peça pelo
-`VERIFICAR-LOJAS.bat`). Sem o `.env.e2e`, o teste é **ignorado com
-aviso** — ele nunca inventa massa de dados no banco operacional.
 
-> Primeira execução na sua máquina é a validação do próprio teste:
-> se alguma etapa falhar, a mensagem diz qual (login, inbox, decisão,
-> transição ou saldo). Me mande a saída que eu corrijo.
+## Smoke offline de login
+
+Na raiz: `bun install --frozen-lockfile`, `bun x playwright install chromium` e `bun x playwright test --config=e2e/playwright.public.config.ts`. No Linux podem ser necessárias bibliotecas de sistema do Chromium (`playwright install-deps chromium`). A porta 4179 deve estar livre. O teste usa backend inválido e intercepta requisições externas; não executa operações de banco. Não requer `.env.e2e`.
+
+## Estado da validação (T101)
+
+Os três testes offline passaram em Chromium neste sandbox (rota protegida, mostrar/ocultar senha e navegação de recuperação), sem autenticação nem banco. Os quatro testes de Lojas foram descobertos, mas o smoke autenticado e a jornada por API continuam **não executados** por falta de instalação e banco isolados. O smoke foi atualizado para abrir a Central de Abastecimento e clicar na aba Solicitar da Loja sem enviar. PowerShell/Windows e a instalação isolada do cliente não estavam disponíveis para validar o `.bat` de ponta a ponta.
+
+O teste por API foi corrigido após confronto com as migrations: a decisão já cria transferência APROVADA e `shipped_qty` começa em zero. A sequência agora parte do estado seguinte e expede a quantidade solicitada; erros de leitura e IDs ausentes falham explicitamente. Essa correção ainda precisa de execução em homologação.

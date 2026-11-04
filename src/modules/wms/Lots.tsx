@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
@@ -11,8 +11,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/ui/base/dialog';
 import { Label } from '@/ui/base/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
-import { Search, Package, Plus, Layers, AlertTriangle } from 'lucide-react';
-import { useWMSLots } from '@/hooks/wms/useWMSLots';
+import { Search, Package, Plus, Layers, AlertTriangle, ClipboardList, PackagePlus, RefreshCcw } from 'lucide-react';
+import { useWMSLots, type StockLot } from '@/hooks/wms/useWMSLots';
+import { useFiberReceipt } from '@/hooks/wms/useFiberReceipt';
+import { useProducts } from '@/hooks/inventory/useProducts';
+import { isFiberProduct } from '@/lib/pcp/productFilters';
+import { formatFiberClassificationSummary } from '@/lib/wms/fiberReceipt';
+import { FiberClassificationDialog, FiberReceiptDialog } from './FiberReceiptDialog';
+import { StockLotUnitsDialog } from './StockLotUnitsDialog';
+import { ReworkOrderDialog } from './ReworkOrderDialog';
 import { ExportButton } from '@/shared/components/ExportButton';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -34,11 +41,38 @@ const statusLabels: Record<string, string> = {
   blocked: 'Bloqueado',
 };
 
+const qualityLabels: Record<string, string> = {
+  pending: 'Qualidade pendente',
+  approved: 'Qualidade aprovada',
+  quarantine: 'Quarentena',
+  rejected: 'Rejeitado',
+  blocked: 'Bloqueado',
+};
+
 export default function LotsPage() {
-  const { lots, loading, create } = useWMSLots();
+  const { lots, loading, create, refetch } = useWMSLots();
+  const { classify } = useFiberReceipt();
+  const { data: products = [] } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
+  const [fiberReceiptOpen, setFiberReceiptOpen] = useState(false);
+  const [classificationLot, setClassificationLot] = useState<StockLot | null>(null);
+  const [unitsLot, setUnitsLot] = useState<StockLot | null>(null);
+  const [reworkLot, setReworkLot] = useState<StockLot | null>(null);
+
+  const productById = useMemo(
+    () => new Map(products.map((product) => [product.id, product])),
+    [products],
+  );
+
+  const canClassifyFiber = (lot: StockLot) => {
+    if (lot.classification) return true;
+    const product = lot.productId ? productById.get(lot.productId) : undefined;
+    return product
+      ? isFiberProduct(product)
+      : isFiberProduct({ id: lot.productId ?? '', code: lot.productCode, name: lot.productName });
+  };
   const [newLot, setNewLot] = useState({
     lot_number: '', product_code: '', product_name: '',
     supplier: '', quantity: 0, origin: 'purchase',
@@ -78,7 +112,8 @@ export default function LotsPage() {
         description="Rastreabilidade completa por lote de produto"
         actions={
           <div className="flex gap-2">
-            <Button onClick={() => setCreateOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Novo Lote</Button>
+            <Button onClick={() => setFiberReceiptOpen(true)} className="gap-2"><PackagePlus className="h-4 w-4" /> Receber pluma/fibra</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Novo Lote</Button>
             <ExportButton
               data={filteredLots as unknown as Record<string, unknown>[]}
               columns={[
@@ -136,6 +171,8 @@ export default function LotsPage() {
                 <TableHead>Endereço</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Qualidade</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -143,7 +180,14 @@ export default function LotsPage() {
                 <TableRow key={lot.id} className={lot.status === 'expired' ? 'bg-destructive/5' : ''}>
                   <TableCell className="font-mono font-medium">{lot.lotNumber}</TableCell>
                   <TableCell className="font-mono text-xs">{lot.productCode}</TableCell>
-                  <TableCell className="font-medium">{lot.productName}</TableCell>
+                  <TableCell className="font-medium">
+                    <div>{lot.productName}</div>
+                    {formatFiberClassificationSummary(lot.classification) && (
+                      <div className="text-xs font-normal text-muted-foreground">
+                        {formatFiberClassificationSummary(lot.classification)}
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>{lot.supplier || '-'}</TableCell>
                   <TableCell className="text-right">{lot.quantity}</TableCell>
                   <TableCell className={`text-right ${lot.remainingQty === 0 ? 'text-muted-foreground' : 'font-semibold'}`}>{lot.remainingQty}</TableCell>
@@ -155,11 +199,33 @@ export default function LotsPage() {
                   <TableCell>
                     <Badge variant={statusColors[lot.status] || 'secondary'}>{statusLabels[lot.status] || lot.status}</Badge>
                   </TableCell>
+                  <TableCell>
+                    <Badge variant={lot.qualityStatus === 'approved' ? 'default' : lot.qualityStatus === 'rejected' || lot.qualityStatus === 'blocked' ? 'destructive' : 'outline'}>
+                      {qualityLabels[lot.qualityStatus || 'pending'] || lot.qualityStatus || 'Qualidade pendente'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setUnitsLot(lot)}>
+                        <Layers className="h-3.5 w-3.5" /> Rolos/peças
+                      </Button>
+                      {lot.origin === 'production' && lot.remainingQty > 0 && (
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => setReworkLot(lot)}>
+                          <RefreshCcw className="h-3.5 w-3.5" /> Reprocessar
+                        </Button>
+                      )}
+                      {canClassifyFiber(lot) && (
+                        <Button size="sm" variant="outline" className="gap-1" onClick={() => setClassificationLot(lot)}>
+                          <ClipboardList className="h-3.5 w-3.5" /> Classificar
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {filteredLots.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="p-0">
+                  <TableCell colSpan={12} className="p-0">
                     <EmptyState
                       compact
                       title="Nenhum lote encontrado"
@@ -176,6 +242,10 @@ export default function LotsPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Novo Lote</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Este cadastro apenas registra o lote: ele não lança movimento nem saldo. Para entrada de estoque,
+            use “Receber pluma/fibra” ou finalize a conferência WMS.
+          </p>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Nº Lote *</Label><Input value={newLot.lot_number} onChange={e => setNewLot(p => ({ ...p, lot_number: e.target.value }))} /></div>
@@ -205,6 +275,40 @@ export default function LotsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FiberReceiptDialog
+        open={fiberReceiptOpen}
+        onOpenChange={setFiberReceiptOpen}
+        onSuccess={() => void refetch()}
+      />
+      <FiberClassificationDialog
+        open={!!classificationLot}
+        onOpenChange={(open) => { if (!open) setClassificationLot(null); }}
+        lotNumber={classificationLot?.lotNumber ?? ''}
+        initial={classificationLot?.classification ?? null}
+        onSave={async (classification) => {
+          if (!classificationLot) return;
+          await classify(classificationLot.id, classification);
+          await refetch();
+        }}
+      />
+      <StockLotUnitsDialog
+        open={!!unitsLot}
+        onOpenChange={(open) => { if (!open) setUnitsLot(null); }}
+        lot={unitsLot}
+      />
+      <ReworkOrderDialog
+        open={!!reworkLot}
+        onOpenChange={(open) => { if (!open) { setReworkLot(null); void refetch(); } }}
+        lot={reworkLot ? {
+          id: reworkLot.id,
+          lotNumber: reworkLot.lotNumber,
+          productId: reworkLot.productId,
+          productName: reworkLot.productName,
+          remainingQty: reworkLot.remainingQty,
+          status: reworkLot.status,
+        } : null}
+      />
     </PageContainer>
   );
 }

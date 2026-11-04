@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/ui/base/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/base/card';
@@ -10,12 +10,31 @@ import type { TextileBomLine } from '@/hooks/production/useTextilePcpData';
 import { bathVolumeLiters, bomComposition, componentTotalsForBatch, deltaE76 } from '@/lib/pcp/sectorCalculations';
 import { useProductionMachines } from '@/hooks/production/useProductionMachines';
 import {
+  decideDyeingLabApproval,
   recordSectorEvent,
+  setDyeingLabApprovalRequirement,
   upsertSectorOrderProfile,
   type SectorEventRow,
   type SectorOrderProfileRow,
   type SectorProfileKind,
 } from '@/services/production/textilePcpService';
+import {
+  dyeingCompletionBlocked,
+  validateBlendComponents,
+  validateDyeingMachineLoad,
+  validateLabDecision,
+  validatePhTarget,
+  validatePretreatment,
+  type BlendComponent,
+  type LabDecision,
+} from '@/lib/pcp/sectorProcessParameters';
+import {
+  describeDyeRecipeParameters,
+  formatDyeRecipeLabel,
+  type DyeRecipe,
+} from '@/lib/production/dyeRecipes';
+import { fetchDyeRecipes, setDyeingRecipeVersion } from '@/services/production/dyeRecipes';
+import { DyeRecipeManagerDialog } from './DyeRecipeManagerDialog';
 import {
   DEVIATION_CAUSE_STATUSES,
   SECTOR_DEVIATION_CATEGORIES,
@@ -105,7 +124,8 @@ const PROFILE_DESCRIPTION =
   'Campos executáveis da ordem: máquina, centro e parâmetros configurados da empresa. Nenhum valor é sugerido automaticamente.';
 
 export function SpinningProfilePanel({ order, profile, onChanged, bomLines = [] }: ProfileProps) {
-  const [form, setForm] = useState({ machineId: NONE, workCenter: '', targetTitle: '', twistPerM: '', plannedOutputKg: '', notes: '' });
+  const [form, setForm] = useState({ machineId: NONE, workCenter: '', targetTitle: '', twistPerM: '', plannedOutputKg: '', notes: '', rovingTitle: '', draftRatio: '', spindleSpeedRpm: '', deliverySpeedMMin: '', travelerCode: '' });
+  const [blend, setBlend] = useState<Array<{ name: string; pct: string }>>([{ name: '', pct: '' }]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -116,10 +136,27 @@ export function SpinningProfilePanel({ order, profile, onChanged, bomLines = [] 
       twistPerM: numStr(profile?.twist_per_m),
       plannedOutputKg: numStr(profile?.planned_output_kg),
       notes: profile?.notes ?? '',
+      rovingTitle: profile?.roving_title ?? '',
+      draftRatio: numStr(profile?.draft_ratio),
+      spindleSpeedRpm: numStr(profile?.spindle_speed_rpm),
+      deliverySpeedMMin: numStr(profile?.delivery_speed_m_min),
+      travelerCode: profile?.traveler_code ?? '',
     });
+    const components = profile?.blend_components ?? [];
+    setBlend(components.length
+      ? components.map((c) => ({ name: c.name ?? '', pct: c.pct !== null && c.pct !== undefined ? String(c.pct) : '' }))
+      : [{ name: '', pct: '' }]);
   }, [profile, order.id, order.work_center]);
 
   const save = async () => {
+    const blendComponents: BlendComponent[] = blend
+      .filter((c) => c.name.trim() || c.pct.trim())
+      .map((c) => ({ name: c.name.trim(), pct: numberOrNull(c.pct) }));
+    const blendError = validateBlendComponents(blendComponents);
+    if (blendError) {
+      toast.error(blendError);
+      return;
+    }
     setSaving(true);
     try {
       await upsertSectorOrderProfile(order.id, 'fiacao', {
@@ -129,6 +166,12 @@ export function SpinningProfilePanel({ order, profile, onChanged, bomLines = [] 
         twist_per_m: numberOrNull(form.twistPerM),
         planned_output_kg: numberOrNull(form.plannedOutputKg),
         notes: form.notes.trim() || null,
+        blend_components: blendComponents,
+        roving_title: form.rovingTitle.trim() || null,
+        draft_ratio: numberOrNull(form.draftRatio),
+        spindle_speed_rpm: numberOrNull(form.spindleSpeedRpm),
+        delivery_speed_m_min: numberOrNull(form.deliverySpeedMMin),
+        traveler_code: form.travelerCode.trim() || null,
       });
       toast.success('Perfil de fiação salvo');
       await onChanged();
@@ -147,6 +190,25 @@ export function SpinningProfilePanel({ order, profile, onChanged, bomLines = [] 
       <Field label="Torção (voltas/m)"><Input type="number" min="0" value={form.twistPerM} onChange={(e) => setForm({ ...form, twistPerM: e.target.value })} /></Field>
       <Field label="Produção planejada (kg)"><Input type="number" min="0" value={form.plannedOutputKg} onChange={(e) => setForm({ ...form, plannedOutputKg: e.target.value })} /></Field>
       <Field label="Observações"><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+      <Field label="Título da mecha/pavio"><Input value={form.rovingTitle} onChange={(e) => setForm({ ...form, rovingTitle: e.target.value })} /></Field>
+      <Field label="Estiragem (draft)"><Input type="number" min="0" step="0.01" value={form.draftRatio} onChange={(e) => setForm({ ...form, draftRatio: e.target.value })} /></Field>
+      <Field label="Velocidade do fuso (rpm)"><Input type="number" min="0" step="0.01" value={form.spindleSpeedRpm} onChange={(e) => setForm({ ...form, spindleSpeedRpm: e.target.value })} /></Field>
+      <Field label="Velocidade de saída (m/min)"><Input type="number" min="0" step="0.01" value={form.deliverySpeedMMin} onChange={(e) => setForm({ ...form, deliverySpeedMMin: e.target.value })} /></Field>
+      <Field label="Viajante (código)"><Input value={form.travelerCode} onChange={(e) => setForm({ ...form, travelerCode: e.target.value })} /></Field>
+      <div className="md:col-span-3 space-y-2 rounded-md border p-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Mistura configurada pela empresa</p>
+          <Button type="button" size="sm" variant="outline" onClick={() => setBlend((items) => [...items, { name: '', pct: '' }])}>+ Componente</Button>
+        </div>
+        {blend.map((component, index) => (
+          <div key={index} className="grid gap-2 md:grid-cols-[1fr_160px_auto]">
+            <Input placeholder="Componente (ex.: fibra cadastrada pela empresa)" value={component.name} onChange={(e) => setBlend((items) => items.map((item, i) => i === index ? { ...item, name: e.target.value } : item))} />
+            <Input type="number" min="0" max="100" step="0.01" placeholder="% da mistura" value={component.pct} onChange={(e) => setBlend((items) => items.map((item, i) => i === index ? { ...item, pct: e.target.value } : item))} />
+            <Button type="button" size="sm" variant="ghost" onClick={() => setBlend((items) => items.filter((_, i) => i !== index))} disabled={blend.length === 1}>Remover</Button>
+          </div>
+        ))}
+        <p className="text-[11px] text-muted-foreground">Percentuais apenas quando a empresa os informar; a soma não pode passar de 100%.</p>
+      </div>
       {bomComposition(bomLines).length > 0 && (
         <div className="md:col-span-3 rounded-md border bg-muted/40 px-3 py-2">
           <p className="text-xs font-medium">Composição planejada (da BOM/snapshot, por unidade de saída)</p>
@@ -214,10 +276,26 @@ export function KnittingProfilePanel({ order, profile, onChanged }: ProfileProps
 }
 
 export function DyeingProfilePanel({ order, profile, onChanged, bomLines = [] }: ProfileProps) {
+  const { machines } = useProductionMachines();
+  const [dyeRecipes, setDyeRecipes] = useState<DyeRecipe[]>([]);
+  const [recipeManagerOpen, setRecipeManagerOpen] = useState(false);
+  const [dyeRecipeVersionId, setDyeRecipeVersionId] = useState(NONE);
+  const loadDyeRecipes = useCallback(async () => {
+    try {
+      setDyeRecipes(await fetchDyeRecipes(order.company_id));
+    } catch {
+      setDyeRecipes([]);
+    }
+  }, [order.company_id]);
+  useEffect(() => { void loadDyeRecipes(); }, [loadDyeRecipes]);
   const [form, setForm] = useState({
     machineId: NONE, workCenter: '', colorName: '', colorCode: '', bathRatio: '', batchCode: '',
     labL: '', labA: '', labB: '', measuredL: '', measuredA: '', measuredB: '', plannedOutputKg: '', notes: '',
+    pretreatmentApplicable: NONE, pretreatmentType: '', pretreatmentRecipeCode: '', pretreatmentTemperatureC: '', pretreatmentTimeMin: '',
+    dyeRecipeCode: '', dyeingTemperatureC: '', dyeingTimeMin: '', phTarget: '', labApprovalRequired: 'no',
   });
+  const [labDecision, setLabDecision] = useState<Exclude<LabDecision, 'pending'>>('approved');
+  const [labNotes, setLabNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -236,10 +314,45 @@ export function DyeingProfilePanel({ order, profile, onChanged, bomLines = [] }:
       measuredB: numStr(profile?.measured_lab_b),
       plannedOutputKg: numStr(profile?.planned_output_kg),
       notes: profile?.notes ?? '',
+      pretreatmentApplicable: profile?.pretreatment_applicable === null || profile?.pretreatment_applicable === undefined ? NONE : profile.pretreatment_applicable ? 'yes' : 'no',
+      pretreatmentType: profile?.pretreatment_type ?? '',
+      pretreatmentRecipeCode: profile?.pretreatment_recipe_code ?? '',
+      pretreatmentTemperatureC: numStr(profile?.pretreatment_temperature_c),
+      pretreatmentTimeMin: numStr(profile?.pretreatment_time_min),
+      dyeRecipeCode: profile?.dye_recipe_code ?? '',
+      dyeingTemperatureC: numStr(profile?.dyeing_temperature_c),
+      dyeingTimeMin: numStr(profile?.dyeing_time_min),
+      phTarget: numStr(profile?.ph_target),
+      labApprovalRequired: profile?.lab_approval_required ? 'yes' : 'no',
     });
+    setDyeRecipeVersionId(profile?.dye_recipe_version_id ?? NONE);
+    setLabNotes(profile?.lab_decision_notes ?? '');
   }, [profile, order.id, order.work_center]);
 
   const save = async () => {
+    const pretreatmentError = validatePretreatment({
+      applicable: form.pretreatmentApplicable === NONE ? null : form.pretreatmentApplicable === 'yes',
+      type: form.pretreatmentType,
+      recipeCode: form.pretreatmentRecipeCode,
+      temperatureC: numberOrNull(form.pretreatmentTemperatureC),
+      timeMin: numberOrNull(form.pretreatmentTimeMin),
+    }) ?? validatePhTarget(numberOrNull(form.phTarget));
+    if (pretreatmentError) {
+      toast.error(pretreatmentError);
+      return;
+    }
+    const selectedMachine = machines.find((machine) => machine.id === form.machineId);
+    const loadError = selectedMachine ? validateDyeingMachineLoad({
+      plannedKg: numberOrNull(form.plannedOutputKg),
+      bathRatio: numberOrNull(form.bathRatio),
+      minLoadKg: selectedMachine.min_load_kg,
+      maxLoadKg: selectedMachine.max_load_kg,
+      usefulBathVolumeL: selectedMachine.useful_bath_volume_l,
+    }) : null;
+    if (loadError) {
+      toast.error(loadError);
+      return;
+    }
     setSaving(true);
     try {
       await upsertSectorOrderProfile(order.id, 'tinturaria', {
@@ -257,7 +370,18 @@ export function DyeingProfilePanel({ order, profile, onChanged, bomLines = [] }:
         measured_lab_b: numberOrNull(form.measuredB),
         planned_output_kg: numberOrNull(form.plannedOutputKg),
         notes: form.notes.trim() || null,
+        pretreatment_applicable: form.pretreatmentApplicable === NONE ? null : form.pretreatmentApplicable === 'yes',
+        pretreatment_type: form.pretreatmentType.trim() || null,
+        pretreatment_recipe_code: form.pretreatmentRecipeCode.trim() || null,
+        pretreatment_temperature_c: numberOrNull(form.pretreatmentTemperatureC),
+        pretreatment_time_min: numberOrNull(form.pretreatmentTimeMin),
+        dye_recipe_code: form.dyeRecipeCode.trim() || null,
+        dyeing_temperature_c: numberOrNull(form.dyeingTemperatureC),
+        dyeing_time_min: numberOrNull(form.dyeingTimeMin),
+        ph_target: numberOrNull(form.phTarget),
       });
+      await setDyeingLabApprovalRequirement(order.id, form.labApprovalRequired === 'yes');
+      await setDyeingRecipeVersion(order.id, dyeRecipeVersionId === NONE ? null : dyeRecipeVersionId);
       toast.success('Perfil de tinturaria salvo');
       await onChanged();
     } catch (error) {
@@ -267,7 +391,34 @@ export function DyeingProfilePanel({ order, profile, onChanged, bomLines = [] }:
     }
   };
 
+  const decideLab = async () => {
+    const decisionError = validateLabDecision(labDecision, labNotes);
+    if (decisionError) {
+      toast.error(decisionError);
+      return;
+    }
+    setSaving(true);
+    try {
+      await decideDyeingLabApproval(order.id, labDecision, labNotes);
+      toast.success('Decisão do laboratório registrada');
+      await onChanged();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao registrar a decisão do laboratório');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const labBlocked = dyeingCompletionBlocked({
+    labApprovalRequired: form.labApprovalRequired === 'yes',
+    labDecision: profile?.lab_decision,
+  });
+  const labDecisionLabels: Record<string, string> = {
+    pending: 'Pendente', approved: 'Aprovada', rejected: 'Rejeitada', concession: 'Liberada sob concessão',
+  };
+
   return (
+    <>
     <ProfileShell
       title="Perfil técnico de tinturaria da OP"
       description="Máquina de tingir, cor/partida e parâmetros configurados da empresa (receita e dosagens vivem na ficha/snapshot da OP). Metas CIELAB apenas quando aplicável. Nenhum valor é sugerido automaticamente."
@@ -288,8 +439,85 @@ export function DyeingProfilePanel({ order, profile, onChanged, bomLines = [] }:
       <Field label="b* medido da partida"><Input type="number" value={form.measuredB} onChange={(e) => setForm({ ...form, measuredB: e.target.value })} /></Field>
       <Field label="Produção planejada (kg)"><Input type="number" min="0" value={form.plannedOutputKg} onChange={(e) => setForm({ ...form, plannedOutputKg: e.target.value })} /></Field>
       <Field label="Observações"><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+      <Field label="Receita de tingimento aprovada (versionada)">
+        <Select value={dyeRecipeVersionId} onValueChange={(value) => { const recipe = dyeRecipes.find((item) => item.id === value); setDyeRecipeVersionId(value); if (recipe) { setForm({ ...form, dyeRecipeCode: `${recipe.recipe_code} v${recipe.version}`, bathRatio: recipe.parameters.bath_ratio !== undefined && recipe.parameters.bath_ratio !== null ? String(recipe.parameters.bath_ratio) : form.bathRatio, dyeingTemperatureC: recipe.parameters.dyeing_temperature_c !== undefined && recipe.parameters.dyeing_temperature_c !== null ? String(recipe.parameters.dyeing_temperature_c) : form.dyeingTemperatureC, dyeingTimeMin: recipe.parameters.dyeing_time_min !== undefined && recipe.parameters.dyeing_time_min !== null ? String(recipe.parameters.dyeing_time_min) : form.dyeingTimeMin, phTarget: recipe.parameters.ph_target !== undefined && recipe.parameters.ph_target !== null ? String(recipe.parameters.ph_target) : form.phTarget }); } }}>
+          <SelectTrigger><SelectValue placeholder="Não informado" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE}>Não informado</SelectItem>
+            {dyeRecipes.filter((recipe) => recipe.status === 'approved').map((recipe) => <SelectItem key={recipe.id} value={recipe.id}>{formatDyeRecipeLabel(recipe)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field label="Receitas da empresa"><Button type="button" variant="outline" className="w-full" onClick={() => setRecipeManagerOpen(true)}>Gerenciar receitas</Button></Field>
+      <Field label="Código legado (sem versão)"><Input value={form.dyeRecipeCode} disabled={dyeRecipeVersionId !== NONE} onChange={(e) => setForm({ ...form, dyeRecipeCode: e.target.value })} /></Field>
+      {dyeRecipeVersionId !== NONE && describeDyeRecipeParameters(dyeRecipes.find((recipe) => recipe.id === dyeRecipeVersionId)?.parameters) && (
+        <p className="text-[11px] text-muted-foreground md:col-span-3">Parâmetros da versão aprovada: {describeDyeRecipeParameters(dyeRecipes.find((recipe) => recipe.id === dyeRecipeVersionId)?.parameters)}</p>
+      )}
+      <Field label="Temperatura do tingimento (°C)"><Input type="number" min="0" step="0.01" value={form.dyeingTemperatureC} onChange={(e) => setForm({ ...form, dyeingTemperatureC: e.target.value })} /></Field>
+      <Field label="Tempo do tingimento (min)"><Input type="number" min="0" step="0.01" value={form.dyeingTimeMin} onChange={(e) => setForm({ ...form, dyeingTimeMin: e.target.value })} /></Field>
+      <Field label="pH alvo (se aplicável)"><Input type="number" min="0" max="14" step="0.01" value={form.phTarget} onChange={(e) => setForm({ ...form, phTarget: e.target.value })} /></Field>
+      <div className="md:col-span-3 space-y-3 rounded-md border p-3">
+        <p className="text-sm font-medium">Pré-tratamento (quando aplicável)</p>
+        <div className="grid gap-3 md:grid-cols-3">
+          <Field label="Pré-tratamento aplicável?">
+            <Select value={form.pretreatmentApplicable} onValueChange={(value) => setForm({ ...form, pretreatmentApplicable: value })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value={NONE}>Não informado</SelectItem><SelectItem value="yes">Sim</SelectItem><SelectItem value="no">Não</SelectItem></SelectContent>
+            </Select>
+          </Field>
+          <Field label="Tipo de pré-tratamento"><Input value={form.pretreatmentType} onChange={(e) => setForm({ ...form, pretreatmentType: e.target.value })} /></Field>
+          <Field label="Receita do pré-tratamento"><Input value={form.pretreatmentRecipeCode} onChange={(e) => setForm({ ...form, pretreatmentRecipeCode: e.target.value })} /></Field>
+          <Field label="Temperatura do pré-tratamento (°C)"><Input type="number" min="0" step="0.01" value={form.pretreatmentTemperatureC} onChange={(e) => setForm({ ...form, pretreatmentTemperatureC: e.target.value })} /></Field>
+          <Field label="Tempo do pré-tratamento (min)"><Input type="number" min="0" step="0.01" value={form.pretreatmentTimeMin} onChange={(e) => setForm({ ...form, pretreatmentTimeMin: e.target.value })} /></Field>
+        </div>
+        <p className="text-[11px] text-muted-foreground">Só é exigido identificar o pré-tratamento quando ele for aplicável; nenhum processo é presumido.</p>
+      </div>
+      <div className="md:col-span-3 space-y-3 rounded-md border p-3">
+        <p className="text-sm font-medium">Laboratório — decisão sobre a cor da partida</p>
+        <div className="grid gap-3 md:grid-cols-3">
+          <Field label="Aprovação do laboratório exigida para concluir?">
+            <Select value={form.labApprovalRequired} onValueChange={(value) => setForm({ ...form, labApprovalRequired: value })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="no">Não</SelectItem><SelectItem value="yes">Sim</SelectItem></SelectContent>
+            </Select>
+          </Field>
+          <Field label="Decisão registrada">
+            <Input value={profile ? (labDecisionLabels[profile.lab_decision ?? 'pending'] ?? 'Pendente') : 'Sem perfil salvo'} readOnly />
+          </Field>
+          <Field label="Nova decisão">
+            <Select value={labDecision} onValueChange={(value) => setLabDecision(value as Exclude<LabDecision, 'pending'>)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="approved">Aprovar cor</SelectItem>
+                <SelectItem value="rejected">Rejeitar cor</SelectItem>
+                <SelectItem value="concession">Liberar sob concessão</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <div className="space-y-2 md:col-span-2">
+            <Label>Justificativa/observação da decisão</Label>
+            <Input value={labNotes} onChange={(e) => setLabNotes(e.target.value)} placeholder="Obrigatória na liberação sob concessão" />
+          </div>
+          <div className="flex items-end">
+            <Button type="button" variant="outline" onClick={decideLab} disabled={saving || !profile}>Registrar decisão</Button>
+          </div>
+        </div>
+        {labBlocked && (
+          <p className="text-[11px] font-medium text-destructive">
+            Conclusão da OP bloqueada: a empresa exige aprovação do laboratório e a decisão atual é {labDecisionLabels[profile?.lab_decision ?? 'pending']?.toLowerCase()}.
+          </p>
+        )}
+        <p className="text-[11px] text-muted-foreground">Salvar a exigência vale ao salvar o perfil; a decisão é registrada pelo botão próprio e fica auditada (quem/quando).</p>
+      </div>
       <DyeingCalcBlock form={form} bomLines={bomLines} />
     </ProfileShell>
+    <DyeRecipeManagerDialog
+      open={recipeManagerOpen}
+      onOpenChange={setRecipeManagerOpen}
+      recipes={dyeRecipes}
+      onChanged={loadDyeRecipes}
+    />
+    </>
   );
 }
 

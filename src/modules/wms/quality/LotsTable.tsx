@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/shared/components/EmptyState";
 import { Search, Search as SearchIcon } from "lucide-react";
 import { decisionMeta, type Decision, type Lot } from "./types";
+import { formatFiberClassificationSummary } from "@/lib/wms/fiberReceipt";
 
 export type FilterValue = "all" | "pending" | Decision;
 
@@ -106,6 +107,11 @@ export function LotsTable({
                     <TableCell>
                       <div className="text-sm">{l.product_code}</div>
                       <div className="text-xs text-muted-foreground truncate max-w-[200px]">{l.product_name}</div>
+                      {formatFiberClassificationSummary(l.fiber_classification) && (
+                        <div className="text-xs text-muted-foreground truncate max-w-[240px]">
+                          {formatFiberClassificationSummary(l.fiber_classification)}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs">{l.supplier ?? "—"}</TableCell>
                     <TableCell className="text-right">{l.remaining_qty ?? l.quantity ?? 0}</TableCell>

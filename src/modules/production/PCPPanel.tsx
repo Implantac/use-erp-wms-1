@@ -119,7 +119,7 @@ export default function PCPPanel() {
       <GenerateOPDialog
         order={generatingFor}
         onClose={() => setGeneratingFor(null)}
-        onGenerated={refetchProductionOrders}
+        onGenerated={async () => { await refetchProductionOrders(); }}
       />
     </PageContainer>
   );

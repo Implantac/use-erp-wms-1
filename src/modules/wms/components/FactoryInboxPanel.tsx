@@ -16,7 +16,36 @@ import { rankSupplyCandidates } from '@/lib/store/supplyRecommendation';
 import { createTextileProductionOrder } from '@/services/production/textilePcpService';
 import { useSupplyAccess } from '@/hooks/operational/store/useSupplyAccess';
 
-const fmt = (n: any) => Number(n || 0).toLocaleString('pt-BR');
+const fmt = (n: number | string | null | undefined) => Number(n || 0).toLocaleString('pt-BR');
+
+interface InboxRequestRow {
+  id: string;
+  product_name: string;
+  product_code: string;
+  quantity: number;
+  company_name: string;
+  branch_name: string | null;
+  created_at: string;
+}
+
+interface FactoryInboxData {
+  supply: InboxRequestRow[];
+  intercompany: InboxRequestRow[];
+  group_root_company_id?: string;
+}
+
+interface ProductByCodeRow { id: string; name: string }
+
+interface LooseQuery<T> extends PromiseLike<{ data: T | null; error: { message: string } | null }> {
+  select: (columns: string) => LooseQuery<T>;
+  eq: (column: string, value: unknown) => LooseQuery<T>;
+  maybeSingle: () => PromiseLike<{ data: T | null; error: { message: string } | null }>;
+}
+
+const loose = supabase as unknown as {
+  rpc: (fn: string) => PromiseLike<{ data: FactoryInboxData | null; error: { message: string } | null }>;
+  from<T>(table: string): LooseQuery<T>;
+};
 
 const kindLabel: Record<string, string> = {
   LOJA: 'Outra Loja (remanejo)',
@@ -37,13 +66,14 @@ export function FactoryInboxPanel() {
   const queryClient = useQueryClient();
   const decideInter = useDecideGroupRequest();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [producingId, setProducingId] = useState<string | null>(null);
 
   const inboxQuery = useQuery({
     queryKey: ['factory-inbox'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc('factory_inbox');
-      if (error) throw error;
-      return data as { supply: any[]; intercompany: any[] };
+      const { data, error } = await loose.rpc('factory_inbox');
+      if (error) throw new Error(error.message);
+      return data ?? { supply: [], intercompany: [] };
     },
     staleTime: 15_000,
     enabled: supplyAccess.canManage,
@@ -64,7 +94,7 @@ export function FactoryInboxPanel() {
       else toast.success('Origem definida: transferência criada e APROVADA para separação/expedição.');
       queryClient.invalidateQueries({ queryKey: ['factory-inbox'] });
     },
-    onError: (e: any) => toast.error(`Não foi possível decidir: ${e?.message || 'erro inesperado'}`),
+    onError: (e: unknown) => toast.error(`Não foi possível decidir: ${e instanceof Error ? e.message : 'erro inesperado'}`),
   });
 
   // Separação de papéis: esta caixa é do gestor da indústria. Para a Loja
@@ -74,14 +104,13 @@ export function FactoryInboxPanel() {
   // Produzir = decisão da indústria + OP gerada na hora (cai no PCP).
   // O produto da indústria casa pelo CÓDIGO com o pedido da Loja; sem
   // produto correspondente, a decisão fica registrada e o gestor é avisado.
-  const [producingId, setProducingId] = useState<string | null>(null);
-  const handleProduce = async (r: any) => {
+  const handleProduce = async (r: InboxRequestRow) => {
     setProducingId(r.id);
     try {
       await decideInter.mutateAsync({ requestId: r.id, decision: 'produzir' });
-      const rootId = (inboxQuery.data as any)?.group_root_company_id as string | undefined;
+      const rootId = inboxQuery.data?.group_root_company_id;
       const { data: product } = rootId
-        ? await (supabase as any).from('products').select('id, name')
+        ? await loose.from<ProductByCodeRow>('products').select('id, name')
             .eq('company_id', rootId).eq('code', r.product_code).maybeSingle()
         : { data: null };
       if (!product?.id) {
@@ -94,10 +123,11 @@ export function FactoryInboxPanel() {
         clientName: r.company_name,
         idempotencyKey: `inter-produz-${String(r.id).slice(0, 8)}`,
       });
-      const replay = (op as any)?.idempotent_replay === true;
+      const opInfo = op as unknown as { idempotent_replay?: boolean; order_number?: string };
+      const replay = opInfo?.idempotent_replay === true;
       toast.success(replay
-        ? `OP já existia para este pedido (${(op as any)?.order_number ?? ''}) — nada duplicado. Acompanhe no PCP.`
-        : `OP ${(op as any)?.order_number ?? ''} criada e já está no PCP para programar/executar.`);
+        ? `OP já existia para este pedido (${opInfo?.order_number ?? ''}) — nada duplicado. Acompanhe no PCP.`
+        : `OP ${opInfo?.order_number ?? ''} criada e já está no PCP para programar/executar.`);
       queryClient.invalidateQueries({ queryKey: ['factory-inbox'] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao gerar a OP');
@@ -128,7 +158,7 @@ export function FactoryInboxPanel() {
         {inboxQuery.isLoading && <p className="text-sm text-muted-foreground">Carregando solicitações das lojas…</p>}
         {inboxQuery.isError && (
           <p className="text-sm text-red-600">
-            Não foi possível carregar: {(inboxQuery.error as any)?.message || 'erro inesperado'}
+            Não foi possível carregar: {inboxQuery.error instanceof Error ? inboxQuery.error.message : 'erro inesperado'}
           </p>
         )}
         {!inboxQuery.isLoading && !inboxQuery.isError && total === 0 && (
@@ -140,7 +170,7 @@ export function FactoryInboxPanel() {
             <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
               <Factory className="h-4 w-4" /> Pedidos à Fábrica aguardando decisão
             </p>
-            {inter.map((r: any) => (
+            {inter.map((r) => (
               <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-md border p-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold">{r.product_name}</p>
@@ -171,7 +201,7 @@ export function FactoryInboxPanel() {
             <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
               <PackageCheck className="h-4 w-4" /> Abastecimento aguardando análise de origem
             </p>
-            {supply.map((r: any) => (
+            {supply.map((r) => (
               <div key={r.id} className="rounded-md border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold">{r.product_name}</span>

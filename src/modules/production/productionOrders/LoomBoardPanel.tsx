@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { ArrowRight } from 'lucide-react';
+import { Button } from '@/ui/base/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/base/card';
 import { Badge } from '@/ui/base/badge';
 import { Progress } from '@/ui/base/progress';
@@ -6,13 +8,45 @@ import { supabase } from '@/integrations/supabase/client';
 import { useEnterprise } from '@/core/auth/EnterpriseContext';
 import { formatNumber } from '@/lib/formatters';
 
+const WEAVING_EVENT_LABELS: Record<string, string> = {
+  setup: 'Setup',
+  start: 'Início da tecelagem',
+  pause: 'Pausa',
+  resume: 'Retomada',
+  stop: 'Parada',
+  yarn_break: 'Ruptura de fio',
+  warp_break: 'Ruptura de urdume',
+  weft_break: 'Ruptura de trama',
+  beam_change: 'Troca de rolo de urdume',
+  quality_hold: 'Bloqueio de qualidade',
+  quality_release: 'Liberação de qualidade',
+  inspection: 'Inspeção',
+  note: 'Observação',
+};
+
+function weavingEventLabel(type?: string | null): string {
+  if (!type) return 'sem evento';
+  return WEAVING_EVENT_LABELS[type] ?? type.replace(/_/g, ' ');
+}
+
+function machineAvailability(status?: string | null): { label: string; unavailable: boolean } {
+  const normalized = String(status ?? '').trim().toLowerCase();
+  if (['maintenance', 'manutencao', 'manutenção'].includes(normalized)) return { label: 'em manutenção', unavailable: true };
+  if (['inactive', 'inativo', 'down', 'parado'].includes(normalized)) return { label: 'indisponível', unavailable: true };
+  return { label: '', unavailable: false };
+}
+
+interface Props {
+  onOpenOrder?: (orderId: string, targetId: string) => void;
+}
+
 /**
  * Mapa de Teares — a tela diária do gerente de tecelagem: cada tear com a
  * OP montada, rolo de urdume, metros planejados × produzidos (apontamentos
  * reais de weaving_production_events) e o último evento. Sem OP ativa, o
  * tear aparece livre. Nada estimado: só o que foi apontado.
  */
-export function LoomBoardPanel() {
+export function LoomBoardPanel({ onOpenOrder }: Props) {
   const { currentCompany } = useEnterprise();
   const companyId = currentCompany?.id;
 
@@ -90,6 +124,8 @@ export function LoomBoardPanel() {
           code: m.code,
           name: m.name,
           status: m.status,
+          availability: machineAvailability(m.status),
+          orderId: active?.order?.id || null,
           orderNumber: active?.order?.order_number || null,
           product: active ? productName.get(active.order.product_id) || null : null,
           beam: active?.profile?.beam_code || null,
@@ -123,28 +159,50 @@ export function LoomBoardPanel() {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {looms.map((l) => (
               <div key={l.id} className="rounded-lg border p-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <p className="font-bold">{l.code} — {l.name}</p>
                   <Badge variant={l.orderNumber ? 'default' : 'secondary'}>
-                    {l.orderNumber ? 'tecendo' : 'livre'}
+                    {l.orderNumber ? 'tecendo' : l.availability.unavailable ? l.availability.label : 'livre'}
                   </Badge>
                 </div>
                 {l.orderNumber ? (
                   <>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      OP {l.orderNumber}{l.product ? ` · ${l.product}` : ''}{l.beam ? ` · urdume ${l.beam}` : ''}
+                      OP {l.orderNumber}{l.product ? ` · ${l.product}` : ''}{l.beam ? ` · rolo de urdume ${l.beam}` : ''}
                     </p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <Progress value={l.pct} className="h-2 flex-1" />
-                      <span className="text-xs font-bold">{l.pct}%</span>
-                    </div>
+                    {l.planned > 0 ? (
+                      <>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Progress value={l.pct} className="h-2 flex-1" />
+                          <span className="text-xs font-bold">{l.pct}%</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {formatNumber(l.done)} m produzidos de {formatNumber(l.planned)} m planejados
+                        </p>
+                      </>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {formatNumber(l.done)} m apontados · comprimento planejado ainda não informado no perfil da OP
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
-                      {formatNumber(l.done)} m de {formatNumber(l.planned)} m planejados
-                      {l.last ? ` · último evento: ${l.last.event_type}` : ''}
+                      Último registro: {l.last ? weavingEventLabel(l.last.event_type) : 'nenhum evento apontado ainda'}
                     </p>
+                    {l.availability.unavailable ? (
+                      <p className="mt-1 text-xs font-medium text-amber-700">A máquina está sinalizada como {l.availability.label}; confira o cadastro antes de novas programações.</p>
+                    ) : null}
+                    {l.orderId && onOpenOrder ? (
+                      <Button size="sm" variant="outline" className="mt-3" onClick={() => onOpenOrder(l.orderId as string, 'pcp-op-atual')}>
+                        Abrir esta OP <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                      </Button>
+                    ) : null}
                   </>
                 ) : (
-                  <p className="mt-1 text-xs text-muted-foreground">Sem OP montada.</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {l.availability.unavailable
+                      ? 'Indisponível para nova programação enquanto estiver assim no cadastro de máquinas.'
+                      : 'Sem OP montada. Quando programar, escolha este tear na fila de programação.'}
+                  </p>
                 )}
               </div>
             ))}

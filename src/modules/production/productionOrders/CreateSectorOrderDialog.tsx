@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/base/dialog';
+import { Badge } from '@/ui/base/badge';
 import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
 import { Label } from '@/ui/base/label';
@@ -16,6 +17,9 @@ import {
   type SectorProfileKind,
 } from '@/services/production/textilePcpService';
 import { machineMatchesSector } from '@/lib/pcp/productFilters';
+import { computeEligibleProductIds } from '@/lib/pcp/eligibleProducts';
+import { demandIdempotencyKey } from '@/lib/pcp/completionReadiness';
+import { formatNumber } from '@/lib/formatters';
 import { sectorKindFromSectorText, SECTOR_LABELS } from '@/lib/pcp/sectorProfiles';
 
 const NONE = '__none__';
@@ -25,6 +29,21 @@ interface ProductOption {
   code: string;
   name: string;
   unit: string;
+}
+
+interface SalesOrderOption {
+  id: string;
+  number: string;
+  client_name: string;
+  client_id: string | null;
+}
+
+interface SalesItemOption {
+  id: string;
+  product_id: string | null;
+  product_name: string;
+  product_code: string;
+  quantity: number;
 }
 
 interface Props {
@@ -57,6 +76,12 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
   const { machines } = useProductionMachines();
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [origin, setOrigin] = useState<'avulsa' | 'pedido'>('avulsa');
+  const [salesOrders, setSalesOrders] = useState<SalesOrderOption[]>([]);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [orderItems, setOrderItems] = useState<SalesItemOption[]>([]);
+  const [selectedItemId, setSelectedItemId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     productId: '',
@@ -93,13 +118,15 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
     let cancelled = false;
     setLoadingProducts(true);
     void (async () => {
-      const [productResult, bomResult, routeResult, routeStepResult, stepResult] = await Promise.all([
+      const [productResult, bomResult, routeResult, routeStepResult, stepResult, orderResult] = await Promise.all([
         supabase.from('products').select('id, code, name, unit, production_route_id').eq('company_id', company.id).eq('status', 'active').order('name'),
         supabase.from('production_bom').select('product_id').eq('company_id', company.id),
         supabase.from('production_routes').select('id, product_id, is_active, created_at').eq('company_id', company.id).eq('is_active', true).order('created_at', { ascending: false }),
         supabase.from('production_route_steps').select('route_id, step_name, sequence').eq('company_id', company.id).order('sequence'),
         supabase.from('production_steps').select('name, sector, is_active').eq('company_id', company.id).eq('is_active', true),
+        supabase.from('orders').select('id, number, client_name, client_id').eq('company_id', company.id).in('status', ['confirmed', 'awaiting_production']).order('created_at', { ascending: false }).limit(50),
       ]);
+      if (!orderResult.error) setSalesOrders((orderResult.data ?? []) as SalesOrderOption[]);
       if (cancelled) return;
       setLoadingProducts(false);
       if (productResult.error || bomResult.error || routeResult.error || routeStepResult.error || stepResult.error) {
@@ -108,51 +135,54 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
         return;
       }
 
-      // Setor por nome de operação: a RPC exige exatamente uma operação
-      // ativa por nome; duplicidade torna o produto inelegível aqui.
-      const sectorByStepName = new Map<string, string | null>();
-      const stepNameCounts = new Map<string, number>();
-      for (const step of stepResult.data ?? []) {
-        stepNameCounts.set(step.name, (stepNameCounts.get(step.name) ?? 0) + 1);
-        if (!sectorByStepName.has(step.name)) sectorByStepName.set(step.name, step.sector);
-      }
-
-      const firstStepByRoute = new Map<string, string>();
-      for (const routeStep of routeStepResult.data ?? []) {
-        if (!firstStepByRoute.has(routeStep.route_id)) firstStepByRoute.set(routeStep.route_id, routeStep.step_name);
-      }
-      const routeKind = new Map<string, string | null>();
-      for (const route of routeResult.data ?? []) {
-        const firstStep = firstStepByRoute.get(route.id);
-        const sector = firstStep && stepNameCounts.get(firstStep) === 1 ? sectorByStepName.get(firstStep) : null;
-        routeKind.set(route.id, sectorKindFromSectorText(sector));
-      }
-
-      const bomProductIds = new Set((bomResult.data ?? []).map((line) => line.product_id));
-      const routesByProduct = new Map<string, Array<{ id: string }>>();
-      for (const route of routeResult.data ?? []) {
-        if (!route.product_id) continue;
-        const list = routesByProduct.get(route.product_id) ?? [];
-        list.push({ id: route.id });
-        routesByProduct.set(route.product_id, list);
-      }
-
-      const eligible = (productResult.data ?? []).filter((product) => {
-        if (!bomProductIds.has(product.id)) return false;
-        const preferred = product.production_route_id && routeKind.has(product.production_route_id)
-          ? product.production_route_id
-          : routesByProduct.get(product.id)?.[0]?.id;
-        return preferred ? routeKind.get(preferred) === kind : false;
-      });
-      setProducts(eligible.map(({ id, code, name, unit }) => ({ id, code, name, unit })));
+      // Elegibilidade = a conta da RPC (BOM + roteiro começando no
+      // setor, operação única por nome), compartilhada com a tecelagem.
+      const eligibleIds = computeEligibleProductIds({
+        products: productResult.data ?? [],
+        bomProductIds: new Set((bomResult.data ?? []).map((line) => line.product_id)),
+        routes: routeResult.data ?? [],
+        routeSteps: routeStepResult.data ?? [],
+        steps: stepResult.data ?? [],
+      }, kind);
+      setProducts(
+        (productResult.data ?? [])
+          .filter((product) => eligibleIds.has(product.id))
+          .map(({ id, code, name, unit }) => ({ id, code, name, unit })),
+      );
     })();
     return () => { cancelled = true; };
   }, [open, company?.id, kind]);
+
+  useEffect(() => {
+    if (!selectedOrderId) { setOrderItems([]); return; }
+    void (async () => {
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('id, product_id, product_name, product_code, quantity')
+        .eq('order_id', selectedOrderId);
+      if (!error) setOrderItems((data ?? []) as SalesItemOption[]);
+    })();
+  }, [selectedOrderId]);
 
   const sectorMachines = useMemo(
     () => machines.filter((machine) => machine.active && machineMatchesSector(machine.sector, kind)),
     [machines, kind],
   );
+
+  const fromOrder = origin === 'pedido';
+  const selectedOrder = salesOrders.find((order) => order.id === selectedOrderId) ?? null;
+  const selectedItem = orderItems.find((item) => item.id === selectedItemId) ?? null;
+  const visibleOrders = useMemo(() => {
+    const term = orderSearch.trim().toLowerCase();
+    if (!term) return salesOrders;
+    return salesOrders.filter((order) => order.number.toLowerCase().includes(term) || order.client_name.toLowerCase().includes(term));
+  }, [salesOrders, orderSearch]);
+
+  const pickItem = (item: SalesItemOption) => {
+    if (!item.product_id || !selectedOrder) return;
+    setSelectedItemId(item.id);
+    set({ productId: item.product_id, quantity: String(item.quantity), clientName: selectedOrder.client_name });
+  };
 
   const set = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }));
 
@@ -198,6 +228,10 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
   const hasProfileData = () => Object.values(profilePayload()).some((value) => value !== null && value !== '');
 
   const handleSubmit = async () => {
+    if (fromOrder && (!selectedOrder || !selectedItem)) {
+      toast.error('Localize o pedido e selecione o item para gerar a OP');
+      return;
+    }
     const parsedQuantity = Number(form.quantity);
     if (!form.productId || !Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
       toast.error('Selecione o produto e informe uma quantidade positiva');
@@ -208,15 +242,21 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
       const result = await createTextileProductionOrder({
         productId: form.productId,
         quantity: parsedQuantity,
-        idempotencyKey: createClientIdempotencyKey('op'),
+        idempotencyKey: fromOrder && selectedOrder && selectedItem
+          ? demandIdempotencyKey(selectedOrder.id, selectedItem.id)
+          : createClientIdempotencyKey('op'),
         priority: form.priority,
         dueDate: form.dueDate ? new Date(`${form.dueDate}T23:59:59`).toISOString() : null,
         workCenter: textOrNull(form.workCenter),
         clientName: textOrNull(form.clientName),
+        salesOrderId: fromOrder ? selectedOrder?.id ?? null : null,
+        orderItemId: fromOrder ? selectedItem?.id ?? null : null,
+        clientId: fromOrder ? selectedOrder?.client_id ?? null : null,
         weavingProfile: {},
       });
       const orderId = typeof result.production_order_id === 'string' ? result.production_order_id : '';
       const orderNumber = typeof result.order_number === 'string' ? result.order_number : '';
+      const replay = result.idempotent_replay === true;
 
       if (orderId && hasProfileData()) {
         const { data: createdOrder } = await supabase
@@ -236,7 +276,9 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
         await upsertSectorOrderProfile(orderId, kind, profilePayload());
       }
 
-      toast.success(orderNumber ? `OP ${orderNumber} de ${noun} criada com snapshot técnico` : `OP de ${noun} criada com snapshot técnico`);
+      toast.success(replay
+        ? `Este item já tinha a OP ${orderNumber} — nada foi duplicado.`
+        : orderNumber ? `OP ${orderNumber} de ${noun} criada com snapshot técnico` : `OP de ${noun} criada com snapshot técnico`);
       onOpenChange(false);
       await onCreated();
     } catch (error) {
@@ -252,14 +294,69 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
         <DialogHeader>
           <DialogTitle>Nova OP de {noun}</DialogTitle>
           <DialogDescription>
-            Só entram produtos com BOM e roteiro ativo cuja primeira operação é de {noun} — a OP nasce no setor do roteiro,
+            A OP pode nascer de um pedido confirmado ou avulsa. Só entram produtos com BOM e roteiro ativo cuja primeira operação é de {noun} — a OP nasce no setor do roteiro,
             com snapshot técnico congelado. Parâmetros de processo são os configurados pela empresa; nenhum é presumido.
           </DialogDescription>
         </DialogHeader>
 
+        <div className="space-y-2">
+          <Label>Origem da OP</Label>
+          <div className="flex gap-2">
+            <Button type="button" size="sm" variant={origin === 'pedido' ? 'default' : 'outline'} onClick={() => setOrigin('pedido')}>A partir de pedido</Button>
+            <Button type="button" size="sm" variant={origin === 'avulsa' ? 'default' : 'outline'} onClick={() => setOrigin('avulsa')}>Avulsa (manual)</Button>
+          </div>
+        </div>
+
+        {fromOrder ? (
+          <div className="space-y-3 rounded-md border p-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Localizar pedido (número ou cliente)</Label>
+                <Input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder="Ex.: 1024 ou o nome do cliente" />
+              </div>
+              <div className="space-y-1">
+                <Label>Pedidos confirmados aguardando produção</Label>
+                <Select value={selectedOrderId} onValueChange={(value) => { setSelectedOrderId(value); setSelectedItemId(''); }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o pedido" /></SelectTrigger>
+                  <SelectContent>{visibleOrders.map((order) => <SelectItem key={order.id} value={order.id}>{order.number} — {order.client_name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            {salesOrders.length === 0 ? (
+              <p className="text-sm text-amber-700">Nenhum pedido confirmado aguardando produção nesta empresa. Confirme o pedido no Comercial ou crie a OP como Avulsa.</p>
+            ) : null}
+            {selectedOrder ? (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Itens do pedido {selectedOrder.number} — selecione o item</p>
+                {orderItems.length === 0 ? <p className="text-sm text-muted-foreground">Pedido sem itens.</p> : orderItems.map((item) => {
+                  const eligible = item.product_id ? products.some((product) => product.id === item.product_id) : false;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      disabled={!item.product_id}
+                      onClick={() => pickItem(item)}
+                      className={`flex w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm ${selectedItemId === item.id ? 'border-primary bg-primary/5' : ''} disabled:opacity-50`}
+                    >
+                      <span>{item.product_code ? `${item.product_code} — ` : ''}{item.product_name}</span>
+                      <span className="flex items-center gap-2">
+                        {!item.product_id ? <Badge variant="outline">sem produto vinculado</Badge> : !eligible ? <Badge variant="outline">sem BOM/roteiro de {noun}</Badge> : null}
+                        <span className="text-muted-foreground">{formatNumber(item.quantity)}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+                {selectedItem && selectedItem.product_id && !products.some((product) => product.id === selectedItem.product_id) ? (
+                  <p className="text-sm text-amber-700">Este item não tem BOM/roteiro de {noun}: a OP nascerá no setor do roteiro dele (sem o perfil de {noun}) ou será recusada se faltar estrutura. Cadastre antes (Fichas/Roteiros) se ele deveria ser de {noun}.</p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {loadingProducts ? (
           <p className="text-sm text-muted-foreground">Carregando produtos elegíveis…</p>
-        ) : products.length === 0 ? (
+        ) : !fromOrder && products.length === 0 ? (
           <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             <p>
               Nenhum produto elegível para {noun}: cadastre a BOM e um roteiro ativo cuja primeira operação esteja
@@ -275,20 +372,24 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1 md:col-span-2">
-            <Label>Produto da OP</Label>
-            <Select value={form.productId} onValueChange={(value) => set({ productId: value })}>
-              <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
-              <SelectContent>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.code} — {product.name} ({product.unit})</SelectItem>)}</SelectContent>
-            </Select>
+            <Label>Produto da OP {fromOrder ? '(do item selecionado)' : ''}</Label>
+            {fromOrder ? (
+              <Input value={selectedItem ? `${selectedItem.product_code ? `${selectedItem.product_code} — ` : ''}${selectedItem.product_name}` : ''} placeholder="Selecione o item do pedido acima" disabled />
+            ) : (
+              <Select value={form.productId} onValueChange={(value) => set({ productId: value })}>
+                <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                <SelectContent>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.code} — {product.name} ({product.unit})</SelectItem>)}</SelectContent>
+              </Select>
+            )}
           </div>
-          <div className="space-y-1"><Label>Quantidade planejada</Label><Input type="number" min="0" step="0.0001" value={form.quantity} onChange={(e) => set({ quantity: e.target.value })} /></div>
+          <div className="space-y-1"><Label>Quantidade planejada</Label><Input type="number" min="0" step="0.0001" value={form.quantity} onChange={(e) => set({ quantity: e.target.value })} disabled={fromOrder} /></div>
           <div className="space-y-1">
             <Label>Prioridade</Label>
             <Select value={form.priority} onValueChange={(value) => set({ priority: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="urgent">Urgente</SelectItem><SelectItem value="high">Alta</SelectItem><SelectItem value="medium">Média</SelectItem><SelectItem value="low">Baixa</SelectItem></SelectContent></Select>
           </div>
           <div className="space-y-1"><Label>Data necessária</Label><Input type="date" value={form.dueDate} onChange={(e) => set({ dueDate: e.target.value })} /></div>
           <div className="space-y-1"><Label>Centro de trabalho</Label><Input value={form.workCenter} onChange={(e) => set({ workCenter: e.target.value })} /></div>
-          <div className="space-y-1 md:col-span-2"><Label>Cliente (opcional)</Label><Input value={form.clientName} onChange={(e) => set({ clientName: e.target.value })} /></div>
+          <div className="space-y-1 md:col-span-2"><Label>Cliente (opcional)</Label><Input value={form.clientName} onChange={(e) => set({ clientName: e.target.value })} disabled={fromOrder} /></div>
 
           <div className="space-y-1">
             <Label>{kind === 'fiacao' ? 'Filatório/máquina' : kind === 'malharia' ? 'Tear circular/máquina' : kind === 'beneficiamento' ? 'Rama/máquina de acabamento' : 'Máquina de tingir (JET/barca)'}</Label>
@@ -343,7 +444,7 @@ export function CreateSectorOrderDialog({ open, onOpenChange, onCreated, kind, n
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={submitting || products.length === 0}>{submitting ? 'Criando…' : `Criar OP de ${noun}`}</Button>
+          <Button onClick={handleSubmit} disabled={submitting || (!fromOrder && products.length === 0)}>{submitting ? 'Criando…' : `Criar OP de ${noun}`}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

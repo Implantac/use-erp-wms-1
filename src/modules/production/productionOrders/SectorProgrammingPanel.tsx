@@ -103,6 +103,8 @@ export function SectorProgrammingPanel({
   const schedulableMachines = sectorMachines.filter(
     (m) => m.active && !['maintenance', 'inactive', 'down'].includes(String(m.status || '').toLowerCase()),
   );
+  const isWeaving = kind === 'tecelagem';
+  const resourceSingular = isWeaving ? 'tear' : 'máquina/recurso';
 
   const dyeingQuery = useQuery({
     queryKey: ['programming-dyeing-colors', companyId],
@@ -277,11 +279,12 @@ export function SectorProgrammingPanel({
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-bold flex items-center gap-2">
-          <CalendarClock className="h-4 w-4" /> Programação do setor — fila por máquina
+          <CalendarClock className="h-4 w-4" /> {isWeaving ? 'Programação dos teares — fila por tear' : 'Programação do setor — fila por máquina'}
         </CardTitle>
         <CardDescription>
-          O que entra em cada máquina, em que ordem e quando termina. ↑↓ reordena a fila recalculando as
-          janelas <strong>mantendo as durações planejadas</strong>; quem já começou não sai do lugar.
+          {isWeaving
+            ? 'Veja o que entra em cada tear, em que ordem e quando termina. Use ↑↓ para mudar a fila sem alterar a duração planejada; OP que já começou não sai do lugar.'
+            : 'O que entra em cada máquina, em que ordem e quando termina. ↑↓ reordena a fila recalculando as janelas mantendo as durações planejadas; quem já começou não sai do lugar.'}
           {!canOperate && ' Seu nível neste setor é de consulta: a programação é do operador/gerente do setor.'}
         </CardDescription>
       </CardHeader>
@@ -331,8 +334,8 @@ export function SectorProgrammingPanel({
                         {slot.order.order_number} — {slot.order.product_name}
                       </button>
                       <p className="text-[11px] text-muted-foreground">
-                        {fmtDT(slot.plannedStart)} → {fmtDT(slot.plannedEnd)} · falta{' '}
-                        {formatNumber(Math.max(0, slot.order.quantity - slot.order.produced_quantity))} {slot.order.unit}
+                        {fmtDT(slot.plannedStart)} → {fmtDT(slot.plannedEnd)} · faltam{' '}
+                        {formatNumber(Math.max(0, slot.order.quantity - slot.order.produced_quantity))} {slot.order.unit} para concluir
                         {slot.order.due_date ? ` · entrega ${new Date(slot.order.due_date).toLocaleDateString('pt-BR')}` : ''}
                       </p>
                     </div>
@@ -380,12 +383,12 @@ export function SectorProgrammingPanel({
           <div className="rounded-lg border border-dashed">
             <div className="border-b bg-muted/20 px-3 py-2">
               <p className="text-xs font-black uppercase tracking-widest">
-                Sem programação ({prog.unscheduled.length})
+                {isWeaving ? `Prontas para entrar no tear (${prog.unscheduled.length})` : `Sem programação (${prog.unscheduled.length})`}
               </p>
               <p className="text-[11px] text-muted-foreground">
                 {kind === 'tinturaria'
                   ? 'Ordenadas pela sequência econômica de cor (claro→escuro). Escolha máquina, início e duração para entrar na fila.'
-                  : 'Por prioridade e prazo. Escolha máquina, início e duração para entrar na fila.'}
+                  : `Ordenadas por prioridade e prazo. Escolha o ${resourceSingular}, quando começa e quanto tempo leva para entrar na fila.`}
               </p>
             </div>
             <div className="divide-y">
@@ -410,7 +413,7 @@ export function SectorProgrammingPanel({
                           value={f.machineId}
                           onValueChange={(v) => setForms((prev) => ({ ...prev, [order.id]: { ...formOf(order), machineId: v } }))}
                         >
-                          <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder="Máquina" /></SelectTrigger>
+                          <SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue placeholder={`Escolher ${resourceSingular}`} /></SelectTrigger>
                           <SelectContent>
                             {schedulableMachines.map((m) => (
                               <SelectItem key={m.id} value={m.id}>{m.code} — {m.name}</SelectItem>
@@ -419,6 +422,8 @@ export function SectorProgrammingPanel({
                         </Select>
                         <Input
                           type="datetime-local"
+                          aria-label="Quando começa"
+                          title="Quando começa"
                           className="h-8 w-[180px] text-xs"
                           value={f.start}
                           onChange={(e) => setForms((prev) => ({ ...prev, [order.id]: { ...formOf(order), start: e.target.value } }))}
@@ -428,6 +433,8 @@ export function SectorProgrammingPanel({
                             type="number"
                             min={0.5}
                             step="0.5"
+                            aria-label="Duração prevista em horas"
+                            title="Duração prevista em horas"
                             className="h-8 w-[70px] text-xs"
                             value={f.hours}
                             onChange={(e) => setForms((prev) => ({ ...prev, [order.id]: { ...formOf(order), hours: e.target.value } }))}
@@ -435,7 +442,7 @@ export function SectorProgrammingPanel({
                           <span className="text-[11px] text-muted-foreground">h</span>
                         </span>
                         <Button size="sm" className="h-8 text-xs font-bold" disabled={busy} onClick={() => void programOrder(order)}>
-                          Programar
+                          {isWeaving ? 'Programar no tear' : 'Programar'}
                         </Button>
                       </>
                     )}
@@ -448,8 +455,8 @@ export function SectorProgrammingPanel({
 
         {canOperate && prog.unscheduled.length > 0 && schedulableMachines.length === 0 && (
           <p className="text-[11px] text-amber-600">
-            Nenhuma máquina ativa deste setor para programar. Cadastre/ative em Produção → Máquinas (com o setor
-            da máquina preenchido).
+            Nenhum {resourceSingular} ativo deste setor para programar. Cadastre/ative em Produção → Máquinas (com o setor
+            preenchido).
           </p>
         )}
       </CardContent>

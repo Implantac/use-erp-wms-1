@@ -52,7 +52,10 @@ export function BarcodeScanner({ onScan, placeholder = 'Escaneie ou digite o có
   const beep = (success: boolean) => {
     if (!soundOn) return;
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext!)();
+      const AudioCtor = window.AudioContext
+        || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtor) return;
+      const ctx = new AudioCtor();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);

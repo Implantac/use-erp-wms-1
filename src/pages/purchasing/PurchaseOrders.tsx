@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
@@ -31,6 +32,19 @@ import { KPICard } from '@/shared/components/KPICard';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { ClipboardList } from 'lucide-react';
 import { toastError } from '@/lib/toastHelpers';
+
+interface PayableRow { amount: number; status: string; due_date: string }
+
+interface PayableQuery extends PromiseLike<{ data: PayableRow | null }> {
+  select: (columns: string) => PayableQuery;
+  eq: (column: string, value: unknown) => PayableQuery;
+  neq: (column: string, value: unknown) => PayableQuery;
+  order: (column: string, options?: { ascending?: boolean }) => PayableQuery;
+  limit: (count: number) => PayableQuery;
+  maybeSingle: () => PromiseLike<{ data: PayableRow | null }>;
+}
+
+const looseClient = supabase as unknown as { from(table: 'accounts_payable'): PayableQuery };
 
 const priorityConfig: Record<string, { label: string; className: string }> = {
   low: { label: 'Baixa', className: 'bg-muted text-muted-foreground' },
@@ -66,7 +80,7 @@ export default function PurchaseOrdersPage() {
   useEffect(() => {
     if (!selectedOrder?.id) { setPayable(null); return; }
     (async () => {
-      const { data } = await (supabase as any)
+      const { data } = await looseClient
         .from('accounts_payable')
         .select('amount, status, due_date')
         .eq('source_type', 'purchase_order')

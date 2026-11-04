@@ -7,6 +7,7 @@ echo  TESTE E2E - JORNADA DAS Lojas (API real, com login)
 echo ============================================================
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -File "testar-e2e.ps1"
+set "RESULTADO=%ERRORLEVEL%"
 echo.
 pause
-exit /b 0
+exit /b %RESULTADO%

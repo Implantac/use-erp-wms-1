@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { getOrderOverdueDays, getOrderProgress, isOrderOverdue, parseValidDueDate } from './orderPresentation';
+import {
+  getOrderOverdueDays,
+  getOrderProgress,
+  isOrderOverdue,
+  parseValidDueDate,
+  productionOrderPriorityLabel,
+  productionOrderStatusLabel,
+} from './orderPresentation';
+
+describe('OP presentation for the production manager', () => {
+  it('shows floor language instead of internal status and priority codes', () => {
+    expect(productionOrderStatusLabel('in_progress')).toBe('Em produção');
+    expect(productionOrderStatusLabel('waiting_material')).toBe('Aguardando material');
+    expect(productionOrderStatusLabel('quality_check')).toBe('Em controle de qualidade');
+    expect(productionOrderStatusLabel('completed')).toBe('Concluída');
+    expect(productionOrderPriorityLabel('urgent')).toBe('Urgente');
+    expect(productionOrderPriorityLabel(null)).toBe('Não definida');
+  });
+});
 
 describe('OP presentation: never turn invalid dates or quantities into KPIs', () => {
   const now = new Date('2026-10-16T12:00:00Z');

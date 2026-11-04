@@ -1,4 +1,5 @@
 import { ShieldCheck, AlertTriangle, Ban } from "lucide-react";
+import type { FiberClassification } from "@/lib/wms/fiberReceipt";
 
 export interface Lot {
   id: string;
@@ -12,6 +13,7 @@ export interface Lot {
   quality_status: string | null;
   inspection_date: string | null;
   created_at: string;
+  fiber_classification?: FiberClassification | null;
 }
 
 export interface Check {

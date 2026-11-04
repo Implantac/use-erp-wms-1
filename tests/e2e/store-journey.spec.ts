@@ -47,12 +47,13 @@ async function login(email?: string, password?: string): Promise<SupabaseClient>
 }
 
 async function balance(client: SupabaseClient, branchId: string): Promise<number> {
-  const { data } = await client
+  const { data, error } = await client
     .from('stock_balances')
     .select('quantity')
     .eq('branch_id', branchId)
     .eq('product_id', required('E2E_PRODUCT_ID', productId));
-  return (data || []).reduce((sum: number, r: any) => sum + Number(r.quantity || 0), 0);
+  expect(error, `Falha ao consultar saldo: ${error?.message}`).toBeNull();
+  return (data || []).reduce((sum, r) => sum + Number(r.quantity || 0), 0);
 }
 
 test.describe('Jornada das lojas (API real, com RLS)', () => {
@@ -73,7 +74,7 @@ test.describe('Jornada das lojas (API real, com RLS)', () => {
       p_quantity: 5,
     });
     expect(created.error, created.error?.message).toBeNull();
-    const requestId = String((created.data as any).id);
+    const requestId = required('ID da solicitação retornado pela criação', (created.data as { id?: string } | null)?.id);
 
     // 2) Gestor enxerga na caixa de entrada da Fábrica
     const inbox = await manager.rpc('factory_inbox');
@@ -88,27 +89,31 @@ test.describe('Jornada das lojas (API real, com RLS)', () => {
       p_source_branch_id: branchCd,
     });
     expect(decided.error, decided.error?.message).toBeNull();
-    const transferId = String((decided.data as any).transfer_order_id);
-    expect(transferId).toBeTruthy();
+    const transferId = required('ID da transferência retornado pela decisão', (decided.data as { transfer_order_id?: string } | null)?.transfer_order_id);
 
     // 4) CD caminha a ordem até EM TRÂNSITO
-    const { data: items } = await manager
+    const { data: items, error: itemsError } = await manager
       .from('stock_transfer_items')
       .select('id, requested_qty, shipped_qty')
       .eq('transfer_id', transferId);
-    expect((items || []).length).toBeGreaterThan(0);
-    const { data: orderRow } = await manager
+    expect(itemsError, itemsError?.message).toBeNull();
+    expect(items, 'a solicitação de um produto deve gerar um único item').toHaveLength(1);
+    expect(Number(items?.[0]?.requested_qty)).toBe(5);
+    const { data: orderRow, error: orderError } = await manager
       .from('stock_transfer_orders')
       .select('current_status')
       .eq('id', transferId)
       .single();
-    const chain = ['APROVADA', 'RESERVADA', 'SEPARAÇÃO', 'CONFERÊNCIA', 'EXPEDIDA', 'EM TRÂNSITO'];
-    const startAt = Math.max(0, chain.indexOf(String(orderRow?.current_status || 'SUGERIDA')));
-    for (const toStatus of chain.slice(startAt)) {
+    expect(orderError, orderError?.message).toBeNull();
+    // A decisão já cria a transferência APROVADA: não repetir a mesma transição.
+    const chain = ['SUGERIDA', 'APROVADA', 'RESERVADA', 'SEPARAÇÃO', 'CONFERÊNCIA', 'EXPEDIDA', 'EM TRÂNSITO'];
+    const startAt = chain.indexOf(String(orderRow?.current_status));
+    expect(startAt, `Status inicial inesperado: ${orderRow?.current_status}`).toBeGreaterThanOrEqual(0);
+    for (const toStatus of chain.slice(startAt + 1)) {
       const step = await manager.rpc('transition_stock_transfer', {
         p_transfer_id: transferId,
         p_to_status: toStatus,
-        p_items: (items || []).map((i: any) => ({ item_id: i.id, quantity: Number(i.shipped_qty ?? i.requested_qty ?? 5) })),
+        p_items: (items || []).map((i) => ({ item_id: i.id, quantity: Number(i.requested_qty) })),
         p_notes: 'E2E lojas',
       });
       expect(step.error, `${toStatus}: ${step.error?.message}`).toBeNull();
@@ -118,16 +123,17 @@ test.describe('Jornada das lojas (API real, com RLS)', () => {
     const received = await store.rpc('transition_stock_transfer', {
       p_transfer_id: transferId,
       p_to_status: 'RECEBIDA',
-      p_items: (items || []).map((i: any) => ({ item_id: i.id, quantity: 4 })),
+      p_items: (items || []).map((i) => ({ item_id: i.id, quantity: 4 })),
       p_notes: 'E2E: faltou 1',
     });
     expect(received.error, received.error?.message).toBeNull();
 
-    const { data: finalOrder } = await store
+    const { data: finalOrder, error: finalOrderError } = await store
       .from('stock_transfer_orders')
       .select('current_status')
       .eq('id', transferId)
       .single();
+    expect(finalOrderError, finalOrderError?.message).toBeNull();
     expect(String(finalOrder?.current_status)).toContain('DIVERGÊNCIA');
 
     // 6) Saldo da Loja subiu 4

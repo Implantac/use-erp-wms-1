@@ -2,6 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/ui/base/use-toast";
 import { KPI_DEFAULT, decisionMeta, type Check, type Decision, type Lot } from "./types";
+import type { FiberClassification } from "@/lib/wms/fiberReceipt";
+
+interface FiberClassificationQuery {
+  from: (table: string) => {
+    select: (columns: string) => {
+      in: (column: string, values: string[]) => Promise<{ data: unknown; error: { message: string } | null }>;
+    };
+  };
+}
+
+const fiberClassificationClient = supabase as unknown as FiberClassificationQuery;
 
 export function useQualityControl() {
   const { toast } = useToast();
@@ -28,6 +39,19 @@ export function useQualityControl() {
         .limit(20),
     ]);
     const rows = (lotsData ?? []) as Lot[];
+    if (rows.length > 0) {
+      const { data: classificationData, error: classificationError } = await fiberClassificationClient
+        .from("fiber_lot_classifications")
+        .select("*")
+        .in("lot_id", rows.map((row) => row.id));
+      if (!classificationError) {
+        const classificationRows = (classificationData as Array<FiberClassification & { lot_id: string }> | null) ?? [];
+        const byLot = new Map(classificationRows.map((row) => [row.lot_id, row]));
+        for (const row of rows) {
+          row.fiber_classification = byLot.get(row.id) ?? null;
+        }
+      }
+    }
     setLots(rows);
     setRecentChecks((checksData ?? []) as Check[]);
     setKpi({

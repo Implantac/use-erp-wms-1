@@ -28,7 +28,11 @@ export function useBarcodeCameraScanner(params: {
     let cancelled = false;
     (async () => {
       try {
-        const BD = window.BarcodeDetector;
+        const BD = (window as unknown as {
+          BarcodeDetector?: new (options?: { formats?: string[] }) => {
+            detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>>;
+          };
+        }).BarcodeDetector;
         if (!BD) {
           toastError('Câmera de códigos não é suportada neste navegador. Use um leitor USB.');
           onFallback();

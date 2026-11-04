@@ -31,6 +31,7 @@ export interface ProductionOrderStep {
   defect_reason: string | null;
   started_at: string | null;
   completed_at: string | null;
+  is_external?: boolean;
   notes: string | null;
   created_at: string;
   step_name?: string;

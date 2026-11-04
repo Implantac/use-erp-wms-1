@@ -7,6 +7,38 @@ type OrderDisplay = {
   produced_quantity: number;
 };
 
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  draft: 'Rascunho',
+  planned: 'Planejada',
+  waiting_material: 'Aguardando material',
+  in_progress: 'Em produção',
+  outsourced: 'Em terceiro',
+  paused: 'Pausada',
+  finishing: 'Em finalização',
+  quality_check: 'Em controle de qualidade',
+  completed: 'Concluída',
+  cancelled: 'Cancelada',
+  canceled: 'Cancelada',
+};
+
+/** Nome de tela para o gerente: nunca expor o código interno da OP. */
+export function productionOrderStatusLabel(status?: string | null): string {
+  if (!status?.trim()) return 'Sem status';
+  return ORDER_STATUS_LABELS[status.trim().toLowerCase()] ?? status.replace(/_/g, ' ');
+}
+
+const ORDER_PRIORITY_LABELS: Record<string, string> = {
+  urgent: 'Urgente',
+  high: 'Alta',
+  medium: 'Média',
+  low: 'Baixa',
+};
+
+export function productionOrderPriorityLabel(priority?: string | null): string {
+  if (!priority?.trim()) return 'Não definida';
+  return ORDER_PRIORITY_LABELS[priority.trim().toLowerCase()] ?? priority;
+}
+
 export function parseValidDueDate(value?: string | null): Date | null {
   if (!value) return null;
   const date = parseISO(value);

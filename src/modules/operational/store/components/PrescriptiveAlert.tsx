@@ -14,12 +14,13 @@ export function PrescriptiveAlert() {
 
   const handleApprove = async (productId: string) => {
     const rec = critical.find((r) => r.productId === productId);
-    if (!rec?.sourceBranchId) return;
+    if (!rec) return;
     setProcessing(productId);
     try {
+      // Caminho único da Loja: solicitação SEM origem; quem decide a
+      // origem (outra Loja, CD ou fábrica) é a análise do almoxarifado.
       await createRequest({
         recommendation: rec,
-        sourceBranchId: rec.sourceBranchId,
         quantity: rec.suggestedQty,
       });
     } finally {

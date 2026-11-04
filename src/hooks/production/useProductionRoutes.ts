@@ -13,6 +13,7 @@ export interface ProductionRouteStep {
   resource_id: string | null;
   setup_time_minutes: number;
   operation_time_minutes: number;
+  is_external?: boolean;
   description: string | null;
   created_at: string;
   sector_name?: string;

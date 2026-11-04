@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
@@ -17,6 +17,8 @@ import {
   Search, Package, Truck, Clock, Box, PackageCheck, MoreHorizontal, FileText, PlayCircle, CheckCircle,
 } from 'lucide-react';
 import { useWMSPacking } from '@/hooks/wms/useWMSOperations';
+import { useStockLotUnits } from '@/hooks/wms/useStockLotUnits';
+import { formatStockLotUnitMeasures, stockLotUnitTypeLabels, type StockLotUnit } from '@/lib/wms/stockLotUnits';
 import { toast } from 'sonner';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -43,6 +45,26 @@ export default function PackingPage() {
   const packingCount = orders.filter(o => o.status === 'packing').length;
   const packedCount = orders.filter(o => o.status === 'packed').length;
   const shippedCount = orders.filter(o => o.status === 'shipped').length;
+
+  const { units, loading: unitsLoading, saving: unitSaving, fetchUnits, setPackingStatus } = useStockLotUnits();
+  useEffect(() => {
+    fetchUnits().catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'Erro ao carregar rolos/peças para embalagem');
+    });
+  }, [fetchUnits]);
+  const readyUnits = units.filter(
+    (unit) => unit.quality_status === 'approved' && (unit.status === 'available' || unit.status === 'packed'),
+  );
+
+  const handleToggleUnitPacking = async (unit: StockLotUnit) => {
+    try {
+      await setPackingStatus(unit.id, unit.status === 'packed' ? 'available' : 'packed');
+      toast.success(unit.status === 'packed' ? `Embalagem desfeita: ${unit.unit_code}` : `Rolo/peça embalado: ${unit.unit_code}`);
+      await fetchUnits();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar a embalagem do rolo/peça');
+    }
+  };
 
   const handleStartPacking = async (id: string) => {
     await update(id, { status: 'packing', started_at: new Date().toISOString() });
@@ -84,6 +106,61 @@ export default function PackingPage() {
               </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><PackageCheck className="h-5 w-5" /> Rolos e peças aprovados para embalagem</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {unitsLoading ? (
+            <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : readyUnits.length === 0 ? (
+            <EmptyState
+              compact
+              icon={PackageCheck}
+              title="Nenhum rolo/peça aprovado aguardando embalagem"
+              description="Divida o lote em WMS → Lotes → Rolos/peças, aprove a inspeção da unidade e ela aparecerá aqui."
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Unidade</TableHead>
+                  <TableHead>Lote / produto</TableHead>
+                  <TableHead className="text-right">Quantidade</TableHead>
+                  <TableHead>Medidas</TableHead>
+                  <TableHead>Qualidade</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {readyUnits.map((unit) => (
+                  <TableRow key={unit.id}>
+                    <TableCell>
+                      <div className="font-mono font-medium">{unit.unit_code}</div>
+                      <div className="text-xs text-muted-foreground">{stockLotUnitTypeLabels[unit.unit_type]}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-mono text-xs">{unit.lot_number || unit.lot_id}</div>
+                      <div className="text-xs text-muted-foreground">{unit.product_code} — {unit.product_name}</div>
+                    </TableCell>
+                    <TableCell className="text-right">{unit.quantity} {unit.unit}</TableCell>
+                    <TableCell className="text-xs">{formatStockLotUnitMeasures(unit) || '-'}</TableCell>
+                    <TableCell><Badge>Aprovado</Badge></TableCell>
+                    <TableCell><Badge variant={unit.status === 'packed' ? 'default' : 'secondary'}>{unit.status === 'packed' ? 'Embalado' : 'Disponível'}</Badge></TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant={unit.status === 'packed' ? 'outline' : 'default'} onClick={() => handleToggleUnitPacking(unit)} disabled={unitSaving}>
+                        {unit.status === 'packed' ? 'Desfazer embalagem' : 'Embalar'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

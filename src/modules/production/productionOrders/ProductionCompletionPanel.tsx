@@ -18,6 +18,11 @@ import {
   type ProductionCompletionSummary,
 } from '@/services/production/textilePcpService';
 import { computeCompletionReadiness } from '@/lib/pcp/completionReadiness';
+import {
+  completeReworkOrder,
+  fetchReworkByOrderId,
+  type ReworkOrderRow,
+} from '@/services/production/reworkOrders';
 import { formatNumber, formatBRL } from '@/lib/formatters';
 
 const APPROVED_QUALITY = new Set(['approved', 'released', 'aprovado', 'aprovada', 'liberado', 'liberada']);
@@ -38,14 +43,23 @@ export function ProductionCompletionPanel({ order, bomLines, lots, steps, inspec
   const [allocations, setAllocations] = useState<Record<string, { lotId: string; quantity: string }>>({});
   const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState<ProductionCompletionSummary | null>(null);
+  const [rework, setRework] = useState<ReworkOrderRow | null>(null);
   const canComplete = ['in_progress', 'finishing', 'quality_check'].includes(order.status);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchReworkByOrderId(order.id)
+      .then((row) => { if (!cancelled) setRework(row); })
+      .catch(() => { /* OP comum: segue a conclusão padrão */ });
+    return () => { cancelled = true; };
+  }, [order.id]);
 
   const readiness = computeCompletionReadiness({
     orderStatus: order.status,
     plannedQuantity: order.quantity,
     steps: (steps ?? []).map((step) => ({ status: step.status })),
     inspections: (inspections ?? []).map((inspection) => ({ status: inspection.status, approved_quantity: inspection.approved_quantity })),
-    bomLineCount: bomLines.length,
+    bomLineCount: rework ? 1 : bomLines.length,
   });
 
   useEffect(() => {
@@ -78,6 +92,30 @@ export function ProductionCompletionPanel({ order, bomLines, lots, steps, inspec
   const handleComplete = async () => {
     const producedQuantity = Number(produced);
     const rejectedQuantity = Number(rejected || 0);
+    if (rework) {
+      if (!Number.isFinite(producedQuantity) || producedQuantity <= 0) {
+        toast.error('Informe a quantidade boa do reprocesso');
+        return;
+      }
+      setSubmitting(true);
+      try {
+        const result = await completeReworkOrder({
+          reworkOrderId: order.id,
+          idempotencyKey: createClientIdempotencyKey('rework-complete'),
+          producedQuantity,
+          rejectedQuantity,
+          outputLotNumber: outputLotNumber.trim() || null,
+        });
+        const lotNumber = typeof result.output_lot_number === 'string' ? result.output_lot_number : '';
+        toast.success(lotNumber ? `Reprocesso concluído. Lote resultante ${lotNumber} com genealogia do lote original.` : 'Reprocesso concluído');
+        await onCompleted();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Erro ao concluir o reprocesso');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
     const inputAllocations = bomLines.flatMap((line) => {
       const allocation = allocations[line.componentId];
       const quantity = Number(allocation?.quantity ?? 0);
@@ -135,8 +173,9 @@ export function ProductionCompletionPanel({ order, bomLines, lots, steps, inspec
           ) : (
             <p>OP concluída pela transação auditável. Consulte o lote de saída e o saldo do produto no estoque.</p>
           )}
-          <div className="flex gap-2 pt-1">
-            <Button asChild size="sm" variant="outline"><Link to="/wms/lotes">Ver lotes de estoque</Link></Button>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button asChild size="sm" variant="outline"><Link to="/wms/lotes">Dividir lote em rolos/peças</Link></Button>
+            <Button asChild size="sm" variant="outline"><Link to="/wms/embalagem">Embalar rolos aprovados</Link></Button>
             <Button asChild size="sm" variant="ghost"><Link to="/wms/saldos">Ver saldos do produto</Link></Button>
           </div>
         </CardContent>
@@ -173,7 +212,14 @@ export function ProductionCompletionPanel({ order, bomLines, lots, steps, inspec
           <div className="space-y-1"><Label>Lote de saída (opcional)</Label><Input value={outputLotNumber} onChange={(event) => setOutputLotNumber(event.target.value)} placeholder={`PROD-${order.order_number}-…`} /></div>
         </div>
         <p className="text-xs text-muted-foreground">Planejado: {formatNumber(order.quantity)} {order.unit}. A conclusão final exige boa + rejeitada ≥ planejado; conclusão parcial deve ser registrada nas etapas, não como OP concluída.</p>
-        {bomLines.map((line) => {
+        {rework ? (
+          <div className="rounded-md border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-200">
+            <strong>OP de reprocesso</strong> — consumirá {formatNumber(rework.quantity)} {order.unit} do lote original
+            ({rework.reason}) e gerará o lote resultante com genealogia. A quantidade boa substitui a do lote
+            original; nada é contado como produção nova.
+          </div>
+        ) : null}
+        {!rework && bomLines.map((line) => {
           const draft = allocations[line.componentId] ?? { lotId: '', quantity: '' };
           const componentLots = lots.filter((lot) => lot.productId === line.componentId);
           return (
@@ -192,9 +238,19 @@ export function ProductionCompletionPanel({ order, bomLines, lots, steps, inspec
             </div>
           );
         })}
-        <Button onClick={handleComplete} disabled={!canComplete || submitting || bomLines.length === 0}>{submitting ? 'Concluindo e entrando em estoque…' : 'Concluir OP e registrar entrada em estoque'}</Button>
+        <Button onClick={handleComplete} disabled={!readiness.ready || submitting}>
+          {submitting
+            ? 'Concluindo e entrando em estoque…'
+            : !canComplete
+              ? 'Inicie a produção para finalizar'
+              : !readiness.ready
+                ? 'Concluir os pré-requisitos acima'
+                : 'Concluir OP e registrar entrada em estoque'}
+        </Button>
         {!readiness.ready && canComplete ? (
-          <p className="text-xs text-muted-foreground">O botão executa a transação, que valida todos os pré-requisitos acima e recusa com a causa exata se algo faltar — nada é gravado parcialmente.</p>
+          <p className="text-xs text-muted-foreground">
+            Falta agora: <strong>{readiness.items.find((item) => !item.ok)?.label}</strong> — {readiness.items.find((item) => !item.ok)?.hint}
+          </p>
         ) : null}
       </CardContent>
     </Card>

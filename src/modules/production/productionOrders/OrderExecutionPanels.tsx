@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
 import type { ProductionOrderRow } from '@/hooks/production/useProductionOrders';
 import type { ProductionOrderStep } from '@/hooks/production/useProductionSteps';
+import { useProductionResources } from '@/hooks/production/useProductionResources';
 import type { TextileBomLine, TextileLotOption } from '@/hooks/production/useTextilePcpData';
 import {
   createClientIdempotencyKey,
@@ -202,6 +203,11 @@ interface StepProgressPanelProps {
 }
 
 export function OrderStepProgressPanel({ order, steps, loading, onChanged }: StepProgressPanelProps) {
+  const { resources } = useProductionResources();
+  const operatorNames = useMemo(
+    () => resources.filter((resource) => resource.resource_type === 'operator' && resource.is_active).map((resource) => resource.name),
+    [resources],
+  );
   const [drafts, setDrafts] = useState<Record<string, { produced: string; rejected: string; operator: string }>>({});
   const [submittingId, setSubmittingId] = useState<string | null>(null);
 
@@ -213,6 +219,15 @@ export function OrderStepProgressPanel({ order, steps, loading, onChanged }: Ste
     const draft = drafts[step.id] ?? { produced: '', rejected: '', operator: '' };
     const produced = action === 'complete' && draft.produced === '' ? step.quantity_pending : Number(draft.produced || 0);
     const rejected = Number(draft.rejected || 0);
+    if ((action === 'progress' || action === 'complete')
+      && (!Number.isFinite(produced) || !Number.isFinite(rejected) || produced < 0 || rejected < 0)) {
+      toast.error('Informe quantidades válidas, sem valores negativos');
+      return;
+    }
+    if (action === 'progress' && produced + rejected <= 0) {
+      toast.error('Para apontar uma parcial, informe a quantidade produzida agora ou o rejeito');
+      return;
+    }
     setSubmittingId(step.id);
     try {
       await recordProductionStepProgress({
@@ -231,37 +246,66 @@ export function OrderStepProgressPanel({ order, steps, loading, onChanged }: Ste
     }
   };
 
+  const nextStepIndex = steps.findIndex((step) => step.status !== 'completed');
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base"><ClipboardList className="h-4 w-4" /> Apontamento sequencial das operações</CardTitle>
-        <CardDescription>Quantidades são incrementais. A etapa seguinte só recebe meta a partir da quantidade boa concluída na etapa anterior.</CardDescription>
+        <CardTitle className="flex items-center gap-2 text-base"><ClipboardList className="h-4 w-4" /> Passagens da OP — aponte uma por vez</CardTitle>
+        <CardDescription>Trabalhe na passagem destacada. As quantidades são incrementais e a próxima passagem só abre quando a anterior for concluída.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        <datalist id="step-operator-names">
+          {operatorNames.map((name) => <option key={name} value={name} />)}
+        </datalist>
         {loading ? <p className="text-sm text-muted-foreground">Carregando etapas…</p> : null}
         {!loading && steps.length === 0 ? <p className="text-sm text-destructive">Nenhuma etapa foi gerada pelo roteiro. A conclusão permanecerá bloqueada.</p> : null}
-        {steps.map((step) => {
+        {steps.map((step, index) => {
           const draft = drafts[step.id] ?? { produced: '', rejected: '', operator: '' };
           const busy = submittingId === step.id;
+          const orderClosed = ['completed', 'cancelled'].includes(order.status);
+          const isCompleted = step.status === 'completed';
+          const isCurrent = !orderClosed && index === nextStepIndex;
           return (
-            <div key={step.id} className="rounded-md border p-3">
+            <div key={step.id} className={`rounded-md border p-3 ${isCurrent ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : ''}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="font-medium">{step.sequence}. {step.step_name ?? 'Operação'}</p>
                   <p className="text-xs text-muted-foreground">Boa {formatNumber(step.quantity_produced)} · Rejeitada {formatNumber(step.quantity_rejected)} · Pendente {formatNumber(step.quantity_pending)} {order.unit}</p>
                 </div>
-                <Badge variant={step.status === 'completed' ? 'default' : 'outline'}>{step.status}</Badge>
+                <Badge variant={isCompleted || isCurrent ? 'default' : 'outline'}>
+                  {isCompleted ? 'Concluída' : isCurrent ? 'Passagem atual' : 'Aguardando'}
+                </Badge>
               </div>
-              {step.status !== 'completed' && !['completed', 'cancelled'].includes(order.status) ? (
-                <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_1.4fr_auto_auto_auto_auto]">
-                  <Input type="number" min="0" step="0.0001" placeholder="Qtd. boa incremental" value={draft.produced} onChange={(event) => setDrafts((current) => ({ ...current, [step.id]: { ...draft, produced: event.target.value } }))} />
-                  <Input type="number" min="0" step="0.0001" placeholder="Rejeito incremental" value={draft.rejected} onChange={(event) => setDrafts((current) => ({ ...current, [step.id]: { ...draft, rejected: event.target.value } }))} />
-                  <Input placeholder="Operador" value={draft.operator} onChange={(event) => setDrafts((current) => ({ ...current, [step.id]: { ...draft, operator: event.target.value } }))} />
-                  <Button size="sm" variant="outline" disabled={busy} onClick={() => void submit(step, 'start')}><Play className="mr-1 h-3.5 w-3.5" />Iniciar</Button>
-                  <Button size="sm" variant="outline" disabled={busy} onClick={() => void submit(step, 'progress')}>Apontar parcial</Button>
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => void submit(step, 'pause')}>Pausar</Button>
-                  <Button size="sm" disabled={busy} onClick={() => void submit(step, 'complete')}><CheckCircle2 className="mr-1 h-3.5 w-3.5" />Concluir etapa</Button>
+              {isCurrent ? (
+                <div className="mt-3 flex flex-wrap items-end gap-2">
+                  <div className="w-44 space-y-1">
+                    <Label className="text-xs">Quantidade boa de agora</Label>
+                    <Input type="number" min="0" step="0.0001" value={draft.produced} onChange={(event) => setDrafts((current) => ({ ...current, [step.id]: { ...draft, produced: event.target.value } }))} />
+                  </div>
+                  <div className="w-40 space-y-1">
+                    <Label className="text-xs">Rejeito de agora</Label>
+                    <Input type="number" min="0" step="0.0001" value={draft.rejected} onChange={(event) => setDrafts((current) => ({ ...current, [step.id]: { ...draft, rejected: event.target.value } }))} />
+                  </div>
+                  <div className="min-w-48 flex-1 space-y-1">
+                    <Label className="text-xs">Operador</Label>
+                    <Input placeholder="Quem fez esta passagem" list="step-operator-names" value={draft.operator} onChange={(event) => setDrafts((current) => ({ ...current, [step.id]: { ...draft, operator: event.target.value } }))} />
+                  </div>
+                  {step.status !== 'in_progress' ? (
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => void submit(step, 'start')}><Play className="mr-1 h-3.5 w-3.5" />{step.status === 'paused' ? 'Retomar' : 'Iniciar'}</Button>
+                  ) : null}
+                  {step.status === 'in_progress' ? (
+                    <>
+                      <Button size="sm" variant="outline" disabled={busy} onClick={() => void submit(step, 'progress')}>Apontar parcial</Button>
+                      <Button size="sm" variant="ghost" disabled={busy} onClick={() => void submit(step, 'pause')}>Pausar</Button>
+                    </>
+                  ) : null}
+                  <Button size="sm" disabled={busy} onClick={() => void submit(step, 'complete')}><CheckCircle2 className="mr-1 h-3.5 w-3.5" />Concluir passagem</Button>
                 </div>
+              ) : !isCompleted && !orderClosed ? (
+                <p className="mt-2 text-xs text-muted-foreground">Esta passagem abre quando a anterior for concluída.</p>
+              ) : isCompleted ? (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Passagem concluída.</p>
               ) : null}
             </div>
           );

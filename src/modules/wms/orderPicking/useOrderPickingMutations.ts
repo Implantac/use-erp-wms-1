@@ -39,7 +39,8 @@ export function useOrderPickingMutations(stageForm: StageForm, onStageSuccess: (
       return (data ?? {}) as ShipOrderResult;
     },
     onSuccess: (data) => {
-      toastSuccess(`Expedição registrada — ${data?.lines_shipped || 0} linha(s)`);
+      const units = data?.units_shipped || 0;
+      toastSuccess(`Expedição registrada — ${data?.lines_shipped || 0} linha(s)${units > 0 ? ` e ${units} rolo(s)/peça(s)` : ''}`);
       qc.invalidateQueries({ queryKey: ['orders-for-picking'] });
       qc.invalidateQueries({ queryKey: ['stock-reservations'] });
     },

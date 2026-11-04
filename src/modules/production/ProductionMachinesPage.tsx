@@ -12,8 +12,12 @@ import { Switch } from '@/ui/base/switch';
 import { Badge } from '@/ui/base/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/ui/base/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
 
-const emptyForm = { code: '', name: '', type: '', sector: '', active: true };
+const emptyForm = { code: '', name: '', type: '', sector: '', active: true, minLoadKg: '', maxLoadKg: '', usefulBathVolumeL: '', setupMinutes: '', cleaningMinutes: '', colorSequencingRule: '' };
+
+/** Setores canônicos das centrais de PCP (o setor casa por texto normalizado). */
+const SECTOR_OPTIONS = ['Fiação', 'Malharia', 'Tecelagem', 'Tinturaria', 'Beneficiamento/Acabamento'];
 
 /** Generic registry: a loom is a machine type chosen by the customer, not a separate stock/capacity ledger. */
 export default function ProductionMachinesPage() {
@@ -28,15 +32,31 @@ export default function ProductionMachinesPage() {
   const editMachine = (machine: ProductionMachine) => {
     setEditing(machine);
     setForm({ code: machine.code, name: machine.name, type: machine.type,
-      sector: machine.sector ?? '', active: machine.active });
+      sector: machine.sector ?? '', active: machine.active,
+      minLoadKg: machine.min_load_kg !== null && machine.min_load_kg !== undefined ? String(machine.min_load_kg) : '',
+      maxLoadKg: machine.max_load_kg !== null && machine.max_load_kg !== undefined ? String(machine.max_load_kg) : '',
+      usefulBathVolumeL: machine.useful_bath_volume_l !== null && machine.useful_bath_volume_l !== undefined ? String(machine.useful_bath_volume_l) : '',
+      setupMinutes: machine.setup_time_minutes !== null && machine.setup_time_minutes !== undefined ? String(machine.setup_time_minutes) : '',
+      cleaningMinutes: machine.cleaning_time_minutes !== null && machine.cleaning_time_minutes !== undefined ? String(machine.cleaning_time_minutes) : '',
+      colorSequencingRule: machine.color_sequencing_rule ?? '' });
     setOpen(true);
+  };
+  const numberOrNull = (value: string) => {
+    if (!value.trim()) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
   };
   const save = async () => {
     if (saving || !form.code.trim() || !form.name.trim() || !form.type.trim()) return;
     setSaving(true);
     try {
       const values = { code: form.code.trim(), name: form.name.trim(), type: form.type.trim(),
-        sector: form.sector.trim() || null, active: form.active };
+        sector: form.sector.trim() || null, active: form.active,
+        min_load_kg: numberOrNull(form.minLoadKg), max_load_kg: numberOrNull(form.maxLoadKg),
+        useful_bath_volume_l: numberOrNull(form.usefulBathVolumeL),
+        setup_time_minutes: numberOrNull(form.setupMinutes),
+        cleaning_time_minutes: numberOrNull(form.cleaningMinutes),
+        color_sequencing_rule: form.colorSequencingRule || null };
       const ok = editing ? await update(editing.id, values) : await create(values);
       if (ok) { setOpen(false); setEditing(null); setForm(emptyForm); }
     } finally { setSaving(false); }
@@ -68,8 +88,45 @@ export default function ProductionMachinesPage() {
         <div><Label htmlFor="machine-code">Código *</Label><Input id="machine-code" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></div>
         <div><Label htmlFor="machine-name">Nome *</Label><Input id="machine-name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
         <div><Label htmlFor="machine-type">Tipo *</Label><Input id="machine-type" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} placeholder="Nome definido pela empresa" /></div>
-        <div><Label htmlFor="machine-sector">Setor</Label><Input id="machine-sector" value={form.sector} onChange={e => setForm({ ...form, sector: e.target.value })} /></div>
+        <div>
+          <Label htmlFor="machine-sector">Setor</Label>
+          <Select value={form.sector || '__none__'} onValueChange={v => setForm({ ...form, sector: v === '__none__' ? '' : v })}>
+            <SelectTrigger id="machine-sector"><SelectValue placeholder="Sem setor definido" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Sem setor definido (aparece em todas as centrais)</SelectItem>
+              {SECTOR_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+              {form.sector && !SECTOR_OPTIONS.includes(form.sector) ? <SelectItem value={form.sector}>{form.sector} (texto atual)</SelectItem> : null}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex items-center gap-2"><Switch id="machine-active" checked={form.active} onCheckedChange={active => setForm({ ...form, active })} /><Label htmlFor="machine-active">Ativo para seleção</Label></div>
+        <div className="space-y-3 rounded-md border p-3">
+          <p className="text-sm font-medium">Carga validada da partida (tinturaria, quando aplicável)</p>
+          <div><Label htmlFor="machine-min-load">Carga mínima (kg)</Label><Input id="machine-min-load" type="number" min="0" step="0.01" value={form.minLoadKg} onChange={e => setForm({ ...form, minLoadKg: e.target.value })} /></div>
+          <div><Label htmlFor="machine-max-load">Carga máxima (kg)</Label><Input id="machine-max-load" type="number" min="0" step="0.01" value={form.maxLoadKg} onChange={e => setForm({ ...form, maxLoadKg: e.target.value })} /></div>
+          <div><Label htmlFor="machine-bath-volume">Volume útil do banho (L)</Label><Input id="machine-bath-volume" type="number" min="0" step="0.01" value={form.usefulBathVolumeL} onChange={e => setForm({ ...form, usefulBathVolumeL: e.target.value })} /></div>
+          <p className="text-[11px] text-muted-foreground">Preencha só com limites validados pela empresa. Vazio = sem validação de carga para esta máquina.</p>
+        </div>
+        <div className="space-y-3 rounded-md border p-3">
+          <p className="text-sm font-medium">Tempos de troca de artigo/cor (programação finita)</p>
+          <div><Label htmlFor="machine-setup">Setup na troca (min)</Label><Input id="machine-setup" type="number" min="0" step="1" value={form.setupMinutes} onChange={e => setForm({ ...form, setupMinutes: e.target.value })} /></div>
+          <div><Label htmlFor="machine-cleaning">Limpeza na troca (min)</Label><Input id="machine-cleaning" type="number" min="0" step="1" value={form.cleaningMinutes} onChange={e => setForm({ ...form, cleaningMinutes: e.target.value })} /></div>
+          <p className="text-[11px] text-muted-foreground">Com os tempos preenchidos, a programação exige setup + limpeza entre produções de artigos diferentes nesta máquina. Mesmo artigo em sequência não exige troca. Vazio = nenhum tempo presumido.</p>
+        </div>
+        <div className="space-y-3 rounded-md border p-3">
+          <p className="text-sm font-medium">Sequenciamento de cor nesta máquina (tinturaria)</p>
+          <div>
+            <Label htmlFor="machine-color-rule">Regra formal de cor</Label>
+            <Select value={form.colorSequencingRule || '__none__'} onValueChange={v => setForm({ ...form, colorSequencingRule: v === '__none__' ? '' : v })}>
+              <SelectTrigger id="machine-color-rule"><SelectValue placeholder="Não configurada" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Não configurada (só sugestão na tela)</SelectItem>
+                <SelectItem value="light_to_dark">Claro → escuro: clareamento entre partidas é bloqueado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Com a regra ativa, o banco compara o L* alvo das partidas vizinhas nesta máquina e rejeita clareamento. Sem L* informado na partida, não há referência e nada é bloqueado.</p>
+        </div>
       </div>
       <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
         <Button disabled={saving || !form.code.trim() || !form.name.trim() || !form.type.trim()} onClick={() => void save()}>{saving ? 'Salvando...' : 'Salvar'}</Button>
