@@ -40,7 +40,7 @@ export function useSupplyChain(filters?: { status?: MovementStatus[]; scope?: 'u
     } finally {
       setIsDataLoading(false);
     }
-  }, [branchId, currentCompany?.id, scopeKey, statusFilter, isEnterpriseLoading]);
+  }, [branchId, currentCompany?.id, scopeKey, statusFilter, filters?.scope, isEnterpriseLoading]);
 
   // Referência sempre atual para o efeito de Realtime assinar uma única vez
   // por unidade, sem re-assinar a cada nova identidade de fetchMovements.

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/
 import { purchasingService } from '@/services/purchasing/purchasingService';
 import { formatBRL, formatDate } from '@/lib/formatters';
 
-const OPEN = ['draft', 'pending_approval', 'approved', 'sent', 'confirmed', 'partially_received'];
 const APPROVAL = ['draft', 'pending_approval'];
 const INBOUND = ['approved', 'sent', 'confirmed', 'partially_received'];
 
@@ -105,6 +104,3 @@ export function PurchasingDailyQueue() {
     </Card>
   );
 }
-
-// Mantém o tipo de status aberto documentado para evolução da fila.
-export const PURCHASING_OPEN_STATUSES = OPEN;

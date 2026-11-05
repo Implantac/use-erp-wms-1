@@ -1,14 +1,45 @@
 name: Playwright Tests
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
+
 jobs:
-  test:
+  public-smoke:
+    name: Smoke público obrigatório
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install from committed lockfile
+        run: bun install --frozen-lockfile
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Run public login smoke
+        run: bunx playwright test --config=e2e/playwright.public.config.ts
+      - name: Assert non-empty complete smoke results
+        run: node scripts/assert-playwright-public.mjs test-results/public-results.json
+      - name: Tests did not rewrite tracked sources
+        run: git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-smoke-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
+  authenticated:
+    name: Jornadas autenticadas obrigatórias
+    needs: public-smoke
     timeout-minutes: 60
     runs-on: ubuntu-latest
     env:
+      MCP_FUNCTIONS_DIR: node_modules/.cache/authenticated-e2e/supabase-functions
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       E2E_TENANT_A_EMAIL: ${{ secrets.E2E_TENANT_A_EMAIL }}
@@ -33,36 +64,34 @@ jobs:
         with:
           bun-version: 1.4.2
       - name: Validate isolated E2E configuration
-        id: e2e-config
         run: |
-          missing=0; present=0
+          missing=0
           for name in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY E2E_TENANT_A_EMAIL E2E_TENANT_A_PASSWORD E2E_TENANT_B_EMAIL E2E_TENANT_B_PASSWORD E2E_STORE_EMAIL E2E_STORE_PASSWORD E2E_MANAGER_EMAIL E2E_MANAGER_PASSWORD E2E_PRODUCT_ID E2E_STORE_BRANCH_ID E2E_CD_BRANCH_ID E2E_WEAVING_EMAIL E2E_WEAVING_PASSWORD E2E_WEAVING_PRODUCT_ID E2E_WEAVING_COMPONENT_ID E2E_WEAVING_LOT_ID; do
-            if [ -z "${!name}" ]; then missing=$((missing+1)); else present=$((present+1)); fi
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required isolated E2E setting: $name"
+              missing=$((missing+1))
+            fi
           done
-          if [ "$present" -eq 0 ]; then
-            echo "::warning::Segredos E2E não configurados neste repositório — jornada de lojas NÃO executada aqui (rode TESTAR-E2E.bat no ambiente de homologação). Nenhum teste foi simulado."
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-          elif [ "$missing" -gt 0 ]; then
-            echo "::error::Configuração E2E parcial ($missing segredo(s) ausente(s)) — corrija os secrets ou remova todos."
+          if [ "$missing" -gt 0 ]; then
+            echo "::error::Authenticated E2E was NOT run. Configure an isolated test environment; missing tests are never a successful gate."
             exit 2
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Install from committed lockfile
-        if: steps.e2e-config.outputs.configured == 'true'
         run: bun install --frozen-lockfile
       - name: Install Playwright Chromium
-        if: steps.e2e-config.outputs.configured == 'true'
         run: bunx playwright install --with-deps chromium
-      - name: Run Playwright tests
-        if: steps.e2e-config.outputs.configured == 'true'
+      - name: Run authenticated Playwright journeys
         run: bun run e2e:critical
         env:
-          BASE_URL: http://localhost:8080
+          E2E_REQUIRE_ALL: '1'
+      - name: Tests did not rewrite tracked sources
+        run: git diff --exit-code
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report-${{ github.run_id }}
-          path: playwright-report/
-          if-no-files-found: ignore
+          name: authenticated-playwright-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
           retention-days: 7

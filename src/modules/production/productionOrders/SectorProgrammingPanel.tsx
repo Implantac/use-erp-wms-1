@@ -95,7 +95,7 @@ export function SectorProgrammingPanel({
     },
     staleTime: 60_000,
   });
-  const allMachines = machinesQuery.data || [];
+  const allMachines = useMemo(() => machinesQuery.data ?? [], [machinesQuery.data]);
   const sectorMachines = useMemo(() => {
     const needles = MACHINE_MATCH[kind];
     return allMachines.filter((m) => needles.some((n) => normalize(String(m.sector || '')).includes(n)));
