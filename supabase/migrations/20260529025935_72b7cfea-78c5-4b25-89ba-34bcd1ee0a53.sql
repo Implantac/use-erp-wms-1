@@ -17,7 +17,7 @@ SELECT cron.schedule(
   '30 6 * * *',
   $$
   SELECT net.http_post(
-    url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/ai-brain',
+    url := coalesce(nullif(current_setting('app.settings.supabase_url', true), ''), '') || '/functions/v1/ai-brain',
     headers := jsonb_build_object('Content-Type','application/json'),
     body := jsonb_build_object('action','cron_run')
   );

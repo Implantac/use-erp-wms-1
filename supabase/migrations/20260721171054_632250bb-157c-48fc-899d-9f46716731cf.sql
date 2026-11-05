@@ -76,7 +76,7 @@ BEGIN
 
     -- Fire-and-forget notification email/push via edge function (mode = escalated)
     PERFORM net.http_post(
-      url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/notify-alert-assignee',
+      url := coalesce(nullif(current_setting('app.settings.supabase_url', true), ''), '') || '/functions/v1/notify-alert-assignee',
       headers := '{"Content-Type":"application/json"}'::jsonb,
       body := jsonb_build_object('notification_id', v_row.id, 'mode', 'escalated')
     );

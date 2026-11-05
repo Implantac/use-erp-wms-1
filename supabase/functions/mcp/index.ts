@@ -306,8 +306,11 @@ var get_order_default = defineTool5({
 });
 
 // src/lib/mcp/index.ts
-var projectRef = "arcuhqdiydlvekanychw";
-var issuer = "arcuhqdiydlvekanychw" ? `https://${projectRef}.supabase.co/auth/v1` : `${"https://arcuhqdiydlvekanychw.supabase.co".replace(/\/+$/, "")}/auth/v1`;
+// SEC-02: issuer derivado do ambiente; nenhum project ref embutido no bundle.
+var issuer = (process.env.SUPABASE_URL ?? "").replace(/\/+$/, "") + "/auth/v1";
+if (!process.env.SUPABASE_URL) {
+  throw new Error("SUPABASE_URL ausente: issuer OAuth do MCP nao pode ser determinado (fail-closed)");
+}
 var mcp_default = defineMcp({
   name: "use-sistemas-erp-mcp",
   title: "Use Sistemas ERP",

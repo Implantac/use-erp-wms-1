@@ -26,7 +26,7 @@ BEGIN
     v_url := current_setting('app.supabase_url', true);
     v_key := current_setting('app.service_role_key', true);
     IF v_url IS NULL OR v_url = '' THEN
-      v_url := 'https://arcuhqdiydlvekanychw.supabase.co';
+      v_url := coalesce(nullif(current_setting('app.settings.supabase_url', true), ''), '') || '';
     END IF;
 
     PERFORM net.http_post(
@@ -58,7 +58,7 @@ BEGIN
       '*/15 * * * *',
       $cron$
       SELECT net.http_post(
-        url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/notify-alert-assignee',
+        url := coalesce(nullif(current_setting('app.settings.supabase_url', true), ''), '') || '/functions/v1/notify-alert-assignee',
         headers := jsonb_build_object('Content-Type', 'application/json'),
         body := jsonb_build_object('mode', 'sla_warning')
       );

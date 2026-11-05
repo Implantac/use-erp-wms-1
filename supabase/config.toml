@@ -1,4 +1,5 @@
-project_id = "arcuhqdiydlvekanychw"
+# SEC-02: ajuste por ambiente com `supabase link`; nunca versione um ref real.
+project_id = "project-ref-unset"
 
 [functions.nps-public-get]
 verify_jwt = false

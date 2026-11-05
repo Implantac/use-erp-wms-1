@@ -22,6 +22,8 @@ jobs:
         run: bun run typecheck
       - name: Lint reportável
         run: bun run lint:ci
+      - name: Sem projeto, JWT ou token fixo no código (SEC-02)
+        run: node scripts/check-hardcoded-project-refs.mjs
       - name: Testes unitários
         run: bun x vitest run
       - name: Guardas RLS falham fechado

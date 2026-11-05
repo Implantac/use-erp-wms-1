@@ -42,9 +42,10 @@ BEGIN
   END IF;
 
   BEGIN
-    v_url := current_setting('app.supabase_url', true);
-    IF v_url IS NULL OR v_url = '' THEN
-      v_url := 'https://arcuhqdiydlvekanychw.supabase.co';
+    v_url := nullif(current_setting('app.settings.supabase_url', true), '');
+    IF v_url IS NULL THEN
+      -- Fail-closed: sem configuracao do ambiente, nenhum HTTP externo.
+      RETURN NEW;
     END IF;
 
     PERFORM net.http_post(
@@ -74,6 +75,7 @@ DECLARE
   v_row record;
   v_target uuid;
   v_count integer := 0;
+  v_base_url text := nullif(current_setting('app.settings.supabase_url', true), '');
 BEGIN
   FOR v_row IN
     SELECT n.id, n.company_id, n.assigned_to, n.title, n.due_at
@@ -126,14 +128,16 @@ BEGIN
            )
      WHERE id = v_row.id;
 
-    PERFORM net.http_post(
-      url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/notify-alert-assignee',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'x-internal-secret', public.get_internal_fn_secret()
-      ),
-      body := jsonb_build_object('notification_id', v_row.id, 'mode', 'escalated')
-    );
+    IF v_base_url IS NOT NULL THEN
+      PERFORM net.http_post(
+        url := v_base_url || '/functions/v1/notify-alert-assignee',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'x-internal-secret', public.get_internal_fn_secret()
+        ),
+        body := jsonb_build_object('notification_id', v_row.id, 'mode', 'escalated')
+      );
+    END IF;
 
     v_count := v_count + 1;
   END LOOP;
@@ -142,19 +146,19 @@ BEGIN
 END;
 $$;
 
--- Trigger de incidente crítico -> segredo interno em vez de anon key
+-- Trigger de incidente critico: fail-closed, sem URL ou chave fixa.
 CREATE OR REPLACE FUNCTION public.tg_notify_incident_email()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
-  fn_url text := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/notify-incident-email';
+  v_base_url text := nullif(current_setting('app.settings.supabase_url', true), '');
 BEGIN
-  IF NEW.severity = 'critical' THEN
+  IF NEW.severity = 'critical' AND v_base_url IS NOT NULL THEN
     PERFORM net.http_post(
-      url := fn_url,
+      url := v_base_url || '/functions/v1/notify-incident-email',
       headers := jsonb_build_object(
         'Content-Type','application/json',
         'x-internal-secret', public.get_internal_fn_secret()
@@ -166,25 +170,13 @@ BEGIN
 END;
 $$;
 
--- Cron de aviso de SLA passa a enviar o segredo interno
+-- SEC-02: o agendamento 'alert-sla-warning' embutia a URL do projeto legado.
+-- Nao e recriado aqui; reagendar somente apos definir
+-- app.settings.supabase_url no ambiente (ver docs/ENVIRONMENT.md, secao 0).
 DO $$
-DECLARE
-  v_secret text := public.get_internal_fn_secret();
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-    BEGIN
-      PERFORM cron.unschedule('alert-sla-warning');
-    EXCEPTION WHEN OTHERS THEN NULL;
-    END;
-    PERFORM cron.schedule(
-      'alert-sla-warning',
-      '*/15 * * * *',
-      format(
-        $cron$SELECT net.http_post(
-          url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/notify-alert-assignee',
-          headers := jsonb_build_object('Content-Type','application/json','x-internal-secret', %L),
-          body := jsonb_build_object('mode','sla_warning')
-        );$cron$, v_secret)
-    );
-  END IF;
+  BEGIN
+    PERFORM cron.unschedule('alert-sla-warning');
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
 END $$;

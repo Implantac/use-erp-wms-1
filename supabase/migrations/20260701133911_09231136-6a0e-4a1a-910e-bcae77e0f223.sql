@@ -6,16 +6,23 @@ CREATE OR REPLACE FUNCTION public.tg_notify_incident_email()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, pg_temp
 AS $$
 DECLARE
-  fn_url text := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/notify-incident-email';
-  anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyY3VocWRpeWRsdmVrYW55Y2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MzkwMjcsImV4cCI6MjA4ODIxNTAyN30.A8cr7OwGiu2LvrPk7R5un4Ctd42XfxWy_sh7ViS16Vo';
+  v_base_url text := nullif(current_setting('app.settings.supabase_functions_url', true), '');
+  v_anon_key text := nullif(current_setting('app.settings.supabase_anon_key', true), '');
 BEGIN
-  IF NEW.severity = 'critical' THEN
+  -- Fail-closed: sem configuracao do ambiente, nenhum HTTP externo e disparado.
+  IF NEW.severity = 'critical'
+     AND v_base_url IS NOT NULL
+     AND v_anon_key IS NOT NULL THEN
     PERFORM net.http_post(
-      url := fn_url,
-      headers := jsonb_build_object('Content-Type','application/json','apikey',anon_key,'Authorization','Bearer '||anon_key),
+      url := v_base_url || '/notify-incident-email',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'apikey', v_anon_key,
+        'Authorization', 'Bearer ' || v_anon_key
+      ),
       body := jsonb_build_object('incident_id', NEW.id)
     );
   END IF;

@@ -2332,6 +2332,55 @@ try {
     `saldo=${await balP(farm.id, zLojaBr.id, pBot.id)} esperado=${stBot0 + 4}`);
   await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
 
+  // SEC-02 / SEC-03 — gates permanentes de higiene de seguranca.
+  // Rodam ao final de TODAS as migrations: uma migration futura que criar
+  // funcao privilegiada sem search_path, ou reintroduzir credencial fixa,
+  // reprova o replay aqui (e, por consequencia, o CI).
+  console.log('== SEC-02/SEC-03: higiene de segredos e search_path');
+  const legacyRef = ['arcuhq', 'diydlvekanychw'].join('');
+  const legacyActive = (await q(`
+    SELECT count(*)::int AS n
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.prosrc LIKE '%' || $1 || '%'
+  `, [legacyRef]))[0].n;
+  check('SEC-02: nenhuma funcao ativa aponta para o projeto legado',
+    legacyActive === 0, `funcoes=${legacyActive}`);
+
+  const definerWithoutPath = (await q(`
+    SELECT count(*)::int AS n
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.prokind = 'f'
+      AND p.prosecdef
+      AND (p.proconfig IS NULL OR NOT EXISTS (
+        SELECT 1 FROM unnest(p.proconfig) AS c(item)
+        WHERE c.item LIKE 'search_path=%' AND length(c.item) > length('search_path=')
+      ))
+  `))[0].n;
+  check('SEC-03: nenhuma funcao SECURITY DEFINER em public sem search_path explicito',
+    definerWithoutPath === 0, `restantes=${definerWithoutPath}`);
+  const definerNoConfig = (await q(`
+    SELECT count(*)::int AS n
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.prokind = 'f' AND p.prosecdef
+      AND p.proconfig IS NULL
+  `))[0].n;
+  check('SEC-03: toda funcao privilegiada possui configuracao explicita no catalogo',
+    definerNoConfig === 0, `sem proconfig=${definerNoConfig}`);
+
+  const incident = (await q(
+    `SELECT prosrc, obj_description(oid, 'pg_proc') AS comment
+     FROM pg_proc WHERE oid = 'public.tg_notify_incident_email()'::regprocedure`
+  ))[0] ?? {};
+  const incidentSrc = incident.prosrc ?? '';
+  check('SEC-02: trigger de incidente nao contem URL ou JWT do projeto legado',
+    !incidentSrc.includes(legacyRef) && !incidentSrc.includes('eyJ'),
+    incidentSrc.slice(0, 100));
+  check('SEC-02: trigger le configuracao do ambiente e esta marcado como fail-closed',
+    incidentSrc.includes('current_setting') && (incident.comment ?? '').toLowerCase().includes('fail-closed'),
+    `comment=${incident.comment ?? ''}`);
+
 } finally {
   await client.end().catch(() => {});
   spawnSync(path.join(BIN, 'pg_ctl'), ['-D', DATA, '-m', 'fast', 'stop'], { env: ENV });

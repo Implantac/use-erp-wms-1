@@ -1,29 +1,13 @@
 
 SELECT cron.unschedule(jobname) FROM cron.job WHERE jobname IN ('wms-intelligence-30min','wms-slotting-daily');
 
-SELECT cron.schedule(
-  'wms-intelligence-30min',
-  '*/30 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/wms-intelligence',
-    headers := '{"Content-Type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyY3VocWRpeWRsdmVrYW55Y2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MzkwMjcsImV4cCI6MjA4ODIxNTAyN30.A8cr7OwGiu2LvrPk7R5un4Ctd42XfxWy_sh7ViS16Vo"}'::jsonb,
-    body := '{}'::jsonb
-  ) AS request_id;
-  $$
-);
+-- SEC-02: agendamento 'wms-intelligence-30min' removido. Reagendar somente com
+-- app.settings.supabase_functions_url / app.settings.supabase_anon_key
+-- (ver docs/ENVIRONMENT.md, secao 0). Nenhuma credencial no repositorio.
 
-SELECT cron.schedule(
-  'wms-slotting-daily',
-  '0 3 * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/wms-slotting-recompute',
-    headers := '{"Content-Type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyY3VocWRpeWRsdmVrYW55Y2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MzkwMjcsImV4cCI6MjA4ODIxNTAyN30.A8cr7OwGiu2LvrPk7R5un4Ctd42XfxWy_sh7ViS16Vo"}'::jsonb,
-    body := '{}'::jsonb
-  ) AS request_id;
-  $$
-);
+-- SEC-02: agendamento 'wms-slotting-daily' removido. Reagendar somente com
+-- app.settings.supabase_functions_url / app.settings.supabase_anon_key
+-- (ver docs/ENVIRONMENT.md, secao 0). Nenhuma credencial no repositorio.
 
 CREATE OR REPLACE FUNCTION public.get_operator_productivity(p_days int DEFAULT 7)
 RETURNS TABLE (

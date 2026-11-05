@@ -17,7 +17,7 @@ SELECT cron.schedule(
   '0 6 * * 1',
   $$
   SELECT net.http_post(
-    url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/ai-brain',
+    url := coalesce(nullif(current_setting('app.settings.supabase_url', true), ''), '') || '/functions/v1/ai-brain',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true)
@@ -33,7 +33,7 @@ SELECT cron.schedule(
   '0 */4 * * *',
   $$
   SELECT net.http_post(
-    url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/ai-brain',
+    url := coalesce(nullif(current_setting('app.settings.supabase_url', true), ''), '') || '/functions/v1/ai-brain',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true)

@@ -6,11 +6,11 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 DECLARE
-  v_url TEXT := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/notify-incident-email';
+  v_url TEXT := nullif(current_setting('app.settings.supabase_url', true), '');
 BEGIN
-  IF NEW.status = 'open' AND NEW.severity = 'critical' THEN
+  IF NEW.status = 'open' AND NEW.severity = 'critical' AND v_url IS NOT NULL THEN
     PERFORM net.http_post(
-      url := v_url,
+      url := v_url || '/functions/v1/notify-incident-email',
       headers := jsonb_build_object('Content-Type', 'application/json'),
       body := jsonb_build_object('incident_id', NEW.id)
     );

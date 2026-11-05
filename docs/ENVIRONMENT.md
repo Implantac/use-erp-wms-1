@@ -6,6 +6,20 @@ O sistema tem duas camadas de configuração:
 2. **Funções do servidor** (Supabase Edge Functions) — configuradas como *secrets* do projeto:
    `supabase secrets set NOME=valor`. Nunca coloque essas no `.env` do frontend.
 
+## 0. Versionamento e provisionamento (SEC-02)
+
+- **`.env` não é versionado.** O arquivo foi removido do índice do Git em 05/11/2026 e está ignorado por `.gitignore`. Use `.env.example` como modelo; nunca use `git add -f .env`.
+- Cada ambiente injeta suas próprias variáveis: **Lovable/CI** pelo painel de Environment Variables, **instalação local** por `window.__USE_ERP_CONFIG__` (gerado em `/config.js` na subida do `web`) ou por `.env` local, **Supabase** por `supabase secrets set`.
+- `src/integrations/supabase/config.ts` não contém valores fixos: prioriza config de runtime, depois `VITE_SUPABASE_*` e, na instalação local, `window.location.origin`. A ausência de `VITE_SUPABASE_PUBLISHABLE_KEY` não é substituída por chave embutida.
+- O **histórico Git** pode conter a chave publicável de um projeto antigo. Chaves `anon`/publishable são públicas por natureza e a segurança depende do RLS, mas ainda assim recomenda-se **rotacionar as chaves do projeto legado** e não reutilizar seus identificadores. Reescrever o histórico de `main` foi descartado para não romper CI e a sincronização com o Lovable.
+- Jobs `pg_cron`, triggers e o bundle do MCP que antes apontavam para um projeto legado com JWT fixo foram neutralizados ou parametrizados. Nenhum arquivo versionado contém o identificador desse projeto, JWT `anon` ou token de acesso: `scripts/check-hardcoded-project-refs.mjs` roda no CI e falha se qualquer um reaparecer.
+- `supabase/config.toml` e `.lovable/mcp/manifest.json` usam o placeholder `project-ref-unset`; ajuste por ambiente (`supabase link` / rebuild do MCP) antes de publicar. O bundle `supabase/functions/mcp/index.ts` deriva o *issuer* OAuth de `SUPABASE_URL` e falha fechado se a variável estiver ausente.
+- Para reagendar ou habilitar notificações, defina no banco (fora do repositório):
+  - `app.settings.supabase_url` → `https://<SEU-PROJETO>.supabase.co`
+  - `app.settings.supabase_anon_key` → chave publicável do seu projeto
+  - Sem esses valores, o trigger de incidente e as rotinas de notificação **falham fechados** (não enviam HTTP) e os jobs legados permanecem desativados. Nunca grave esses valores em uma migration.
+- Ainda é necessário **rotacionar as chaves do projeto legado** e revogar o token GitHub que foi compartilhado em texto: remover do repositório não invalida o que já esteve exposto no histórico.
+
 ## 1. Frontend (`.env`)
 
 | Variável | Obrigatória | Finalidade | Onde obter | Risco |

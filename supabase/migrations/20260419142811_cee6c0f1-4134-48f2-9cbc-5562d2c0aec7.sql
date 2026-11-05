@@ -16,7 +16,7 @@ SELECT cron.schedule(
   '0 6 * * *',
   $$
   SELECT net.http_post(
-    url := 'https://arcuhqdiydlvekanychw.supabase.co/functions/v1/daily-bank-reconciliation',
+    url := coalesce(nullif(current_setting('app.settings.supabase_url', true), ''), '') || '/functions/v1/daily-bank-reconciliation',
     headers := '{"Content-Type": "application/json"}'::jsonb,
     body := '{"trigger": "cron"}'::jsonb
   ) AS request_id;

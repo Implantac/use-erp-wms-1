@@ -201,7 +201,7 @@ Não se deve “corrigir” o ciclo apenas trocando `producao_solicitada` por `a
 | **7** | **SEC-01 — segurança dos novos fluxos** | LOJ-05/06 e QA-02/03 | Testes A/B, papel/setor, payload adulterado, concorrência e grants negativos aprovados |
 | **8** | **EXT-01 — fiscal/PSP e piloto** | Candidato estável após P0 interno | Homologação com terceiros e aceite do cliente; sem isso, não declarar ERP completo nem produção |
 
-**Sequência recomendada:** DOC-01 → LOJ-08, SEC-02/SEC-03 e desenho LOJ-05/06 → QA-01 em paralelo → implementação do ciclo → QA-02/03/SEC-01 → OPS-01 → piloto/homologações externas. Não iniciar piloto transacional intercompany antes de LOJ-05/06.
+**Sequência recomendada:** DOC-01 → LOJ-08, SEC-02/SEC-03 (**concluídos em código em 05/11/2026**) e desenho LOJ-05/06 → QA-01 em paralelo → implementação do ciclo → QA-02/03/SEC-01 → OPS-01 → piloto/homologações externas. Não iniciar piloto transacional intercompany antes de LOJ-05/06.
 
 ### 7.1 Achados de due diligence incorporados ao P0
 
@@ -214,6 +214,18 @@ A avaliação técnica de 05/11/2026 (`/home/user/AVALIACAO-TECNICA-ERP-2026-11-
 | **DD-01/DD-02** | Golden paths `fixme` e E2E autenticado nunca executado | Já cobertos por QA-01/QA-02/QA-03, que passam a ser pré-requisitos de contrato, não apenas de engenharia | CI sem gates vazios e jornadas por cliques aceitas |
 
 O contrato proposto para LOJ-05/06 está em [DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md](DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md). Ele fixa estados, invariantes, RPCs, matriz de testes e decisões em aberto; **não implementa** o ciclo e não autoriza aplicar migrations antes de QA-01.
+
+**Estado de SEC-02/SEC-03 em 05/11/2026 — implementados em código, não aplicados em banco real:**
+
+| Evidência | Resultado |
+| --- | --- |
+| `.env` | Removido do índice do Git (`D .env`), preservado no disco. Histórico não reescrito; **rotação das chaves e do token compartilhado continua obrigatória**. |
+| Literais | 3 migrations com JWT `anon` e, após varredura ampliada, 10 arquivos com o ref do projeto legado sanitizados. `scripts/check-hardcoded-project-refs.mjs` é um novo step do CI: varre 2.623 arquivos e reprova qualquer ref, JWT ou token fixo. |
+| Runtime | 4 jobs `pg_cron` neutralizados; `tg_notify_incident_email()` e as 3 funções ativas que ainda apontavam para o projeto legado reescritas como fail-closed, lendo `app.settings.supabase_url` e `app.settings.supabase_anon_key`. Provisionamento documentado em `docs/ENVIRONMENT.md` §0. |
+| `search_path` | `20261105181100_security_definer_search_path.sql` varre o catálogo, aplica `SET search_path = public, pg_temp` e reprova o replay se restar alguma função privilegiada sem configuração. Nenhuma restou; **grants não foram alterados**. |
+| Gates | 5 asserções permanentes no harness sobre `pg_proc`/`pg_namespace`. Replay de **504 migrations**, **249 PASS / 0 FAIL** (baseline 244/0); suíte **441/441**; lint **0/0**; `git diff --check` limpo. |
+
+**Limites:** nenhuma migration aplicada em banco real, nenhuma chave rotacionada, `supabase/config.toml` e o manifesto do MCP usam placeholder `project-ref-unset` e exigem ajuste por ambiente, e o bundle `supabase/functions/mcp/index.ts` deve ser regerado no build. Sem `app.settings.*`, as notificações falham fechadas por desenho. O aceite formal ainda exige commit, ambiente, data, responsável e evidência de execução. Ver §12 da avaliação técnica.
 
 ### P1 — excelência operacional depois da integridade
 
