@@ -160,12 +160,15 @@ export default function StoreCentral() {
       >
         <div className="flex items-center gap-2">
           <Badge variant="outline" className={cn(
-            "border-success/20 font-bold",
-            health?.status === 'excellent' ? "bg-success/10 text-success" : 
-            health?.status === 'attention' ? "bg-amber-500/10 text-amber-500" : 
-            "bg-destructive/10 text-destructive"
+            "font-bold",
+            health?.status === 'excellent' ? "border-success/20 bg-success/10 text-success" :
+            health?.status === 'attention' ? "border-amber-500/20 bg-amber-500/10 text-amber-500" :
+            health?.status === 'critical' ? "border-destructive/20 bg-destructive/10 text-destructive" :
+            "border-muted bg-muted text-muted-foreground"
           )}>
-            Estado: {health?.status === 'excellent' ? '🟢 Normal' : health?.status === 'attention' ? '🟡 Atenção' : '🔴 Crítica'}
+            Estado: {health?.status === 'excellent' ? '🟢 Normal' :
+                     health?.status === 'attention' ? '🟡 Atenção' :
+                     health?.status === 'critical' ? '🔴 Crítica' : '⚪ Sem dados'}
           </Badge>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => refetch()}>
             <RefreshCw className={cn("h-3 w-3", isLoading && "animate-spin")} /> Atualizar
@@ -659,26 +662,33 @@ export default function StoreCentral() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col items-center justify-center py-4">
-                <div className="text-4xl font-black text-primary">{health?.score}</div>
+                <div className="text-4xl font-black text-primary">{health?.score ?? '—'}</div>
                 <div className="text-[10px] font-bold uppercase tracking-widest text-primary/70">Score Total</div>
                 <Badge className={cn(
-                  "mt-2 text-white",
-                  health?.status === 'excellent' ? "bg-success hover:bg-success/90" : 
-                  health?.status === 'attention' ? "bg-amber-500 hover:bg-amber-600" : 
-                  "bg-destructive hover:bg-destructive/90"
+                  "mt-2",
+                  health?.status === 'excellent' ? "bg-success text-white hover:bg-success/90" :
+                  health?.status === 'attention' ? "bg-amber-500 text-white hover:bg-amber-600" :
+                  health?.status === 'critical' ? "bg-destructive text-white hover:bg-destructive/90" :
+                  "bg-muted text-muted-foreground"
                 )}>
-                  {health?.status === 'excellent' ? 'Excelente' : 
-                   health?.status === 'attention' ? 'Atenção' : 'Crítico'}
+                  {health?.status === 'excellent' ? 'Excelente' :
+                   health?.status === 'attention' ? 'Atenção' :
+                   health?.status === 'critical' ? 'Crítico' : 'Sem dados'}
                 </Badge>
+                {health?.status === 'unavailable' && health?.unavailableReason && (
+                  <p className="mt-2 text-center text-[10px] text-muted-foreground">
+                    {health.unavailableReason}
+                  </p>
+                )}
               </div>
               <div className="space-y-3">
                 {health?.factors.map((factor) => (
                   <div key={factor.label} className="space-y-1">
                     <div className="flex justify-between text-[10px] font-medium">
                       <span>{factor.label}</span>
-                      <span>{factor.score}%</span>
+                      <span>{factor.score === null ? 'Sem dados' : `${factor.score}%`}</span>
                     </div>
-                    <Progress value={factor.score} className="h-1" />
+                    <Progress value={factor.score ?? 0} className="h-1" />
                   </div>
                 ))}
               </div>
@@ -692,14 +702,19 @@ export default function StoreCentral() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-success">{reliability}%</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Confiabilidade do estoque baseada em inventários cíclicos.</p>
+              <div className="text-2xl font-bold text-success">
+                {reliability === null || reliability === undefined ? '—' : `${reliability}%`}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {reliability === null || reliability === undefined
+                  ? 'Sem inventário cíclico registrado: confiabilidade indisponível.'
+                  : 'Confiabilidade do estoque baseada em inventários cíclicos.'}
+              </p>
               <div className="mt-4 pt-4 border-t space-y-2">
                 <p className="text-[10px] font-bold uppercase text-muted-foreground">Ranking Eficiência</p>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Posição na Rede</span>
-                  <span className="font-bold text-primary">{health?.networkPosition || '—'}</span>
-                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Indisponível: não há base comparável entre unidades.
+                </p>
               </div>
             </CardContent>
           </Card>
