@@ -24,6 +24,8 @@ jobs:
         run: bun run lint:ci
       - name: Sem projeto, JWT ou token fixo no código (SEC-02)
         run: node scripts/check-hardcoded-project-refs.mjs
+      - name: Contrato do transporte E2E isolado (QA-01)
+        run: node --test scripts/e2e-isolated-lib.test.mjs
       - name: Testes unitários
         run: bun x vitest run
       - name: Guardas RLS falham fechado

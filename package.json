@@ -23,7 +23,9 @@
     "e2e:critical": "playwright test --config=e2e/playwright.config.ts",
     "baseline": "node scripts/generate-baseline.mjs",
     "regression": "node scripts/regression-suite.mjs",
-    "setup": "node scripts/setup.mjs"
+    "setup": "node scripts/setup.mjs",
+    "e2e:isolated": "playwright test --config=e2e/playwright.isolated.config.ts",
+    "e2e:isolated:teardown": "node scripts/e2e-isolated-server.mjs --teardown"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

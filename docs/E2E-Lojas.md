@@ -1,5 +1,16 @@
 # E2E — Lojas e smoke de navegador
 
+## 0. Ambiente isolado auto-contido (QA-01, 05/11/2026)
+
+`bun run e2e:isolated` executa `tests/e2e/isolated-environment.spec.ts` contra um servidor que **só escuta em 127.0.0.1** e é destruído a cada execução. Não há segredo, credencial de homologação, rede externa nem acesso a produção.
+
+- `scripts/e2e-isolated-server.mjs` sobe o Postgres embarcado (o mesmo binário do harness), reaplica **stubs + baseline + patches + todas as 504 migrations + 99-local-final + os 3 seeds determinísticos**, cria um marcador `public.e2e_isolation_marker` e expõe o subconjunto da API Supabase usado pela suíte: `POST /auth/v1/token` (valida `crypt()` contra `auth.users`), `GET /rest/v1/<tabela>` e `POST /rest/v1/rpc/<fn>`.
+- Cada consulta roda sob `SET LOCAL ROLE authenticated` com `request.jwt.claims` preenchido. **RLS e funções de negócio são reais** — não há mock de dados. `scripts/e2e-isolated-lib.mjs` concentra o parser PostgREST, o JWT efêmero (segredo gerado por execução) e a recusa de qualquer origem não-loopback; tem 8 testes unitários.
+- `e2e/playwright.isolated.config.ts` liga o reporter anti-skip, HTML/JSON/traces e `globalTeardown`. O reset é duplo: `globalTeardown` roda mesmo em falha e o job de CI tem um step `if: always()`. O `.env.e2e.generated` é efêmero e ignorado pelo Git.
+- CI: job `isolated-e2e` em `.github/workflows/e2e.yml`, **sem nenhum segredo**. Resultado local: **5 testes, 5 executados, 0 ignorados**; health comprova 504 migrations e o marcador de isolamento; login inválido e ausência de JWT falham fechado.
+
+**Limite de escopo — ler antes de declarar QA-01 concluído:** este é o contrato de **infraestrutura**. As jornadas completas de loja, PCP, fiscal e os golden paths **ainda não rodam neste ambiente**: permanecem no job legado `authenticated` (19 segredos de homologação, hoje ausentes) e em três `test.fixme`. Migrá-las para o ambiente isolado, com massa por papel e por tenant, é trabalho de **QA-02/QA-03**. A suíte também não usa navegador nem cobre telas; Chromium continua sendo pré-requisito para os specs de UI. `docs/E2E-Lojas.md` descreve abaixo o caminho antigo por `.bat`, que **não** foi alterado e continua exigindo confirmação manual do operador.
+
 ## Segurança: somente homologação isolada
 
 A jornada transacional **cria solicitação e transferência, movimenta estoque e altera saldos**. Use uma instalação e banco separados da operação real. O script pede confirmação explícita, mas não consegue verificar se o banco realmente é isolado: a responsabilidade de conferir o destino é do operador. Em caso de dúvida, não execute. Não há limpeza automática; falhas intermediárias podem deixar registros e reservas. Repetições consomem saldo do CD.

@@ -201,7 +201,7 @@ Não se deve “corrigir” o ciclo apenas trocando `producao_solicitada` por `a
 | **7** | **SEC-01 — segurança dos novos fluxos** | LOJ-05/06 e QA-02/03 | Testes A/B, papel/setor, payload adulterado, concorrência e grants negativos aprovados |
 | **8** | **EXT-01 — fiscal/PSP e piloto** | Candidato estável após P0 interno | Homologação com terceiros e aceite do cliente; sem isso, não declarar ERP completo nem produção |
 
-**Sequência recomendada:** DOC-01 → LOJ-08, SEC-02/SEC-03 (**concluídos em código em 05/11/2026**) e desenho LOJ-05/06 → QA-01 em paralelo → implementação do ciclo → QA-02/03/SEC-01 → OPS-01 → piloto/homologações externas. Não iniciar piloto transacional intercompany antes de LOJ-05/06.
+**Sequência recomendada:** DOC-01 → LOJ-08, SEC-02/SEC-03 (**concluídos em código em 05/11/2026**) e desenho LOJ-05/06 → QA-01 (**infraestrutura entregue e executada**) → implementação do ciclo → QA-02/03/SEC-01 → OPS-01 → piloto/homologações externas. Não iniciar piloto transacional intercompany antes de LOJ-05/06.
 
 ### 7.1 Achados de due diligence incorporados ao P0
 
@@ -226,6 +226,17 @@ O contrato proposto para LOJ-05/06 está em [DESENHO-CICLO-INTERCOMPANY-PRODUCAO
 | Gates | 5 asserções permanentes no harness sobre `pg_proc`/`pg_namespace`. Replay de **504 migrations**, **249 PASS / 0 FAIL** (baseline 244/0); suíte **441/441**; lint **0/0**; `git diff --check` limpo. |
 
 **Limites:** nenhuma migration aplicada em banco real, nenhuma chave rotacionada, `supabase/config.toml` e o manifesto do MCP usam placeholder `project-ref-unset` e exigem ajuste por ambiente, e o bundle `supabase/functions/mcp/index.ts` deve ser regerado no build. Sem `app.settings.*`, as notificações falham fechadas por desenho. O aceite formal ainda exige commit, ambiente, data, responsável e evidência de execução. Ver §12 da avaliação técnica.
+
+**Estado de QA-01 em 05/11/2026 — infraestrutura entregue e executada; jornadas ainda não migradas:**
+
+| Entregue | Evidência |
+| --- | --- |
+| Ambiente isolado sem segredos | `scripts/e2e-isolated-server.mjs`: Postgres embarcado, replay de **504 migrations + 3 seeds determinísticos**, API auth/REST/RPC somente em loopback e marcador `public.e2e_isolation_marker`. `assertLoopback` recusa qualquer outro host. |
+| SQL real sob RLS | `SET LOCAL ROLE authenticated` + `request.jwt.claims` por requisição; login valida `crypt()` em `auth.users`; as RPCs são as funções do replay. Nenhum dado é fabricado pela suíte. |
+| CI sem `skip`, com relatórios e reset | Novo job `isolated-e2e` **sem nenhum segredo**; `e2e/playwright.isolated.config.ts` com reporter anti-skip, HTML/JSON/traces e `globalTeardown`; step `if: always()` no workflow. **5/5 executados, 0 ignorados** localmente. |
+| Gates de contrato | 8 testes unitários em `scripts/e2e-isolated-lib.test.mjs` (JWT, filtros PostgREST, RPC, loopback), agora executados no job `unit` do CI. |
+
+**Ainda aberto (QA-02/QA-03):** as jornadas de loja/PCP/fiscal continuam no job `authenticated` legado, que falha por 19 segredos ausentes, e os 3 golden paths seguem `test.fixme`. QA-01 removeu a falta de ambiente isolado, **não** fechou DD-01/DD-02 nem autorizou LOJ-05/06. Nenhum navegador/Chromium foi executado nesta frente e nenhuma tela foi validada. Ver §13 da avaliação técnica e `docs/E2E-Lojas.md` §0.
 
 ### P1 — excelência operacional depois da integridade
 

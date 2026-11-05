@@ -40,3 +40,7 @@ node_modules/.cache
 dist/.vite
 *.tsbuildinfo
 .eslintcache
+
+# QA-01 — ambiente E2E isolado (artefatos e configuracao efemera)
+.env.e2e.generated
+playwright-report*/

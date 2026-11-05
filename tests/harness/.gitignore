@@ -2,3 +2,5 @@ node_modules/
 data/
 data-perf/
 *.log
+data-e2e/
+pg-e2e.log
