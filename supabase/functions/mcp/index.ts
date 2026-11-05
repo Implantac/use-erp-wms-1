@@ -2,6 +2,9 @@
 // To take ownership, delete this banner line; the plugin then leaves the file alone.
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
+// <define:import.meta.env>
+var define_import_meta_env_default = { MODE: "production", BASE_URL: "/", DEV: false, PROD: true, SSR: false };
+
 // src/lib/mcp/index.ts
 import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
 
@@ -306,11 +309,8 @@ var get_order_default = defineTool5({
 });
 
 // src/lib/mcp/index.ts
-// SEC-02: issuer derivado do ambiente; nenhum project ref embutido no bundle.
-var issuer = (process.env.SUPABASE_URL ?? "").replace(/\/+$/, "") + "/auth/v1";
-if (!process.env.SUPABASE_URL) {
-  throw new Error("SUPABASE_URL ausente: issuer OAuth do MCP nao pode ser determinado (fail-closed)");
-}
+var projectRef = define_import_meta_env_default.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
+var issuer = define_import_meta_env_default.VITE_SUPABASE_PROJECT_ID ? `https://${projectRef}.supabase.co/auth/v1` : `${(define_import_meta_env_default.VITE_SUPABASE_URL ?? "").replace(/\/+$/, "")}/auth/v1`;
 var mcp_default = defineMcp({
   name: "use-sistemas-erp-mcp",
   title: "Use Sistemas ERP",
