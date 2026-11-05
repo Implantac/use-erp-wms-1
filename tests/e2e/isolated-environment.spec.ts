@@ -114,6 +114,40 @@ test.describe('QA-01 — ambiente E2E isolado', () => {
     expect(JSON.stringify(second.data)).toBe(JSON.stringify(first.data));
   });
 
+  // Migrados de src/lib/testing/integration/workflow.test.ts: antes falavam
+  // com um Supabase externo via .env local (SEC-02 removeu o arquivo) e, sem
+  // backend, davam timeout como se fossem unitarios. Aqui rodam de verdade.
+  test('tabela de idempotencia esta operacional no replay', async () => {
+    const supabase = client();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: adminEmail, password: adminPassword,
+    });
+    expect(error, error?.message).toBeNull();
+
+    const { data, error: tableError } = await supabase
+      .from('idempotency_keys')
+      .select('*')
+      .limit(1);
+    expect(tableError, tableError?.message).toBeNull();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  test('RPC audit_stock_integrity existe e e invocavel', async () => {
+    const supabase = client();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: adminEmail, password: adminPassword,
+    });
+    expect(error, error?.message).toBeNull();
+
+    const result = await supabase.rpc('audit_stock_integrity', {
+      _company_id: '00000000-0000-0000-0000-000000000000',
+    });
+    expect(result.error, result.error?.message).toBeNull();
+    expect(result.error?.code).not.toBe('PGRST202');
+    expect(result.error?.message ?? '').not.toContain('nao existe no replay');
+    expect(result.data).toBeTruthy();
+  });
+
   test('credencial invalida e ausencia de JWT falham fechado', async () => {
     const supabase = client();
     const { data, error } = await supabase.auth.signInWithPassword({

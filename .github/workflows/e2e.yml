@@ -111,7 +111,7 @@ jobs:
       - name: Instalar binários do Postgres embarcado
         working-directory: tests/harness
         run: bun install --frozen-lockfile
-      - name: Jornadas isoladas: sem segredos, sem skip, sem rede externa
+      - name: Jornadas isoladas sem segredos, sem skip e sem rede externa
         run: bun run e2e:isolated
       - name: Teardown garantido do ambiente isolado
         if: always()

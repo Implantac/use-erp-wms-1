@@ -18,6 +18,7 @@ O sistema tem duas camadas de configuração:
   - `app.settings.supabase_url` → `https://<SEU-PROJETO>.supabase.co`
   - `app.settings.supabase_anon_key` → chave publicável do seu projeto
   - Sem esses valores, o trigger de incidente e as rotinas de notificação **falham fechados** (não enviam HTTP) e os jobs legados permanecem desativados. Nunca grave esses valores em uma migration.
+- **Suíte unitária não depende de `.env`:** `vitest.config.ts` define `test.env` com URL/chave inertes e exclui `src/lib/testing/integration/**`. Esses dois testes falavam com um Supabase real e foram migrados para `tests/e2e/isolated-environment.spec.ts` (QA-01). Sem isso, o SEC-02 quebraria o CI: `createClient` lança na importação quando a chave está vazia.
 - Ainda é necessário **rotacionar as chaves do projeto legado** e revogar o token GitHub que foi compartilhado em texto: remover do repositório não invalida o que já esteve exposto no histórico.
 
 ## 1. Frontend (`.env`)
