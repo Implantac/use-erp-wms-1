@@ -2,6 +2,15 @@
 
 Este diretório centraliza a inteligência técnica, arquitetural e operacional da plataforma.
 
+## 📌 Planejamento ativo — Lojas e PCP Têxtil
+
+Para o estado atual, prioridades, dependências e critérios de aceite deste escopo, use estes dois documentos (revisão de 05/11/2026, baseline `8a5dbb35`):
+
+- [Plano-mestre — Controle de Lojas e PCP Têxtil](PLANO-MESTRE-LOJAS-PCP-TEXTIL.md) — documento canônico do escopo.
+- [Índice de planos — Lojas e PCP Têxtil](INDICE-PLANOS-LOJAS-PCP-TEXTIL.md) — classificação de 101 documentos e crosswalk das pendências antigas, sem apagar o histórico.
+
+Planos `.lovable/plan`, revisões datadas, `FEATURE_STATUS.md` e `FLUXO-PCP-OPERACIONAL.md` permanecem como histórico/evidência da época. Em divergência, prevalecem o código atual e o plano-mestre. **Produção: NO-GO** — nenhum documento desta pasta autoriza publicar o app, aplicar migrations ou operar em produção.
+
 ## Estrutura de Documentos
 
 ### 🏗️ Arquitetura
