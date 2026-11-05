@@ -197,6 +197,22 @@ export async function createTextileProductionOrder(input: CreateTextileProductio
   });
 }
 
+export interface IntercompanyProductionResult {
+  id: string;
+  status: 'producao_solicitada';
+  production_order_id: string;
+  order_number: string;
+  production_order_status: string;
+  idempotent_replay: boolean;
+}
+
+/** A decisão, a criação da OP e o vínculo são confirmados juntos no PostgreSQL. */
+export async function produceIntercompanyRequest(requestId: string) {
+  return callRpc<IntercompanyProductionResult>('produce_intercompany_request', {
+    p_request_id: requestId,
+  });
+}
+
 export async function completeProductionOrder(input: {
   productionOrderId: string;
   idempotencyKey: string;

@@ -1497,6 +1497,187 @@ try {
   catch (e) { code = errCode(e); }
   check('a matriz do grupo não solicita reposição a si mesma (22023)', code === '22023', `code=${code}`);
 
+  console.log('== P0-03: produzir -> OP transacional, idempotente e concorrente');
+  // O produto FIO-JORNADA já tem BOM, roteiro e operações válidos na BIL.
+  // Na loja, o mesmo código representa o item solicitado à indústria.
+  await q(`SELECT set_config('session_replication_role', 'replica', false)`);
+  const prodInter = (await q(`INSERT INTO public.products (company_id, code, name, type, unit, item_kind, sale_price)
+    VALUES ($1, 'FIO-JORNADA', 'Fio para reposição intercompany', 'finished', 'kg', 'acabado', 0) RETURNING id`, [company2]))[0].id;
+  await q(`SELECT set_config('session_replication_role', 'origin', false)`);
+  const newProductionRequest = async (quantity, notes = 'P0-03') => {
+    await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [user2]);
+    const request = (await q(`SELECT public.create_intercompany_replenishment_request($1, $2, $3) AS r`, [prodInter, quantity, notes]))[0].r;
+    await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+    return request;
+  };
+
+  const reqProduction = await newProductionRequest(12, 'P0-03 sucesso');
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [user2]);
+  code = '';
+  try { await q(`SELECT public.produce_intercompany_request($1)`, [reqProduction.id]); }
+  catch (e) { code = errCode(e); }
+  check('P0-03: loja não pode produzir/vincular OP na indústria (42501)', code === '42501', `code=${code}`);
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+
+  // O caminho legado continua compatível, mas delega à mesma transação.
+  const productionResult = (await q(`SELECT public.decide_intercompany_request($1, 'produzir') AS r`, [reqProduction.id]))[0].r;
+  const productionLink = (await q(`SELECT status, decision, production_order_id FROM public.intercompany_replenishment_requests WHERE id = $1`, [reqProduction.id]))[0];
+  const linkedOrder = (await q(`SELECT id, order_number, quantity, creation_idempotency_key, route_id, technical_snapshot_at
+    FROM public.production_orders WHERE id = $1 AND company_id = $2`, [productionResult.production_order_id, company.id]))[0];
+  const linkedSteps = Number((await q(`SELECT count(*)::int AS n FROM public.production_order_steps WHERE production_order_id = $1`, [productionResult.production_order_id]))[0].n);
+  check('P0-03: decisão, OP oficial, snapshot/etapas e vínculo confirmam juntos',
+    productionResult.status === 'producao_solicitada'
+      && productionLink.status === 'producao_solicitada' && productionLink.decision === 'produzir'
+      && productionLink.production_order_id === productionResult.production_order_id
+      && linkedOrder?.creation_idempotency_key === `intercompany-request-${reqProduction.id}`
+      && Number(linkedOrder?.quantity) === 12 && !!linkedOrder?.route_id && !!linkedOrder?.technical_snapshot_at && linkedSteps > 0,
+    JSON.stringify({ productionResult, productionLink, linkedOrder, linkedSteps }));
+
+  const productionReplay = (await q(`SELECT public.produce_intercompany_request($1) AS r`, [reqProduction.id]))[0].r;
+  const productionCount = Number((await q(`SELECT count(*)::int AS n FROM public.production_orders
+    WHERE company_id = $1 AND creation_idempotency_key = $2`, [company.id, `intercompany-request-${reqProduction.id}`]))[0].n);
+  check('P0-03: replay retorna a mesma OP sem duplicar',
+    productionReplay.idempotent_replay === true && productionReplay.production_order_id === productionResult.production_order_id
+      && productionReplay.order_number === productionResult.order_number && productionCount === 1,
+    JSON.stringify({ productionReplay, productionCount }));
+
+  // Produto inexistente na indústria: nenhuma decisão parcial pode sobreviver.
+  await q(`SELECT set_config('session_replication_role', 'replica', false)`);
+  const prodMissing = (await q(`INSERT INTO public.products (company_id, code, name, type, unit, item_kind)
+    VALUES ($1, 'P003-SEM-PRODUTO', 'Sem correspondente na indústria', 'finished', 'un', 'acabado') RETURNING id`, [company2]))[0].id;
+  await q(`SELECT set_config('session_replication_role', 'origin', false)`);
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [user2]);
+  const reqMissing = (await q(`SELECT public.create_intercompany_replenishment_request($1, 3, 'P0-03 produto ausente') AS r`, [prodMissing]))[0].r;
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+  code = '';
+  try { await q(`SELECT public.produce_intercompany_request($1)`, [reqMissing.id]); }
+  catch (e) { code = errCode(e); }
+  const missingState = (await q(`SELECT status, decision, production_order_id FROM public.intercompany_replenishment_requests WHERE id = $1`, [reqMissing.id]))[0];
+  check('P0-03: produto ausente falha sem gravar decisão nem vínculo',
+    code === '22023' && missingState.status === 'pendente' && missingState.decision === null && missingState.production_order_id === null,
+    `code=${code} ${JSON.stringify(missingState)}`);
+
+  // Produto existe, mas a RPC oficial rejeita a ausência de BOM. A solicitação
+  // continua pendente e nenhuma OP órfã é deixada para trás.
+  await q(`SELECT set_config('session_replication_role', 'replica', false)`);
+  await q(`INSERT INTO public.products (company_id, code, name, type, unit, item_kind)
+    VALUES ($1, 'P003-SEM-BOM', 'Sem BOM na indústria', 'finished', 'un', 'acabado')`, [company.id]);
+  const prodNoBom = (await q(`INSERT INTO public.products (company_id, code, name, type, unit, item_kind)
+    VALUES ($1, 'P003-SEM-BOM', 'Sem BOM na indústria', 'finished', 'un', 'acabado') RETURNING id`, [company2]))[0].id;
+  await q(`SELECT set_config('session_replication_role', 'origin', false)`);
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [user2]);
+  const reqNoBom = (await q(`SELECT public.create_intercompany_replenishment_request($1, 2, 'P0-03 sem BOM') AS r`, [prodNoBom]))[0].r;
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+  code = '';
+  try { await q(`SELECT public.produce_intercompany_request($1)`, [reqNoBom.id]); }
+  catch (e) { code = errCode(e); }
+  const noBomState = (await q(`SELECT status, decision, production_order_id FROM public.intercompany_replenishment_requests WHERE id = $1`, [reqNoBom.id]))[0];
+  const noBomOrders = Number((await q(`SELECT count(*)::int AS n FROM public.production_orders WHERE creation_idempotency_key = $1`, [`intercompany-request-${reqNoBom.id}`]))[0].n);
+  check('P0-03: falha de BOM faz rollback da decisão e não deixa OP',
+    code === '23514' && noBomState.status === 'pendente' && noBomState.decision === null
+      && noBomState.production_order_id === null && noBomOrders === 0,
+    `code=${code} ${JSON.stringify(noBomState)} orders=${noBomOrders}`);
+
+  // BOM válida, mas nenhum roteiro ativo: exercita a segunda validação oficial
+  // do PCP e prova que ela também não deixa decisão parcial.
+  await q(`SELECT set_config('session_replication_role', 'replica', false)`);
+  const rootNoRoute = (await q(`INSERT INTO public.products (company_id, code, name, type, unit, item_kind)
+    VALUES ($1, 'P003-SEM-ROTEIRO', 'Com BOM e sem roteiro', 'finished', 'un', 'acabado') RETURNING id`, [company.id]))[0].id;
+  await q(`INSERT INTO public.production_bom (company_id, product_id, component_id, quantity, waste_percentage)
+    VALUES ($1, $2, $3, 1, 0)`, [company.id, rootNoRoute, plumaJ]);
+  const prodNoRoute = (await q(`INSERT INTO public.products (company_id, code, name, type, unit, item_kind)
+    VALUES ($1, 'P003-SEM-ROTEIRO', 'Com BOM e sem roteiro', 'finished', 'un', 'acabado') RETURNING id`, [company2]))[0].id;
+  await q(`SELECT set_config('session_replication_role', 'origin', false)`);
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [user2]);
+  const reqNoRoute = (await q(`SELECT public.create_intercompany_replenishment_request($1, 2, 'P0-03 sem roteiro') AS r`, [prodNoRoute]))[0].r;
+  await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+  code = '';
+  try { await q(`SELECT public.produce_intercompany_request($1)`, [reqNoRoute.id]); }
+  catch (e) { code = errCode(e); }
+  const noRouteState = (await q(`SELECT status, decision, production_order_id FROM public.intercompany_replenishment_requests WHERE id = $1`, [reqNoRoute.id]))[0];
+  const noRouteOrders = Number((await q(`SELECT count(*)::int AS n FROM public.production_orders WHERE creation_idempotency_key = $1`, [`intercompany-request-${reqNoRoute.id}`]))[0].n);
+  check('P0-03: BOM sem roteiro ativo faz rollback da decisão e não deixa OP',
+    code === '23514' && noRouteState.status === 'pendente' && noRouteState.decision === null
+      && noRouteState.production_order_id === null && noRouteOrders === 0,
+    `code=${code} ${JSON.stringify(noRouteState)} orders=${noRouteOrders}`);
+
+  // Falha injetada DEPOIS da criação da OP: o trigger aborta justamente o
+  // UPDATE do vínculo. A OP, as etapas e a decisão precisam desaparecer juntas.
+  await q(`CREATE OR REPLACE FUNCTION public.test_p003_fail_production_link() RETURNS trigger
+    LANGUAGE plpgsql AS $test$
+    BEGIN
+      IF NEW.notes = 'P003-INJECT-LINK-FAIL' AND NEW.production_order_id IS NOT NULL THEN
+        RAISE EXCEPTION 'Falha injetada no vínculo P0-03';
+      END IF;
+      RETURN NEW;
+    END;
+    $test$`);
+  await q(`DROP TRIGGER IF EXISTS test_p003_fail_production_link ON public.intercompany_replenishment_requests`);
+  await q(`CREATE TRIGGER test_p003_fail_production_link BEFORE UPDATE ON public.intercompany_replenishment_requests
+    FOR EACH ROW EXECUTE FUNCTION public.test_p003_fail_production_link()`);
+  const reqInjected = await newProductionRequest(4, 'P003-INJECT-LINK-FAIL');
+  code = '';
+  try { await q(`SELECT public.produce_intercompany_request($1)`, [reqInjected.id]); }
+  catch (e) { code = errCode(e); }
+  await q(`DROP TRIGGER IF EXISTS test_p003_fail_production_link ON public.intercompany_replenishment_requests`);
+  await q(`DROP FUNCTION IF EXISTS public.test_p003_fail_production_link()`);
+  const injectedState = (await q(`SELECT status, decision, production_order_id FROM public.intercompany_replenishment_requests WHERE id = $1`, [reqInjected.id]))[0];
+  const injectedOrders = Number((await q(`SELECT count(*)::int AS n FROM public.production_orders WHERE creation_idempotency_key = $1`, [`intercompany-request-${reqInjected.id}`]))[0].n);
+  check('P0-03: falha após criar OP desfaz OP, etapas, decisão e vínculo na mesma transação',
+    code === 'P0001' && injectedState.status === 'pendente' && injectedState.decision === null
+      && injectedState.production_order_id === null && injectedOrders === 0,
+    `code=${code} ${JSON.stringify(injectedState)} orders=${injectedOrders}`);
+
+  // Duas conexões independentes disputam a mesma solicitação. FOR UPDATE faz
+  // uma aguardar a outra; exatamente uma cria e a outra retorna replay.
+  const reqConcurrent = await newProductionRequest(7, 'P0-03 concorrência');
+  const produceOnOwnConnection = async () => {
+    const worker = new Client({ host: '127.0.0.1', port: 55444, user: 'postgres', database: 'postgres' });
+    await worker.connect();
+    try {
+      await worker.query('SET ROLE authenticated');
+      await worker.query(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+      await worker.query(`SELECT set_config('request.jwt.claim.role', 'authenticated', false)`);
+      await worker.query(`SELECT set_config('request.jwt.claims', $1, false)`,
+        [JSON.stringify({ sub: admin.id, role: 'authenticated', email: 'etcsuporte889@gmail.com' })]);
+      return (await worker.query(`SELECT public.produce_intercompany_request($1) AS r`, [reqConcurrent.id])).rows[0].r;
+    } finally {
+      await worker.end();
+    }
+  };
+  const concurrentResults = await Promise.all([produceOnOwnConnection(), produceOnOwnConnection()]);
+  const concurrentOrders = Number((await q(`SELECT count(*)::int AS n FROM public.production_orders
+    WHERE company_id = $1 AND creation_idempotency_key = $2`, [company.id, `intercompany-request-${reqConcurrent.id}`]))[0].n);
+  check('P0-03: duas chamadas concorrentes retornam a mesma OP',
+    concurrentResults[0].production_order_id === concurrentResults[1].production_order_id
+      && concurrentResults.filter((r) => r.idempotent_replay === false).length === 1
+      && concurrentResults.filter((r) => r.idempotent_replay === true).length === 1,
+    JSON.stringify(concurrentResults));
+  check('P0-03: concorrência persiste exatamente uma OP e um vínculo', concurrentOrders === 1, `orders=${concurrentOrders}`);
+
+  const inboxAfterProduction = (await q(`SELECT public.factory_inbox() AS r`))[0].r;
+  const inboxLinked = (inboxAfterProduction.production || []).find((r) => r.id === reqProduction.id);
+  check('P0-03: caixa da fábrica mostra o número e o status reais da OP vinculada',
+    inboxLinked?.production_order_id === productionResult.production_order_id
+      && inboxLinked?.order_number === productionResult.order_number
+      && inboxLinked?.production_order_status === 'planned',
+    JSON.stringify(inboxLinked));
+
+  // Registro antigo já estava decidido sem vínculo. Não é seguro adivinhar uma
+  // OP antiga nem criar outra: a UI mostra conciliação e a RPC bloqueia replay.
+  const reqLegacy = await newProductionRequest(5, 'P0-03 legado sem vínculo');
+  await q(`UPDATE public.intercompany_replenishment_requests
+    SET status = 'producao_solicitada', decision = 'produzir', decided_by = $2, decided_at = now(), updated_at = now()
+    WHERE id = $1`, [reqLegacy.id, admin.id]);
+  code = '';
+  try { await q(`SELECT public.produce_intercompany_request($1)`, [reqLegacy.id]); }
+  catch (e) { code = errCode(e); }
+  const legacyOrders = Number((await q(`SELECT count(*)::int AS n FROM public.production_orders WHERE creation_idempotency_key = $1`, [`intercompany-request-${reqLegacy.id}`]))[0].n);
+  const inboxLegacy = (await q(`SELECT public.factory_inbox() AS r`))[0].r.production.find((r) => r.id === reqLegacy.id);
+  check('P0-03: registro legado sem OP exige conciliação e não gera duplicidade',
+    code === 'P0001' && legacyOrders === 0 && inboxLegacy?.production_order_id === null && inboxLegacy?.order_number === null,
+    `code=${code} orders=${legacyOrders} ${JSON.stringify(inboxLegacy)}`);
+
   // Empresa de fora do grupo é negada
   const user9 = 'f6000000-0000-4000-8000-000000000009';
   await q(`SELECT set_config('session_replication_role', 'replica', false)`);

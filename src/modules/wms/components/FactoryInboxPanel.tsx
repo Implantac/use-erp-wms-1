@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Factory, Inbox, PackageCheck, Store, Truck, X } from 'lucide-react';
+import { Factory, Inbox, Link2, PackageCheck, Store, Truck, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/base/card';
 import { Badge } from '@/ui/base/badge';
 import { Button } from '@/ui/base/button';
@@ -13,8 +14,9 @@ import {
 } from '@/services/operational/store/supplyService';
 import { useDecideGroupRequest } from '@/hooks/operational/store/useGroupReplenishment';
 import { rankSupplyCandidates } from '@/lib/store/supplyRecommendation';
-import { createTextileProductionOrder } from '@/services/production/textilePcpService';
+import { produceIntercompanyRequest } from '@/services/production/textilePcpService';
 import { useSupplyAccess } from '@/hooks/operational/store/useSupplyAccess';
+import { productionStatusConfig } from '@/config/production';
 
 const fmt = (n: number | string | null | undefined) => Number(n || 0).toLocaleString('pt-BR');
 
@@ -28,23 +30,22 @@ interface InboxRequestRow {
   created_at: string;
 }
 
+interface ProductionRequestRow extends InboxRequestRow {
+  decided_at: string | null;
+  production_order_id: string | null;
+  order_number: string | null;
+  production_order_status: string | null;
+}
+
 interface FactoryInboxData {
   supply: InboxRequestRow[];
   intercompany: InboxRequestRow[];
+  production?: ProductionRequestRow[];
   group_root_company_id?: string;
-}
-
-interface ProductByCodeRow { id: string; name: string }
-
-interface LooseQuery<T> extends PromiseLike<{ data: T | null; error: { message: string } | null }> {
-  select: (columns: string) => LooseQuery<T>;
-  eq: (column: string, value: unknown) => LooseQuery<T>;
-  maybeSingle: () => PromiseLike<{ data: T | null; error: { message: string } | null }>;
 }
 
 const loose = supabase as unknown as {
   rpc: (fn: string) => PromiseLike<{ data: FactoryInboxData | null; error: { message: string } | null }>;
-  from<T>(table: string): LooseQuery<T>;
 };
 
 const kindLabel: Record<string, string> = {
@@ -101,36 +102,19 @@ export function FactoryInboxPanel() {
   // (que só solicita e recebe) o painel nem aparece.
   if (!supplyAccess.isLoading && !supplyAccess.canManage) return null;
 
-  // Produzir = decisão da indústria + OP gerada na hora (cai no PCP).
-  // O produto da indústria casa pelo CÓDIGO com o pedido da Loja; sem
-  // produto correspondente, a decisão fica registrada e o gestor é avisado.
+  // Produzir = uma única chamada ao PostgreSQL. Se produto, BOM, roteiro ou
+  // vínculo falharem, a decisão e a OP inteira sofrem rollback juntas.
   const handleProduce = async (r: InboxRequestRow) => {
     setProducingId(r.id);
     try {
-      await decideInter.mutateAsync({ requestId: r.id, decision: 'produzir' });
-      const rootId = inboxQuery.data?.group_root_company_id;
-      const { data: product } = rootId
-        ? await loose.from<ProductByCodeRow>('products').select('id, name')
-            .eq('company_id', rootId).eq('code', r.product_code).maybeSingle()
-        : { data: null };
-      if (!product?.id) {
-        toast.warning(`Decisão "produzir" registrada, mas a indústria não tem produto com o código ${r.product_code} — cadastre/vincule para gerar a OP.`);
-        return;
-      }
-      const op = await createTextileProductionOrder({
-        productId: product.id,
-        quantity: Number(r.quantity),
-        clientName: r.company_name,
-        idempotencyKey: `inter-produz-${String(r.id).slice(0, 8)}`,
-      });
-      const opInfo = op as unknown as { idempotent_replay?: boolean; order_number?: string };
-      const replay = opInfo?.idempotent_replay === true;
-      toast.success(replay
-        ? `OP já existia para este pedido (${opInfo?.order_number ?? ''}) — nada duplicado. Acompanhe no PCP.`
-        : `OP ${opInfo?.order_number ?? ''} criada e já está no PCP para programar/executar.`);
+      const op = await produceIntercompanyRequest(r.id);
+      toast.success(op.idempotent_replay
+        ? `OP ${op.order_number} recuperada sem duplicação. Acompanhe no PCP.`
+        : `OP ${op.order_number} criada e vinculada à solicitação. Acompanhe no PCP.`);
       queryClient.invalidateQueries({ queryKey: ['factory-inbox'] });
+      queryClient.invalidateQueries({ queryKey: ['group-requests'] });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao gerar a OP');
+      toast.error(error instanceof Error ? error.message : 'Erro ao gerar a OP; nenhuma decisão foi confirmada');
     } finally {
       setProducingId(null);
     }
@@ -138,9 +122,11 @@ export function FactoryInboxPanel() {
 
   const supply = inboxQuery.data?.supply || [];
   const inter = inboxQuery.data?.intercompany || [];
+  const productions = inboxQuery.data?.production || [];
   const total = supply.length + inter.length;
 
   return (
+    <div className="space-y-4">
     <Card className="border-primary/30">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
@@ -187,7 +173,7 @@ export function FactoryInboxPanel() {
                   <Button size="sm" variant="secondary" disabled={decideInter.isPending}
                     onClick={() => decideInter.mutate({ requestId: r.id, decision: 'transferir_cd' })}>Transferir CD</Button>
                   <Button size="sm" variant="secondary" disabled={decideInter.isPending || producingId === r.id}
-                    onClick={() => void handleProduce(r)}>Produzir (gera OP)</Button>
+                    onClick={() => void handleProduce(r)}>Produzir (gera e vincula OP)</Button>
                   <Button size="sm" variant="destructive" disabled={decideInter.isPending}
                     onClick={() => decideInter.mutate({ requestId: r.id, decision: 'rejeitar' })}>Rejeitar</Button>
                 </div>
@@ -265,5 +251,49 @@ export function FactoryInboxPanel() {
         )}
       </CardContent>
     </Card>
+
+    {productions.length > 0 && (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Link2 className="h-4 w-4" /> OPs vinculadas às solicitações
+          </CardTitle>
+          <CardDescription>Vínculo e status lidos diretamente da solicitação e da ordem de produção.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {productions.map((r) => {
+            const hasOrder = Boolean(r.production_order_id && r.order_number);
+            const statusLabel = productionStatusConfig[r.production_order_status || '']?.label
+              ?? (hasOrder ? r.production_order_status : 'Conciliação necessária');
+            return (
+              <div key={r.id} className="rounded-md border p-3 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold">{r.product_name}</span>
+                  <Badge variant="outline">{r.product_code}</Badge>
+                  <Badge>{fmt(r.quantity)} un</Badge>
+                  <Badge variant={hasOrder ? 'outline' : 'destructive'}>{statusLabel}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {r.company_name}{r.branch_name ? ` · ${r.branch_name}` : ''}
+                </p>
+                {hasOrder ? (
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-xs"><span className="text-muted-foreground">OP vinculada:</span> <strong>{r.order_number}</strong></p>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to={`/producao/ordens?q=${encodeURIComponent(r.order_number || '')}`}>Abrir no PCP</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <p role="alert" className="text-xs text-destructive">
+                    Registro legado sem OP vinculada. Exige conciliação; o sistema não criou outra OP automaticamente.
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    )}
+    </div>
   );
 }
