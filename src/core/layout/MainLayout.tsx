@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef } from 'react';
-import { ScreenTimingCard, useRouteTimingRecorder } from '@/modules/wms/components/ScreenTimingCard';
+import { useRouteTimingRecorder } from '@/hooks/system/useRouteTimingRecorder';
 import { withRenderMonitor } from '@/core/debug/RenderDepthMonitor';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/stores/useAppStore';

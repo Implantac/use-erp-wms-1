@@ -1,6 +1,4 @@
-# CI — provas a cada push/PR: tipos, testes unitários e o harness de banco
-# (replay de migrations + 133 verificações de negócio). Se algo regredir,
-# o merge fica vermelho ANTES de chegar no Lovable/cliente.
+# CI — provas a cada push/PR. Um gate vazio ou não executado não é sucesso.
 name: CI
 
 on:
@@ -10,32 +8,68 @@ on:
 
 jobs:
   unit:
-    name: Typecheck + unitários
+    name: Typecheck, lint, unitários e guardas RLS
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.2
       - name: Instalar dependências
         run: bun install --frozen-lockfile
-      - name: Typecheck
+      - name: Typecheck explícito e não vazio
         run: bun run typecheck
+      - name: Lint reportável
+        run: bun run lint:ci
       - name: Testes unitários
         run: bun x vitest run
+      - name: Guardas RLS falham fechado
+        run: bun run test:rls:guard
+      - name: Fontes não foram regravadas pelos testes
+        run: git diff --exit-code
+
+  build:
+    name: Build de produção
+    runs-on: ubuntu-latest
+    needs: unit
+    timeout-minutes: 30
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Instalar dependências
+        run: bun install --frozen-lockfile
+      - name: Build
+        run: bun run build
+      - name: Build não altera fontes rastreadas
+        run: git diff --exit-code
+      - name: Publicar artefato de build
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-dist-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
 
   harness:
     name: Harness de banco (replay + negócio)
     runs-on: ubuntu-latest
     needs: unit
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.2
       - name: Instalar dependências do harness
         working-directory: tests/harness
-        run: bun install
+        run: bun install --frozen-lockfile
       - name: Rodar harness
         working-directory: tests/harness
         run: bun harness.mjs
+      - name: Fontes não foram regravadas pelo harness
+        run: git diff --exit-code

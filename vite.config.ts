@@ -12,7 +12,13 @@ export default defineConfig(({ mode }) => ({
     // O preview do ambiente e a rede local acessam por hosts/IPs diferentes.
     allowedHosts: true,
   },
-  plugins: [react(), mcpPlugin(), mode === "development" && componentTagger()].filter(Boolean),
+  // Tests redirect generated code to an ignored cache so they never rewrite
+  // tracked Supabase sources. Normal development/build keeps the default.
+  plugins: [
+    react(),
+    mcpPlugin({ functionsDir: process.env.MCP_FUNCTIONS_DIR ?? "supabase/functions" }),
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

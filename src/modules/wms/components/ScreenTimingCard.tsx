@@ -1,28 +1,12 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useSyncExternalStore } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/base/card';
 import { Badge } from '@/ui/base/badge';
 import {
   getRouteTimings,
-  markNavigationStart,
-  markRouteRendered,
   navigationTimingSummary,
   subscribeRouteTimings,
 } from '@/lib/screenTiming';
 import { useEnterprise } from '@/core/auth/EnterpriseContext';
-
-/** Registra o tempo de cada troca de rota nesta sessão. */
-export function useRouteTimingRecorder() {
-  const location = useLocation();
-  useEffect(() => {
-    markNavigationStart();
-    const raf = requestAnimationFrame(() => {
-      const t = setTimeout(() => markRouteRendered(location.pathname), 0);
-      return () => clearTimeout(t);
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [location.pathname]);
-}
 
 /**
  * Tempo de tela (neste navegador): diagnóstico visível só para o admin de
