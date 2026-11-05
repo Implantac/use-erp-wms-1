@@ -201,7 +201,19 @@ Não se deve “corrigir” o ciclo apenas trocando `producao_solicitada` por `a
 | **7** | **SEC-01 — segurança dos novos fluxos** | LOJ-05/06 e QA-02/03 | Testes A/B, papel/setor, payload adulterado, concorrência e grants negativos aprovados |
 | **8** | **EXT-01 — fiscal/PSP e piloto** | Candidato estável após P0 interno | Homologação com terceiros e aceite do cliente; sem isso, não declarar ERP completo nem produção |
 
-**Sequência recomendada:** DOC-01 → LOJ-08 e desenho LOJ-05/06 → QA-01 em paralelo → implementação do ciclo → QA-02/03/SEC-01 → OPS-01 → piloto/homologações externas. Não iniciar piloto transacional intercompany antes de LOJ-05/06.
+**Sequência recomendada:** DOC-01 → LOJ-08, SEC-02/SEC-03 e desenho LOJ-05/06 → QA-01 em paralelo → implementação do ciclo → QA-02/03/SEC-01 → OPS-01 → piloto/homologações externas. Não iniciar piloto transacional intercompany antes de LOJ-05/06.
+
+### 7.1 Achados de due diligence incorporados ao P0
+
+A avaliação técnica de 05/11/2026 (`/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md`) acrescentou três frentes ao P0, sem reabrir P0-02/P0-03:
+
+| ID | Achado | Correção exigida | Critério de saída |
+| --- | --- | --- | --- |
+| **SEC-02** | `.env` versionado com chave publicável; JWTs anon embutidos em 3 migrations apontando para projeto antigo | Remover `.env` do índice do Git, limpar `.env.example`, mover configuração para cofre/ambiente e rotacionar chaves do projeto legado | Nenhum segredo ou identificador de projeto fixo versionado; instalação em projeto novo reproduzível |
+| **SEC-03** | 33 migrations com `SECURITY DEFINER` sem `SET search_path` (10 com `GRANT ... TO authenticated`) | Migration corretiva com `SET search_path = public, pg_temp` e revalidação de grants | Harness de invocação aprovado; nenhuma função privilegiada sem `search_path` explícito |
+| **DD-01/DD-02** | Golden paths `fixme` e E2E autenticado nunca executado | Já cobertos por QA-01/QA-02/QA-03, que passam a ser pré-requisitos de contrato, não apenas de engenharia | CI sem gates vazios e jornadas por cliques aceitas |
+
+O contrato proposto para LOJ-05/06 está em [DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md](DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md). Ele fixa estados, invariantes, RPCs, matriz de testes e decisões em aberto; **não implementa** o ciclo e não autoriza aplicar migrations antes de QA-01.
 
 ### P1 — excelência operacional depois da integridade
 

@@ -23,7 +23,9 @@ Este índice classifica os **101 documentos candidatos** localizados em `docs/` 
 | **X** | Não canônico/inseguro | Não usar como aceite; ver seção 6 e REV-08. |
 | **P** | Contexto periférico | Manter como histórico; não altera a matriz do plano. |
 
-Além dos 101 candidatos, esta revisão **cria dois documentos novos**: o plano-mestre e este índice. O resumo executivo fica fora do repositório, em `/home/user/REVISAO-PLANOS-LOJAS-PCP-TEXTIL-2026-11-05.md`. Não houve alteração de código funcional, migration, aplicação de banco nem publicação.
+Além dos 101 candidatos, a revisão **criou o plano-mestre e este índice** (commit `5982a064`). O resumo executivo fica fora do repositório, em `/home/user/REVISAO-PLANOS-LOJAS-PCP-TEXTIL-2026-11-05.md`.
+
+Documentos acrescentados na etapa de implementação, que não fazem parte dos 101 candidatos: [DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md](DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md) (contrato proposto para LOJ-05/06, não implementado) e o parecer externo `/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md` (due diligence de aquisição). O índice continua classificando apenas o inventário histórico; mudanças de estado são governadas pelo plano-mestre.
 
 ---
 
