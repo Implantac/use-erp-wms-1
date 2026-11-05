@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
 
-const reportPath = process.argv[2] ?? 'test-results/public-results.json';
+const reportPath = process.argv[2] ?? 'e2e/test-results/public-results.json';
 let report;
 try {
   report = JSON.parse(readFileSync(reportPath, 'utf8'));

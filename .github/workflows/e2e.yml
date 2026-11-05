@@ -22,14 +22,14 @@ jobs:
       - name: Run public login smoke
         run: bunx playwright test --config=e2e/playwright.public.config.ts
       - name: Assert non-empty complete smoke results
-        run: node scripts/assert-playwright-public.mjs test-results/public-results.json
+        run: node scripts/assert-playwright-public.mjs e2e/test-results/public-results.json
       - name: Tests did not rewrite tracked sources
         run: git diff --exit-code
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: public-smoke-${{ github.run_id }}
-          path: test-results/
+          path: e2e/test-results/
           if-no-files-found: warn
           retention-days: 7
 
