@@ -21,6 +21,24 @@ O sistema tem duas camadas de configuração:
 - **Suíte unitária não depende de `.env`:** `vitest.config.ts` define `test.env` com URL/chave inertes e exclui `src/lib/testing/integration/**`. Esses dois testes falavam com um Supabase real e foram migrados para `tests/e2e/isolated-environment.spec.ts` (QA-01). Sem isso, o SEC-02 quebraria o CI: `createClient` lança na importação quando a chave está vazia.
 - Ainda é necessário **rotacionar as chaves do projeto legado** e revogar o token GitHub que foi compartilhado em texto: remover do repositório não invalida o que já esteve exposto no histórico.
 
+### 0.2 Configuração pública de runtime — decisão de 06/11/2026 (INC-04)
+
+O ambiente de build do Lovable **não repassou** `VITE_SUPABASE_*` ao `vite build`: o bundle `erp-core-BqoMmIh2.js`, gerado a partir de `653ad43`, não continha os ramos `import.meta.env.VITE_*`, `getSupabasePublishableKey()` devolvia `""` e a aplicação não montava. Tentativas anteriores de curar o sintoma versionando `.env` (`3e23d4f`) ou embutindo `HOSTED_KEY` em `src/` (`d03f9f6`) quebraram o gate SEC-02.
+
+**Solução adotada:** `public/config.js` — já carregado por `index.html` antes do módulo principal — passa a definir `window.__USE_ERP_CONFIG__` com `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`. `src/integrations/supabase/config.ts` dá prioridade máxima a esse objeto. Consequências:
+
+- nenhuma variável `VITE_*` é necessária no build: o bundle MCP gerado permanece `492bfb62` e o step `Build não altera fontes rastreadas` continua passando;
+- funciona em **qualquer domínio**, não apenas `*.lovable.app`;
+- a instalação local Docker continua podendo sobrescrever o objeto na subida (os campos só são preenchidos quando vazios).
+
+**Exceção declarada ao SEC-02:** `scripts/check-hardcoded-project-refs.mjs` passou a varrer `public/` e mantém `public/config.js` como **único** arquivo na allowlist, por conter somente valores públicos (URL e chave `anon`, protegida por RLS). Todo o restante do repositório segue com tolerância zero. Nunca ampliar essa lista nem gravar aqui `service_role`, `DATABASE_URL`, tokens ou segredos.
+
+**Risco aceito:** o identificador do projeto e a chave pública passam a constar em arquivo versionado e no JS servido. Isso **revoga parcialmente o aceite "zero refs versionados"** do SEC-02, por decisão do responsável, para restabelecer a disponibilidade. **Rotacionar as chaves do projeto legado continua urgente**: os valores atuais já circularam no histórico, em código-fonte e em bundles publicados. Assim que o ambiente de build passar a injetar `VITE_*` de forma comprovada, esvaziar `public/config.js` e remover a allowlist.
+
+**Evidência de aceite:** `GET /config.js` no domínio publicado devolve o objeto; a tela de login monta; as chamadas vão para o domínio `.supabase.co` esperado; CI verde. Registrar commit, ambiente, data e responsável.
+
+---
+
 ### 0.1 Publicação no Lovable — incidente `supabaseKey is required.`
 
 **Sintoma:** depois de sincronizar um commit a partir de `9080eead` (SEC-02) e publicar, o navegador abre em tela branca e o console mostra `Uncaught Error: supabaseKey is required.` em `new SupabaseClient` -> `createClient` -> `src/integrations/supabase/client.ts`.

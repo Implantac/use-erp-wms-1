@@ -12,13 +12,19 @@ const PATTERNS = [
   ['JWT embutido', /eyJ[A-Za-z0-9_-]{20,}/],
   ['token de acesso GitHub', /ghp_[A-Za-z0-9]{20,}/],
 ];
-const DIRS = ['supabase', 'src', 'scripts', 'tests', '.github', 'infra', '.lovable', 'docs'];
+const DIRS = ['supabase', 'src', 'scripts', 'tests', '.github', 'infra', '.lovable', 'docs', 'public'];
 const ROOT_FILES = ['.env.example', 'config.toml'];
 const EXTS = /\.(sql|ts|tsx|js|mjs|cjs|json|yml|yaml|toml|md|sh|py|example)$/i;
 const SKIP_DIRS = new Set([
   'node_modules', 'dist', 'build', 'coverage', '.cache', 'vendor', '__pycache__',
 ]);
-const SKIP_FILES = new Set(['scripts/check-hardcoded-project-refs.mjs']);
+// Excecao declarada e auditavel (06/11/2026): unico arquivo autorizado a
+// conter a URL e a chave PUBLICA anon do projeto. Todo o restante de public/
+// continua varrido. Ver docs/ENVIRONMENT.md secao 0.2. Nunca ampliar esta lista.
+const SKIP_FILES = new Set([
+  'scripts/check-hardcoded-project-refs.mjs',
+  'public/config.js',
+]);
 
 const files = [];
 function walk(dir) {
