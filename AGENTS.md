@@ -14,4 +14,4 @@
 - O acompanhamento de transmissões fiscais lê apenas a fila persistida e respeita o contexto da empresa; estado fiscal nunca é inferido de ações locais.
 - Painéis de governança exibem apenas contagens e eventos consultados por empresa com RLS; indisponibilidade não pode ser apresentada como saúde ou conformidade verificada.
 - O acesso por unidade é uma política restritiva adicional: usuários com unidade fixa no perfil e sem papel de matriz só veem registros dessa unidade; quem não tem unidade fixa mantém o acesso da empresa, para não bloquear operações existentes. O canal fixo no perfil segue a mesma regra: nulo libera todos os canais.
-- O arquivo `.env` com as variáveis VITE_* públicas não pode ser ignorado pelo controle de versão; sem ele o build publicado fica sem conexão com o backend.
+- As variáveis `VITE_*` são injetadas pelo ambiente de build (painel do Lovable, CI ou `.env` local não versionado). `.env` nunca deve ser versionado: sem as variáveis no ambiente o build publicado fica sem conexão com o backend, e a correção é cadastrá-las no painel e republicar — não commitar o arquivo. Ver `docs/ENVIRONMENT.md` §0.1.

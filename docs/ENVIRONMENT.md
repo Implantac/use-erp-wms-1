@@ -38,6 +38,8 @@ O sistema tem duas camadas de configuração:
 
 **Não** volte a versionar `.env` e **não** reutilize a chave do projeto legado que esteve no histórico: rotacione-a antes de usar. A chave `anon` é pública por natureza, mas a segurança depende de RLS revisado.
 
+**INC-02 (06/11/2026):** o bot do Lovable publicou o merge `3e23d4f` ("Corrigiu env público e republicou") que **reintroduziu `.env` no índice**, removeu sua linha do `.gitignore`, fixou o ref do projeto legado em `.lovable/mcp/manifest.json` e em `supabase/functions/mcp/index.ts` (editando manualmente o bundle gerado) e registrou em `AGENTS.md` a instrução de nunca ignorar o arquivo. O `CI` `42230942234` falhou no step `Sem projeto, JWT ou token fixo no código (SEC-02)`. A correção remove `.env` do índice **sem apagá-lo do disco e sem reescrever histórico**, restaura `.gitignore`, o manifest com `project-ref-unset` e o bundle gerado, e substitui a instrução incorreta. Versionar segredo não é correção aceitável: se o Lovable fizer um novo publish sem as variáveis no painel, `supabaseKey is required.` retorna.
+
 **Evidência de aceite:** build com as variáveis presentes, smoke de login e uma leitura autenticada, com commit, ambiente, data e responsável registrados. Até essa evidência existir, a publicação permanece **NO-GO**.
 
 ## 1. Frontend (`.env`)
