@@ -9,7 +9,6 @@ import { PolicyProvider } from "@/core/orchestration/policyEngine";
 import { Loader2 } from 'lucide-react';
 import { ConfirmDialogProvider } from '@/shared/components/ConfirmDialog';
 import { useLowMarginAlertsRealtime } from '@/hooks/commercial/useLowMarginAlertsRealtime';
-import { WorkflowSwitcher } from '@/modules/core/components/WorkflowSwitcher';
 
 import { withRenderMonitor } from '@/core/debug/RenderDepthMonitor';
 
@@ -103,7 +102,6 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <WorkflowSwitcher />
               <Suspense fallback={<GlobalLoader />}>
                 <AppRoutes />
               </Suspense>
