@@ -28,6 +28,19 @@ function runtimeConfig(): UseErpRuntimeConfig {
   return window.__USE_ERP_CONFIG__ ?? {};
 }
 
+// Valores PUBLICOS do backend hospedado (URL + chave publicavel/anon, protegidos
+// por RLS). Usados apenas quando o build nao recebeu VITE_* e a pagina roda em
+// um dominio hospedado pelo Lovable — evita tela de erro no site publicado.
+const HOSTED_URL = "https://arcuhqdiydlvekanychw.supabase.co";
+const HOSTED_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFyY3VocWRpeWRsdmVrYW55Y2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MzkwMjcsImV4cCI6MjA4ODIxNTAyN30.A8cr7OwGiu2LvrPk7R5un4Ctd42XfxWy_sh7ViS16Vo";
+
+function isLovableHosted(): boolean {
+  if (typeof window === "undefined") return false;
+  const h = window.location.hostname;
+  return h.endsWith(".lovable.app") || h.endsWith(".lovableproject.com");
+}
+
 function cleanUrl(url: string): string {
   return url.trim().replace(/\/+$/, "");
 }
@@ -39,6 +52,7 @@ export function getSupabaseUrl(): string {
   const fromEnv = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   if (fromEnv && fromEnv.trim()) return cleanUrl(fromEnv);
 
+  if (isLovableHosted()) return HOSTED_URL;
   if (typeof window !== "undefined") return window.location.origin;
   return "";
 }
@@ -47,7 +61,9 @@ export function getSupabasePublishableKey(): string {
   const runtime = runtimeConfig().SUPABASE_PUBLISHABLE_KEY;
   if (runtime && runtime.trim()) return runtime.trim();
 
-  return (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ?? "";
+  const fromEnv = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+  return isLovableHosted() ? HOSTED_KEY : "";
 }
 
 /** URL pública para montar links de webhook (ex.: /functions/v1/psp-webhook). */
