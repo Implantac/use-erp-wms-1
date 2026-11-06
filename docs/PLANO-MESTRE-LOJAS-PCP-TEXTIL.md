@@ -236,6 +236,7 @@ O contrato proposto para LOJ-05/06 está em [DESENHO-CICLO-INTERCOMPANY-PRODUCAO
 | CI sem `skip`, com relatórios e reset | Novo job `isolated-e2e` **sem nenhum segredo**; `e2e/playwright.isolated.config.ts` com reporter anti-skip, HTML/JSON/traces e `globalTeardown`; step `if: always()` no workflow. **7/7 executados, 0 ignorados** localmente. |
 | Gates de contrato | 8 testes unitários em `scripts/e2e-isolated-lib.test.mjs` (JWT, filtros PostgREST, RPC, loopback), agora executados no job `unit` do CI. |
 | Regressão SEC-02 corrigida | `vitest.config.ts` passa a definir `test.env` inerte e a excluir `src/lib/testing/integration/**`; suíte **439/439** em 94 arquivos validada **sem `.env`**, reproduzindo o checkout limpo do CI. Os 2 testes de integração migraram para os 7 E2E isolados, sem perda de cobertura. |
+| Evidência de CI no HEAD `d7af1dfb` | `CI` `42097855161` ✅ (3 jobs); `Playwright Tests` `42097855168`: smoke público ✅, **`isolated-e2e` ✅** e autenticado ❌ pelos 19 segredos ausentes do baseline. |
 
 **Ainda aberto (QA-02/QA-03):** as jornadas de loja/PCP/fiscal continuam no job `authenticated` legado, que falha por 19 segredos ausentes, e os 3 golden paths seguem `test.fixme`. QA-01 removeu a falta de ambiente isolado, **não** fechou DD-01/DD-02 nem autorizou LOJ-05/06. Nenhum navegador/Chromium foi executado nesta frente e nenhuma tela foi validada. Ver §13 da avaliação técnica e `docs/E2E-Lojas.md` §0.
 
