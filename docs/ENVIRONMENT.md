@@ -21,6 +21,25 @@ O sistema tem duas camadas de configuração:
 - **Suíte unitária não depende de `.env`:** `vitest.config.ts` define `test.env` com URL/chave inertes e exclui `src/lib/testing/integration/**`. Esses dois testes falavam com um Supabase real e foram migrados para `tests/e2e/isolated-environment.spec.ts` (QA-01). Sem isso, o SEC-02 quebraria o CI: `createClient` lança na importação quando a chave está vazia.
 - Ainda é necessário **rotacionar as chaves do projeto legado** e revogar o token GitHub que foi compartilhado em texto: remover do repositório não invalida o que já esteve exposto no histórico.
 
+### 0.1 Publicação no Lovable — incidente `supabaseKey is required.`
+
+**Sintoma:** depois de sincronizar um commit a partir de `9080eead` (SEC-02) e publicar, o navegador abre em tela branca e o console mostra `Uncaught Error: supabaseKey is required.` em `new SupabaseClient` -> `createClient` -> `src/integrations/supabase/client.ts`.
+
+**Causa:** o `.env` deixou de ser versionado. Ao sincronizar, o arquivo sai do workspace do Lovable; se as variáveis não estiverem no painel, o `vite build` produz o bundle com `VITE_SUPABASE_PUBLISHABLE_KEY` vazia. `getSupabasePublishableKey()` devolve `""` e `createClient` é chamado já na importação do módulo, antes de qualquer tela renderizar. **O CI não detecta isso:** o step `Build não altera fontes rastreadas` compara o diff das fontes geradas, não executa o bundle com variáveis reais de ambiente.
+
+**Correção — no painel do Lovable, não no repositório:**
+
+1. Em *Project Settings > Environment Variables*, cadastre as três variáveis obrigatórias com os valores do **SEU** projeto Supabase (*Settings > API*):
+   - `VITE_SUPABASE_URL` = `https://<ref>.supabase.co`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY` = chave pública `anon` / publishable
+   - `VITE_SUPABASE_PROJECT_ID` = `<ref>` (usado pelo MCP e pelas URLs de webhook)
+2. **Gere um novo build e publique novamente.** Variáveis `VITE_*` são embutidas no JS pelo Vite no momento do build; salvar a variável sem republicar não altera o bundle já servido.
+3. Abra o app e confirme no console que o erro desapareceu e que as requisições vão para o domínio `.supabase.co` esperado. Sem `VITE_SUPABASE_URL`, `getSupabaseUrl()` cai para `window.location.origin` e a API responde 404 mesmo com a chave correta.
+
+**Não** volte a versionar `.env` e **não** reutilize a chave do projeto legado que esteve no histórico: rotacione-a antes de usar. A chave `anon` é pública por natureza, mas a segurança depende de RLS revisado.
+
+**Evidência de aceite:** build com as variáveis presentes, smoke de login e uma leitura autenticada, com commit, ambiente, data e responsável registrados. Até essa evidência existir, a publicação permanece **NO-GO**.
+
 ## 1. Frontend (`.env`)
 
 | Variável | Obrigatória | Finalidade | Onde obter | Risco |
