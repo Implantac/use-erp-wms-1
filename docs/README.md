@@ -10,6 +10,11 @@ Para o estado atual, prioridades, dependências e critérios de aceite deste esc
 - [Índice de planos — Lojas e PCP Têxtil](INDICE-PLANOS-LOJAS-PCP-TEXTIL.md) — classificação de 101 documentos e crosswalk das pendências antigas, sem apagar o histórico.
 - [Desenho do ciclo intercompany por produção](DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md) — contrato proposto para LOJ-05/06; **não implementado**, sem migrations aplicadas.
 
+Operação e evidência (registrado em 06/11/2026, sem alterar a baseline acima):
+
+- [Variáveis de ambiente e publicação](ENVIRONMENT.md) — provisionamento por ambiente (SEC-02) e correção do incidente `supabaseKey is required.` no Lovable (§0.1).
+- [E2E — Lojas e smoke de navegador](E2E-Lojas.md) — ambiente isolado QA-01, evidência de CI e limites das jornadas (§0).
+
 Planos `.lovable/plan`, revisões datadas, `FEATURE_STATUS.md` e `FLUXO-PCP-OPERACIONAL.md` permanecem como histórico/evidência da época. Em divergência, prevalecem o código atual e o plano-mestre. **Produção: NO-GO** — nenhum documento desta pasta autoriza publicar o app, aplicar migrations ou operar em produção.
 
 ## Estrutura de Documentos

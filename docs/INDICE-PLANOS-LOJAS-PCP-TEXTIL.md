@@ -4,6 +4,7 @@
 - **Baseline:** Git `8a5dbb35b328e890c377dffcdb595fc618d04c34`.
 - **Plano canônico:** [PLANO-MESTRE-LOJAS-PCP-TEXTIL.md](PLANO-MESTRE-LOJAS-PCP-TEXTIL.md).
 - **Estado de produção:** **NO-GO**.
+- **Mudanças de estado posteriores à revisão:** ver §6 (SEC-02/03, QA-01 e INC-01). As seções 1–5 e a baseline `8a5dbb35` permanecem como fotografia de 05/11/2026.
 
 ---
 
@@ -218,3 +219,21 @@ Estas são as conversões que mais causavam leitura duplicada. A coluna do meio 
 Em divergência, usar esta ordem: **código/migrations e evidência identificada da baseline `8a5dbb35` → plano-mestre → índice → roteiros de aceite com ressalvas → documentos históricos**. Um documento novo que altere estado deve atualizar o plano-mestre e a linha correspondente deste índice na mesma mudança.
 
 Para a sequência de trabalho, prioridades, dependências e critérios de saída, ver exclusivamente as seções 7 e 8 do [plano-mestre](PLANO-MESTRE-LOJAS-PCP-TEXTIL.md).
+
+---
+
+## 6. Registro de mudanças de estado posteriores à revisão (06/11/2026)
+
+Esta seção cumpre a regra da §5 **sem reclassificar os 101 candidatos e sem reescrever a baseline `8a5dbb35`**: as seções 1–5 continuam sendo a fotografia de 05/11/2026. Ela apenas aponta onde o estado corrente passou a ser governado. **Produção: NO-GO em todas as linhas.**
+
+| Commit | Mudança de estado | Onde está a evidência |
+| --- | --- | --- |
+| `5d1e1b64`, `91af8494` | LOJ-08 sem indicadores fabricados; desenho LOJ-05/06 (D1–D7) registrado **sem migration** | plano-mestre §7.1; `DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md` |
+| `9080eead` | SEC-02/03: `.env` fora do índice, provisionamento por ambiente, refs/JWT legados removidos, `search_path` explícito e gates no harness/CI | `ENVIRONMENT.md` §0 |
+| `582b9ee6` → `d7af1dfb` | QA-01: ambiente E2E isolado sem segredos (504 migrations, 7/7), correção das 3 regressões de CI e bundle MCP passando a ser gerado | `E2E-Lojas.md` §0; plano-mestre §7.1 |
+| `4365895` | Evidência dos runs de CI levada para os documentos versionados | `E2E-Lojas.md` §0; plano-mestre §7.1 |
+| `0211229` | INC-01: publicação no Lovable sem `VITE_SUPABASE_*` resultou em `supabaseKey is required.`; correção é **operacional** (painel + rebuild), não versionar `.env` | `ENVIRONMENT.md` §0.1; `src/integrations/supabase/client.ts` |
+
+**Documentos novos fora dos 101 candidatos:** `ENVIRONMENT.md`. `E2E-Lojas.md` e o plano-mestre já existiam na revisão e foram atualizados; suas linhas no inventário (§2) seguem válidas como classificação. O parecer de due diligence continua fora do repositório, em `/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md`.
+
+**Ressalva de governança (INC-01):** `CI` verde valida diff de fontes, suítes e harness; **não executa o bundle com variáveis reais de ambiente**. Nenhuma linha desta seção é aceite formal — continua exigindo commit, ambiente, data, responsável e smoke pós-publicação.
