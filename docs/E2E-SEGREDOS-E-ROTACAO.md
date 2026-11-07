@@ -54,6 +54,7 @@ Ou seja: **a API já está coberta no isolado; o que falta é o frontend + fisca
 
 ## 4. O que seria necessário para o job autenticado ficar verde
 
+0. **Pré-voo local:** `node scripts/validate-homologacao-env.mjs` com as variáveis carregadas de um arquivo **não versionado**. O script lê os 18 nomes do próprio workflow, reprova placeholders, PAT em texto e URL de produção, e nunca imprime valores (5 testes unitários; `--list` ajuda a provisionar). É diagnóstico do operador — **não** substitui a execução dos testes, **não** está no CI e **não** afrouxa o gate.
 1. Um ambiente de **homologação isolado**, com frontend (`vite dev`/build servido) e banco migrado, sem nenhum dado de cliente e sem apontar para produção.
 2. Cadastrar os **18** segredos no repositório GitHub (Settings → Secrets and variables → Actions), preferencialmente por secret manager, nunca em texto no chat nem em arquivo versionado.
 3. Preparar massa determinística: 2 tenants, usuários de loja/gestor/PCP, produto com saldo, filial loja e CD, produto/componente/lote de tecelagem, e uma transferência em `SEPARAÇÃO` para o spec fiscal.

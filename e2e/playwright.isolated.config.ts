@@ -25,6 +25,7 @@ export default defineConfig({
     'tests/e2e/isolated-role-separation.spec.ts',
     'tests/e2e/isolated-production-completion.spec.ts',
     'tests/e2e/isolated-tenant-isolation.spec.ts',
+    'tests/e2e/isolated-production-rls-finding.spec.ts',
     'tests/e2e/production-golden-path.spec.ts',
     'tests/e2e/sales-golden-path.spec.ts',
     'tests/e2e/purchase-golden-path.spec.ts',

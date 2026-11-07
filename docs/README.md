@@ -14,7 +14,7 @@ Operação e evidência (registrado em 06/11/2026, sem alterar a baseline acima)
 
 - [Variáveis de ambiente e publicação](ENVIRONMENT.md) — provisionamento por ambiente (SEC-02) e correção do incidente `supabaseKey is required.` no Lovable (§0.1).
 - [E2E — Lojas e smoke de navegador](E2E-Lojas.md) — ambiente isolado QA-01, evidência de CI e limites das jornadas (§0).
-- [Segredos do E2E autenticado e rotação](E2E-SEGREDOS-E-ROTACAO.md) — correção da contagem para **18** segredos, inventário por spec, o que já tem cobertura isolada e o plano de rotação de PATs/chaves que depende do responsável.
+- [Segredos do E2E autenticado e rotação](E2E-SEGREDOS-E-ROTACAO.md) — acompanhado de `scripts/validate-homologacao-env.mjs` (pré-voo local dos 18 nomes, sem imprimir valores). — correção da contagem para **18** segredos, inventário por spec, o que já tem cobertura isolada e o plano de rotação de PATs/chaves que depende do responsável.
 
 Planos `.lovable/plan`, revisões datadas, `FEATURE_STATUS.md` e `FLUXO-PCP-OPERACIONAL.md` permanecem como histórico/evidência da época. Em divergência, prevalecem o código atual e o plano-mestre. **Produção: NO-GO** — nenhum documento desta pasta autoriza publicar o app, aplicar migrations ou operar em produção.
 
