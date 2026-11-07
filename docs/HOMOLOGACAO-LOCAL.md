@@ -1,12 +1,37 @@
 # Roteiro de homologação local — USE ERP-WMS (produção têxtil)
 
+## 0. Atualização de 07/11/2026 (QA-06) — ler primeiro
+
+**Status:** 🟡 **proposta revisável, NÃO executada nesta rodada**. O sandbox não tem Docker; nenhum container foi criado, nenhuma migration foi aplicada em banco real e nenhum segredo foi cadastrado. O roteiro original das seções 1–8 continua válido como **histórico do procedimento Windows**, mas duas premissas mudaram:
+
+| Premissa antiga | Estado atual (07/11/2026) |
+| --- | --- |
+| "504 migrations" | **504 migrations** (`supabase/migrations`) |
+| "jornada do gerente 94/94 e fixture E2E 11/11" | suíte isolada **24 testes, `skip=0`** (QA-01 a QA-05), CI `42327963567` / job `128267583622` |
+| Homologação sem vínculo com o CI | gate autenticado exige **18 segredos**; pré-voo em `scripts/validate-homologacao-env.mjs` |
+
+**O ambiente como código já existe** em `docker-compose.local.yml` + `Dockerfile.local` (Supabase self-hosted: db, auth, rest, realtime, storage, imgproxy, functions, migrate, web). Esta rodada **não** criou uma stack paralela: entregou uma auditoria, um overlay de segurança, um bootstrap não executado e um validador estático:
+
+- `infra/homologacao/docker-compose.homologacao.yml` — **overlay** que reaproveita o compose base e corrige 4 invariantes: `0.0.0.0:8080` → `127.0.0.1` (com `!reset`, porque `ports` é concatenado pelo Compose), tag `:latest` → tag fixa, `restart: unless-stopped` → `"no"`, e `ANON_KEY` com falha fechada. Requer Docker Compose ≥ 2.24.4.
+- `infra/homologacao/bootstrap.sh` — procedimento com pré-voo, `E2E_REQUIRE_ALL=1`, seeds e `trap … EXIT` para `down -v`.
+- `infra/homologacao/homologacao.env.example` — apenas os **18 nomes** e placeholders; copiar para `.env.homologacao` (não versionado).
+- `scripts/validate-homologacao-compose.mjs` + 14 testes — invariantes estáticos; **não** está no CI e **não** altera o gate.
+- `infra/homologacao/README.md` — auditoria A-01…A-08, limites (NF-e/SEFAZ, PSP, 3 specs de navegador) e critério de saída.
+
+**Segredo de isolamento:** `docker/local/web/40-useerp-config.sh` **reescreve** `/config.js` na subida com a `ANON_KEY` local. Sem isso, o `public/config.js` versionado (que aponta para a publicação no Lovable) faria a homologação falar com produção — ver `docs/ENVIRONMENT.md` §0.2.
+
+**Não substituído por este documento:** decisão sobre o grant de `production_rework_orders` ([ADR-QA05-GRANT-REWORK.md](ADR-QA05-GRANT-REWORK.md)), rotação de PATs/chave legada, restore, fiscal/PSP e **aceite formal**. **Produção: NO-GO.** O job autenticado do CI continua ❌ no step 4 pelos 18 segredos — comportamento correto do gate.
+
+---
+
+
 Sequência exata para sair de "comprovado em harness isolado" para **homologado
 na sua máquina**. Marque cada etapa só com a evidência indicada ao lado.
 Pré-requisito: Windows com Docker Desktop (WSL2) e **6 GB de RAM** alocados
 (Settings → Resources), porque o build web usa heap de até 4 GB.
 
-> Status antes de começar: 459 migrations no repositório; jornada do gerente
-> 94/94 e fixture E2E 11/11 comprovadas em PostgreSQL embarcado. Nada disso
+> Status antes de começar: 504 migrations no repositório; jornada do gerente
+> 24 testes isolados (QA-01 a QA-05), `skip=0`, comprovados em PostgreSQL embarcado. Nada disso
 > substitui os passos abaixo na sua stack.
 
 ## 1. Subir a stack local
@@ -21,14 +46,14 @@ docker compose -f docker-compose.local.yml --env-file .env.local ps
 functions, imgproxy, meta, migrate, studio, web) e o serviço `migrate`
 terminando sem erro (ele para na primeira migration que falhar).
 
-## 2. Conferir as 459 migrations aplicadas
+## 2. Conferir as 504 migrations aplicadas
 
 ```powershell
 docker compose -f docker-compose.local.yml --env-file .env.local exec db `
   psql -U supabase_admin -d postgres -tAc "SELECT count(*) FROM supabase_migrations.schema_migrations"
 ```
 
-**Evidência:** contagem compatível com as 459 migrations do repositório
+**Evidência:** contagem compatível com as 504 migrations do repositório
 (versões duplicadas históricas são registradas com sufixo pelo `migrate.sh`;
 em dúvida, confira que as seis de 2026-10-19 constam:
 `20261019100000`, `20261019110000`, `20261019120000`, `20261019130000`,

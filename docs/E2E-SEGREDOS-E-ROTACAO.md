@@ -12,7 +12,7 @@ Os 18 são lidos de `secrets.*` do repositório GitHub. Sem todos eles o step en
 
 ## 2. Inventário dos 18 segredos
 
-"Cobertura isolada" indica onde a **intenção de negócio** já é provada sem segredos, em `bun run e2e:isolated` (22 testes, `skip=0`). Isso **não** substitui o job autenticado: os specs de navegador continuam exigindo um frontend de homologação.
+"Cobertura isolada" indica onde a **intenção de negócio** já é provada sem segredos, em `bun run e2e:isolated` (24 testes, `skip=0`). Isso **não** substitui o job autenticado: os specs de navegador continuam exigindo um frontend de homologação.
 
 | # | Secret | Consumidor(es) | Finalidade | Cobertura isolada equivalente |
 | --- | --- | --- | --- | --- |
@@ -55,7 +55,7 @@ Ou seja: **a API já está coberta no isolado; o que falta é o frontend + fisca
 ## 4. O que seria necessário para o job autenticado ficar verde
 
 0. **Pré-voo local:** `node scripts/validate-homologacao-env.mjs` com as variáveis carregadas de um arquivo **não versionado**. O script lê os 18 nomes do próprio workflow, reprova placeholders, PAT em texto e URL de produção, e nunca imprime valores (5 testes unitários; `--list` ajuda a provisionar). É diagnóstico do operador — **não** substitui a execução dos testes, **não** está no CI e **não** afrouxa o gate.
-1. Um ambiente de **homologação isolado**, com frontend (`vite dev`/build servido) e banco migrado, sem nenhum dado de cliente e sem apontar para produção.
+1. Um ambiente de **homologação isolado**, com frontend (`vite dev`/build servido) e banco migrado, sem nenhum dado de cliente e sem apontar para produção. **QA-06 (07/11/2026):** o repositório já tem essa topologia em `docker-compose.local.yml`; o overlay `infra/homologacao/docker-compose.homologacao.yml`, o `bootstrap.sh` e o `homologacao.env.example` a restringem para teste (loopback, sem `:latest`, teardown obrigatório). É **proposta não executada** — sem Docker neste sandbox — e está auditada em `infra/homologacao/README.md`.
 2. Cadastrar os **18** segredos no repositório GitHub (Settings → Secrets and variables → Actions), preferencialmente por secret manager, nunca em texto no chat nem em arquivo versionado.
 3. Preparar massa determinística: 2 tenants, usuários de loja/gestor/PCP, produto com saldo, filial loja e CD, produto/componente/lote de tecelagem, e uma transferência em `SEPARAÇÃO` para o spec fiscal.
 4. Só então rodar `bun run e2e:critical` com `E2E_REQUIRE_ALL=1` e **zero `skip`** — o reporter anti-skip já está configurado para reprovar.

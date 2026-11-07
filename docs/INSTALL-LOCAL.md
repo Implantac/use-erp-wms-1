@@ -18,7 +18,7 @@ containers Docker ao lado do banco — a mesma tecnologia da nuvem
 
 Extraia o projeto, abra a pasta e dê **duplo clique em `INSTALAR-TUDO.bat`**:
 ele confere/abre o Docker Desktop, gera os segredos, sobe a stack, aplica as
-459 migrations, pergunta se cadastra a BIL e abre o navegador. Para ligar e
+504 migrations, pergunta se cadastra a BIL e abre o navegador. Para ligar e
 desligar depois, use `INICIAR-SISTEMA.bat` e `PARAR-SISTEMA.bat`. Os passos
 manuais equivalentes estão no restante deste documento.
 
@@ -51,7 +51,7 @@ precisar recompilar nada.
 | `.env.local` (gerado, **secreto**) | Senhas e chaves desta instalação — **não compartilhe, não commite** |
 | `.env.local.example` | Referência das variáveis |
 | `Dockerfile.local` + `docker/local/nginx.conf` | Frontend que também é a porta de entrada da API |
-| `docker/local/scripts/migrate.sh` | Aplica as migrations do diretório (459 arquivos atualmente) 1x e reaponta os agendamentos |
+| `docker/local/scripts/migrate.sh` | Aplica as migrations do diretório (504 arquivos em 07/11/2026) 1x e reaponta os agendamentos |
 | `docker/local/scripts/generate-env.mjs` | Gera os segredos (usado no Linux/macOS; o `.ps1` gera sozinho no Windows) |
 | `docker/local/volumes/` | Scripts oficiais de inicialização do Supabase self-hosted |
 | `src/integrations/supabase/config.ts` | Resolve URL/chave em tempo de execução (nuvem continua igual) |
@@ -88,7 +88,7 @@ O instalador:
 2. Gera o `.env.local` com **segredos novos** (senha do banco, chaves de API, senha do painel);
 3. Pergunta qual IP os outros computadores vão usar (escolha o IP da sua rede, ex. `192.168.0.10`) e tenta liberar a porta **8080** no Firewall do Windows (perfil *Privado*);
 4. Baixa as imagens, constrói o frontend e sobe tudo;
-5. Aplica as **459 migrations atuais** no PostgreSQL local e reaponta os agendamentos (pg_cron) que nasceram apontando para a nuvem antiga;
+5. Aplica as **504 migrations atuais** no PostgreSQL local e reaponta os agendamentos (pg_cron) que nasceram apontando para a nuvem antiga;
 6. Testa `http://localhost:8080` e mostra os endereços.
 
 Na primeira vez demora (download das imagens + build + migrations). Nas
@@ -306,7 +306,7 @@ teste de integração que já falhava antes, por exigir a nuvem ao vivo).
 
 ## 10. Atualização 19/10/2026 — PCP têxtil e limite de homologação
 
-- O repositório tem agora **459 migrations**. As de 2026-10-19 implementam a conclusão transacional de OP e o PCP de tecelagem (snapshot, reservas, capacidade finita, etapas, qualidade, genealogia e compra MRP) e quatro correções obrigatórias para o uso diário: default de `products.item_kind`, replica identity de `stock_balances`, trigger de alerta de atraso (uuid=text) e remoção do trigger legado de conclusão automática.
+- O repositório tem agora **504 migrations**. As de 2026-10-19 implementam a conclusão transacional de OP e o PCP de tecelagem (snapshot, reservas, capacidade finita, etapas, qualidade, genealogia e compra MRP) e quatro correções obrigatórias para o uso diário: default de `products.item_kind`, replica identity de `stock_balances`, trigger de alerta de atraso (uuid=text) e remoção do trigger legado de conclusão automática.
 - Essas duas migrations foram aprovadas em PostgreSQL embarcado isolado e pelos testes permanentes do repositório, mas **ainda não foram aplicadas nesta stack Docker completa**. A validação 451/451 da seção 8.5 é anterior a elas; rode o instalador para aplicá-las e trate qualquer falha como bloqueio, sem marcar a migration como aplicada.
 - Depois de subir a stack, cadastre a BIL com `cadastrar-bil.ps1`/`.sh` e homologue a jornada de tecelagem com a fixture e as variáveis descritas em `docs/INDUSTRIAL_TEXTILE_GUIDE.md` antes de usar dados reais de produção.
 

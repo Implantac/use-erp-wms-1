@@ -1,0 +1,67 @@
+# ============================================================================
+# USE ERP — OVERLAY de HOMOLOGACAO (QA-06)
+#
+# NAO e uma stack nova: reaproveita TODOS os servicos de
+# docker-compose.local.yml (db, auth, rest, realtime, storage, imgproxy,
+# functions, migrate, web, meta, studio). Este arquivo apenas restringe o
+# que e inaceitavel num ambiente de teste e NAO altera a instalacao local.
+#
+#   docker compose \
+#     -f docker-compose.local.yml \
+#     -f infra/homologacao/docker-compose.homologacao.yml \
+#     --env-file .env.homologacao config -q
+#
+# Requisito: Docker Compose v2.24.4+ (usa !reset / !override).
+#
+# Status 07/11/2026: PROPOSTA NAO EXECUTADA. Nenhum container foi criado,
+# nenhuma migration foi aplicada e nenhum segredo foi gravado nesta rodada.
+# Ver infra/homologacao/README.md e scripts/validate-homologacao-compose.mjs.
+# ============================================================================
+name: use-erp-homologacao
+
+services:
+  # O compose base usa `restart: unless-stopped` em tudo. Num ambiente de
+  # teste isso resurrecta containers depois do teardown e pode reaproveitar
+  # um banco sujo entre execucoes.
+  db:
+    restart: "no"
+  auth:
+    restart: "no"
+  rest:
+    restart: "no"
+  realtime:
+    restart: "no"
+  storage:
+    restart: "no"
+  imgproxy:
+    restart: "no"
+  migrate:
+    restart: "no"
+
+  functions:
+    restart: "no"
+    # O compose base publica a imagem com a tag mutavel `:latest`. Em
+    # homologacao a imagem precisa ser identificavel no relatorio de aceite.
+    image: useerp-functions-homologacao:local
+
+  web:
+    restart: "no"
+    # ACHADO DE AUDITORIA: o compose base publica "${WEB_PORT:-8080}:80",
+    # isto e, 0.0.0.0:8080 — proposital para a instalacao local em rede
+    # privada, mas inaceitavel para homologacao. `ports` e uma opcao
+    # CONCATENADA pelo Compose, entao apenas acrescentar a porta de loopback
+    # deixaria as duas ativas. `!reset` substitui a lista por completo.
+    ports: !reset ["127.0.0.1:${WEB_PORT:-8080}:80"]
+    environment:
+      # Falha fechado se o env-file nao foi gerado. O entrypoint
+      # docker/local/web/40-useerp-config.sh REESCREVE /config.js na subida,
+      # substituindo o public/config.js versionado (que aponta para a nuvem
+      # publicada). Sem essa sobrescrita a homologacao falaria com producao.
+      ANON_KEY: ${ANON_KEY:?ANON_KEY ausente — rode generate-env.mjs}
+
+  # Painel do banco nao participa do gate: sobe apenas com
+  # --profile homologacao-debug, nunca no bootstrap padrao.
+  meta:
+    profiles: ["homologacao-debug"]
+  studio:
+    profiles: ["homologacao-debug"]

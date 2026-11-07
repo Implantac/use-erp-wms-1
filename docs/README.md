@@ -16,6 +16,9 @@ Operação e evidência (registrado em 06/11/2026, sem alterar a baseline acima)
 - [E2E — Lojas e smoke de navegador](E2E-Lojas.md) — ambiente isolado QA-01, evidência de CI e limites das jornadas (§0).
 - [Segredos do E2E autenticado e rotação](E2E-SEGREDOS-E-ROTACAO.md) — acompanhado de `scripts/validate-homologacao-env.mjs` (pré-voo local dos 18 nomes, sem imprimir valores). — correção da contagem para **18** segredos, inventário por spec, o que já tem cobertura isolada e o plano de rotação de PATs/chaves que depende do responsável.
 
+- [ADR — achado de RLS em `production_rework_orders`](ADR-QA05-GRANT-REWORK.md) — 4 opções, o falso verde do `GRANT UPDATE` isolado e a decisão de **não aplicar** sem autorização explícita.
+- [Homologação local](HOMOLOGACAO-LOCAL.md) §0 e [homologação como código](../infra/homologacao/README.md) — auditoria do `docker-compose.local.yml` existente, overlay de loopback, bootstrap **não executado** e contagem corrigida para **504 migrations** / **24 testes isolados**.
+
 Planos `.lovable/plan`, revisões datadas, `FEATURE_STATUS.md` e `FLUXO-PCP-OPERACIONAL.md` permanecem como histórico/evidência da época. Em divergência, prevalecem o código atual e o plano-mestre. **Produção: NO-GO** — nenhum documento desta pasta autoriza publicar o app, aplicar migrations ou operar em produção.
 
 ## Estrutura de Documentos
