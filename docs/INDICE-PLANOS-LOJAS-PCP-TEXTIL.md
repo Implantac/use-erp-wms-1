@@ -236,6 +236,8 @@ Esta seção cumpre a regra da §5 **sem reclassificar os 101 candidatos e sem r
 
 **Documentos novos fora dos 101 candidatos:** `ENVIRONMENT.md`. `E2E-Lojas.md` e o plano-mestre já existiam na revisão e foram atualizados; suas linhas no inventário (§2) seguem válidas como classificação. O parecer de due diligence continua fora do repositório, em `/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md`.
 
+| QA-02 (06/11/2026) | Primeira escrita de negócio no ambiente isolado: 10 testes, `skip=0`, pedido de abastecimento com RLS real e fail-closed de quantidade inválida; cadeia completa e golden paths ainda abertos | `E2E-Lojas.md` §0; `tests/e2e/isolated-store-journey.spec.ts` |
+
 **INC-02 (06/11/2026):** o merge `3e23d4f`, do bot do Lovable, reintroduziu `.env` e o ref legado e falhou no gate SEC-02; foi corrigido por commit posterior sem apagar o arquivo do disco nem reescrever histórico. Detalhe e procedimento em `ENVIRONMENT.md` §0.1.
 
 **Ressalva de governança (INC-01):** `CI` verde valida diff de fontes, suítes e harness; **não executa o bundle com variáveis reais de ambiente**. Nenhuma linha desta seção é aceite formal — continua exigindo commit, ambiente, data, responsável e smoke pós-publicação.

@@ -18,7 +18,10 @@ Object.assign(process.env, {
 
 export default defineConfig({
   testDir: '..',
-  testMatch: ['tests/e2e/isolated-environment.spec.ts'],
+  testMatch: [
+    'tests/e2e/isolated-environment.spec.ts',
+    'tests/e2e/isolated-store-journey.spec.ts',
+  ],
   globalTeardown: './isolated-global-teardown.ts',
   timeout: 60 * 1000,
   expect: { timeout: 10 * 1000 },
