@@ -64,13 +64,8 @@ export function assertLoopback(url) {
  * Traduz o subconjunto de PostgREST usado pela suíte (`select`, filtros
  * `eq/neq/gt/.../in/is`, `order`, `limit`) para SQL parametrizado.
  */
-export function buildTableQuery(table, searchParams, single = false) {
-  const select = searchParams.get('select') || '*';
-  const columns = select === '*'
-    ? '*'
-    : select.split(',').map((c) => quoteIdent(c.trim())).join(', ');
+function translateFilters(searchParams, values) {
   const where = [];
-  const values = [];
   const ignored = new Set(['select', 'order', 'limit', 'offset', 'apikey']);
 
   for (const [key, raw] of searchParams.entries()) {
@@ -96,6 +91,16 @@ export function buildTableQuery(table, searchParams, single = false) {
       where.push(`${column} ${OPS[op]} $${values.length}`);
     }
   }
+  return where;
+}
+
+export function buildTableQuery(table, searchParams, single = false) {
+  const select = searchParams.get('select') || '*';
+  const columns = select === '*'
+    ? '*'
+    : select.split(',').map((c) => quoteIdent(c.trim())).join(', ');
+  const values = [];
+  const where = translateFilters(searchParams, values);
 
   let sql = `SELECT ${columns} FROM public.${quoteIdent(table)}`;
   if (where.length) sql += ` WHERE ${where.join(' AND ')}`;
@@ -149,4 +154,48 @@ export function parseEnvFile(text) {
     result[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
   }
   return result;
+}
+
+/**
+ * QA-03 — INSERT via REST. Continua sendo SQL real sob `SET LOCAL ROLE
+ * authenticated` (RLS de INSERT e triggers de negocio se aplicam). O body e
+ * um objeto simples: colunas e valores sao parametrizados, nunca interpolados.
+ */
+export function buildInsertQuery(table, body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new Error('INSERT exige um objeto JSON');
+  }
+  const entries = Object.entries(body);
+  if (!entries.length) throw new Error('INSERT exige ao menos uma coluna');
+  const columns = entries.map(([key]) => quoteIdent(key));
+  const values = entries.map(([, value]) => paramValue(value));
+  const placeholders = values.map((_, i) => `$${i + 1}`);
+  return {
+    sql: `INSERT INTO public.${quoteIdent(table)} (${columns.join(', ')}) `
+      + `VALUES (${placeholders.join(', ')}) RETURNING *`,
+    values,
+  };
+}
+
+/**
+ * QA-03 — UPDATE via REST. Fail-closed: SEM filtro nao ha UPDATE, para que
+ * um teste nunca altere a massa inteira do ambiente isolado por acidente.
+ */
+export function buildUpdateQuery(table, body, searchParams) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw new Error('UPDATE exige um objeto JSON');
+  }
+  const entries = Object.entries(body);
+  if (!entries.length) throw new Error('UPDATE exige ao menos uma coluna');
+  const values = entries.map(([, value]) => paramValue(value));
+  const assignments = entries.map(([key], i) => `${quoteIdent(key)} = $${i + 1}`);
+  const where = translateFilters(searchParams, values);
+  if (!where.length) {
+    throw new Error('UPDATE exige ao menos um filtro eq./in./is. (fail-closed)');
+  }
+  return {
+    sql: `UPDATE public.${quoteIdent(table)} SET ${assignments.join(', ')} `
+      + `WHERE ${where.join(' AND ')} RETURNING *`,
+    values,
+  };
 }

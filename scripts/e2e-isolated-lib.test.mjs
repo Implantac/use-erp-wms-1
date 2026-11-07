@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   assertLoopback, buildRpcCall, buildTableQuery, parseEnvFile,
-  quoteIdent, signJwt, verifyJwt,
+  quoteIdent, signJwt, verifyJwt, buildInsertQuery, buildUpdateQuery,
 } from './e2e-isolated-lib.mjs';
 
 const SECRET = 'unit-test-secret';
@@ -105,4 +105,28 @@ test('dotenv gerado: comentarios e linhas vazias sao ignorados', () => {
   assert.deepEqual(parseEnvFile('# gerado\nA=1\n\nB=http://127.0.0.1:1\nSEM_IGUAL\n'), {
     A: '1', B: 'http://127.0.0.1:1',
   });
+});
+
+test('INSERT via REST: colunas parametrizadas e identificador validado', () => {
+  const built = buildInsertQuery('orders', { number: 'PV-QA03-1', total: 3000 });
+  assert.match(built.sql, /^INSERT INTO public\."orders" \("number", "total"\)/);
+  assert.match(built.sql, /VALUES \(\$1, \$2\) RETURNING \*/);
+  assert.deepEqual(built.values, ['PV-QA03-1', 3000]);
+  assert.throws(() => buildInsertQuery('orders; DROP TABLE users', { a: 1 }), /identificador invalido/);
+  assert.throws(() => buildInsertQuery('orders', {}), /ao menos uma coluna/);
+  assert.throws(() => buildInsertQuery('orders', []), /objeto JSON/);
+  const json = buildInsertQuery('orders', { meta: { a: 1 } });
+  assert.equal(json.values[0], '{"a":1}');
+});
+
+test('UPDATE via REST: fail-closed sem filtro e WHERE parametrizado', () => {
+  const params = new URLSearchParams({ id: 'eq.e3000000-0000-4000-8000-000000000050' });
+  const built = buildUpdateQuery('orders', { status: 'confirmed' }, params);
+  assert.match(built.sql, /SET "status" = \$1 WHERE "id" = \$2 RETURNING \*/);
+  assert.deepEqual(built.values, ['confirmed', 'e3000000-0000-4000-8000-000000000050']);
+  assert.throws(() => buildUpdateQuery('orders', { status: 'confirmed' }, new URLSearchParams()), /fail-closed/);
+  assert.throws(() => buildUpdateQuery('orders', { status: 'confirmed' }, new URLSearchParams({ limit: '1' })), /fail-closed/);
+  assert.throws(() => buildUpdateQuery('orders', {}, params), /ao menos uma coluna/);
+  assert.throws(() => buildUpdateQuery('orders', { 'x; DROP TABLE y': 1 }, params), /identificador invalido/);
+  assert.throws(() => buildUpdateQuery('orders', { status: 'x' }, new URLSearchParams({ id: 'sem-operador' })), /filtro PostgREST nao suportado/);
 });

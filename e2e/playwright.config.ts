@@ -9,6 +9,15 @@ export default defineConfig({
     'e2e/tests/**/*.test.ts',
     'tests/e2e/**/*.spec.ts',
   ],
+  // QA-03: as suites abaixo so existem sobre o Postgres EMBARCADO (subido por
+  // scripts/e2e-isolated-server.mjs) e nao podem ser executadas contra
+  // homologacao/producao. Rodam exclusivamente em playwright.isolated.config.ts.
+  testIgnore: [
+    'tests/e2e/isolated-*.spec.ts',
+    'tests/e2e/production-golden-path.spec.ts',
+    'tests/e2e/sales-golden-path.spec.ts',
+    'tests/e2e/purchase-golden-path.spec.ts',
+  ],
   /* Maximum time one test can run for. */
   timeout: 30 * 1000,
   expect: {

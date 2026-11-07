@@ -25,7 +25,8 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import {
-  assertLoopback, buildRpcCall, buildTableQuery, signJwt, verifyJwt,
+  assertLoopback, buildRpcCall, buildTableQuery, buildInsertQuery,
+  buildUpdateQuery, signJwt, verifyJwt,
 } from './e2e-isolated-lib.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -42,6 +43,11 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 const ADMIN_EMAIL = 'etcsuporte889@gmail.com';
 const ADMIN_PASSWORD = 'SenhaTeste123'; // valor de teste local do harness; sem segredo real
 const ANON_KEY = 'e2e-isolated-anon-key';
+// QA-03 — duas identidades REAIS (auth.users + profiles + user_roles).
+// Sao valores de teste locais, sem segredo: o Postgres e descartado a cada
+// execucao e o servidor so escuta em 127.0.0.1.
+const STORE_EMAIL = 'loja-qa03@useerp.test';
+const STORE_PASSWORD = 'Qa03Loja@2026';
 const MARKER = 'QA-01-ISOLATED-E2E';
 const ENV = { ...process.env, LD_LIBRARY_PATH: LIB };
 const SECRET = randomBytes(32).toString('hex'); // nao persiste, muda a cada execucao
@@ -217,6 +223,87 @@ try {
           )`, [companyId, hqBranchId, productId]);
   }
 
+  // QA-03 — segunda identidade: OPERADOR DA LOJA (role 'operator'), sem
+  // nenhum papel de gestor. As guardas reais factory_inbox(),
+  // decide_supply_request() e a aprovacao em transition_stock_transfer()
+  // devem recusar este usuario, enquanto create_supply_request() e as
+  // transicoes de rede devem aceita-lo. Nada e mock: RLS e auth.uid() reais.
+  const cryptSchema = (await pool.query(
+    `SELECT n.nspname AS s FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE p.proname = 'crypt' AND n.nspname IN ('extensions','public') LIMIT 1`)).rows[0]?.s;
+  if (!cryptSchema || !/^[a-z_][a-z0-9_]*$/.test(cryptSchema)) {
+    throw new Error('pgcrypto/crypt ausente ou schema invalido: operador da loja nao pode ser criado');
+  }
+  const storeBranchId = (await pool.query(
+    `SELECT id::text AS id FROM public.branches
+      WHERE company_id = $1 AND code = 'LOJA-QA02' LIMIT 1`, [companyId])).rows[0]?.id ?? null;
+  let storeUserId = null;
+  if (companyId && storeBranchId) {
+    const conn = await pool.connect();
+    try {
+      await conn.query('BEGIN');
+      // A trigger on_auth_user_created cria o profile sem empresa. As guardas
+      // de tenant so permitem a primeira vinculacao com este sinalizador
+      // transacional (mesmo mecanismo usado por seed-e2e-lojas.sql).
+      await conn.query(`SELECT set_config('app.allow_tenant_link', 'on', true)`);
+      await conn.query(`SELECT set_config('request.jwt.claims', '{}', true)`);
+      const hash = (await conn.query(
+        `SELECT ${cryptSchema}.crypt($1, ${cryptSchema}.gen_salt('bf', 10)) AS h`,
+        [STORE_PASSWORD])).rows[0].h;
+      storeUserId = (await conn.query(
+        `SELECT id::text AS id FROM auth.users WHERE lower(email) = lower($1) LIMIT 1`,
+        [STORE_EMAIL])).rows[0]?.id ?? null;
+      if (!storeUserId) {
+        storeUserId = (await conn.query(
+          `INSERT INTO auth.users (
+             instance_id, id, aud, role, email, encrypted_password,
+             email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+             is_super_admin, is_sso_user, created_at, updated_at,
+             confirmation_token, recovery_token, email_change_token_new,
+             email_change, email_change_token_current, phone, phone_change,
+             phone_change_token, reauthentication_token
+           ) VALUES (
+             '00000000-0000-0000-0000-000000000000', gen_random_uuid(),
+             'authenticated', 'authenticated', $1, $2, now(),
+             '{"provider":"email","providers":["email"]}'::jsonb,
+             '{"name":"Operador Loja QA-03"}'::jsonb,
+             false, false, now(), now(), '', '', '', '', '', NULL, '', '', ''
+           ) RETURNING id::text AS id`, [STORE_EMAIL, hash])).rows[0].id;
+      }
+      await conn.query(
+        `DELETE FROM auth.identities WHERE user_id = $1 AND provider = 'email'`, [storeUserId]);
+      await conn.query(
+        `INSERT INTO auth.identities
+           (id, user_id, identity_data, provider, provider_id,
+            last_sign_in_at, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1::uuid,
+           jsonb_build_object('sub', $1::text, 'email', $2::text,
+             'email_verified', true, 'phone_verified', false),
+           'email', $1::text, now(), now(), now())`,
+        [storeUserId, STORE_EMAIL]);
+      await conn.query(
+        `INSERT INTO public.profiles
+           (id, name, email, company_id, branch_id, default_branch_id)
+         VALUES ($1, 'Operador Loja QA-03', $2, $3, $4, $4)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name, email = EXCLUDED.email,
+           company_id = EXCLUDED.company_id, branch_id = EXCLUDED.branch_id,
+           default_branch_id = EXCLUDED.default_branch_id, updated_at = now()`,
+        [storeUserId, STORE_EMAIL, companyId, storeBranchId]);
+      await conn.query(
+        `INSERT INTO public.user_roles (user_id, role, company_id)
+         VALUES ($1, 'operator'::public.app_role, $2)
+         ON CONFLICT DO NOTHING`, [storeUserId, companyId]);
+      await conn.query('COMMIT');
+    } catch (error) {
+      await conn.query('ROLLBACK').catch(() => {});
+      throw new Error(`falha ao criar operador da loja: ${error.message}`);
+    } finally {
+      conn.release();
+    }
+  }
+  if (!storeUserId) throw new Error('segunda identidade nao criada: ambiente incompleto');
+
   const branches = (await pool.query(
     `SELECT id::text, is_headquarters FROM public.branches WHERE company_id = $1 ORDER BY created_at`,
     [companyId])).rows;
@@ -224,6 +311,11 @@ try {
     companyId,
     adminEmail: ADMIN_EMAIL,
     adminPassword: ADMIN_PASSWORD,
+    managerEmail: ADMIN_EMAIL,
+    managerPassword: ADMIN_PASSWORD,
+    storeEmail: STORE_EMAIL,
+    storePassword: STORE_PASSWORD,
+    storeUserId,
     storeBranchId: branches.find((b) => !b.is_headquarters)?.id ?? branches[0]?.id ?? null,
     cdBranchId: branches.find((b) => b.is_headquarters)?.id ?? branches[0]?.id ?? null,
     productId,
@@ -252,6 +344,11 @@ fs.writeFileSync(ENV_FILE, [
   `E2E_MIGRATIONS=${migrationCount}`,
   `E2E_ADMIN_EMAIL=${discovered.adminEmail}`,
   `E2E_ADMIN_PASSWORD=${discovered.adminPassword}`,
+  `E2E_MANAGER_EMAIL=${discovered.managerEmail}`,
+  `E2E_MANAGER_PASSWORD=${discovered.managerPassword}`,
+  `E2E_STORE_EMAIL=${discovered.storeEmail}`,
+  `E2E_STORE_PASSWORD=${discovered.storePassword}`,
+  `E2E_STORE_USER_ID=${discovered.storeUserId}`,
   `E2E_COMPANY_ID=${discovered.companyId}`,
   `E2E_PRODUCT_ID=${discovered.productId}`,
   `E2E_STORE_BRANCH_ID=${discovered.storeBranchId ?? ''}`,
@@ -318,6 +415,20 @@ async function withRls(claims, sql, values) {
   } finally {
     c.release();
   }
+}
+
+function sendRows(req, res, status, rows) {
+  const single = /vnd\.pgrst\.object\+json/.test(req.headers.accept ?? '');
+  if (single) {
+    if (rows.length !== 1) {
+      return send(res, 406, {
+        message: `JSON object requested, multiple (or no) rows returned`,
+        code: 'PGRST116', details: `rows=${rows.length}`,
+      });
+    }
+    return send(res, status, rows[0]);
+  }
+  return send(res, status, rows);
 }
 
 function sqlError(res, error) {
@@ -413,6 +524,19 @@ const server = http.createServer(async (req, res) => {
     }
 
     const table = /^\/rest\/v1\/([a-z_][a-z0-9_]*)$/.exec(pathname);
+    // QA-03 — escrita via REST. Nao e um atalho sem RLS: withRls() aplica
+    // SET LOCAL ROLE authenticated + request.jwt.claims, entao policies de
+    // INSERT/UPDATE, triggers de negocio e ledger continuam valendo.
+    if (table && req.method === 'POST') {
+      const built = buildInsertQuery(table[1], await readJson(req));
+      const result = await withRls(claims, built.sql, built.values);
+      return sendRows(req, res, 201, result.rows);
+    }
+    if (table && req.method === 'PATCH') {
+      const built = buildUpdateQuery(table[1], await readJson(req), url.searchParams);
+      const result = await withRls(claims, built.sql, built.values);
+      return sendRows(req, res, 200, result.rows);
+    }
     if (table && req.method === 'GET') {
       const single = /vnd\.pgrst\.object\+json/.test(req.headers.accept ?? '');
       const { sql, values } = buildTableQuery(table[1], url.searchParams, single);

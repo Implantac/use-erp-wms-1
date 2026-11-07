@@ -1,64 +1,15 @@
 import { test, expect } from '@playwright/test';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { generated, loginAs, required } from './isolated-helpers';
 
 /**
- * QA-02 (segundo incremento) — cadeia COMPLETA de abastecimento no ambiente
- * isolado: loja pede -> fabrica decide pelo CD -> ordem caminha ate EM TRANSITO
- * -> loja recebe com divergencia -> status registra divergencia e saldo sobe 4.
- *
- * Tudo e SQL real: RPCs de negocio do replay de 504 migrations, GETs sob
- * `SET LOCAL ROLE authenticated` com RLS, movimento de estoque e ledger. Nenhum
- * segredo, nenhuma rede externa, nenhum dado fabricado pela suite: a segunda
- * unidade e uma fixture deterministica criada no BOOT do servidor isolado e
- * destruida no teardown (ver scripts/e2e-isolated-server.mjs).
+ * QA-02 (cadeia) + QA-03 (papeis) — abastecimento completo no ambiente
+ * isolado com DUAS identidades reais: a loja pede e recebe; o gestor do CD
+ * analisa, decide e aprova. SQL real, RLS real, nenhum segredo, nenhum dado
+ * de cliente. A segunda unidade e o saldo sem lote sao fixtures do BOOT,
+ * destruidas no teardown (scripts/e2e-isolated-server.mjs).
  */
-declare const process: {
-  env: Record<string, string | undefined>;
-  cwd(): string;
-};
-
-class DisabledWebSocket {
-  constructor() {
-    throw new Error('Realtime desabilitado no ambiente E2E isolado (QA-02)');
-  }
-}
-Object.assign(globalThis, { WebSocket: DisabledWebSocket });
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function required(name: string, value?: string): string {
-  if (!value) throw new Error(`${name} e obrigatoria no ambiente isolado`);
-  return value;
-}
-
-function generated(): Record<string, string> {
-  const text = readFileSync(resolve(process.cwd(), '.env.e2e.generated'), 'utf8');
-  const out: Record<string, string> = {};
-  for (const line of text.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const eq = trimmed.indexOf('=');
-    if (eq > 0) out[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1).trim();
-  }
-  return out;
-}
-
-async function login(): Promise<SupabaseClient> {
-  const client = createClient(
-    required('VITE_SUPABASE_URL', process.env.VITE_SUPABASE_URL),
-    required('VITE_SUPABASE_PUBLISHABLE_KEY', process.env.VITE_SUPABASE_PUBLISHABLE_KEY),
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-  const { data, error } = await client.auth.signInWithPassword({
-    email: required('E2E_ADMIN_EMAIL', process.env.E2E_ADMIN_EMAIL),
-    password: required('E2E_ADMIN_PASSWORD', process.env.E2E_ADMIN_PASSWORD),
-  });
-  expect(error, error?.message).toBeNull();
-  expect(data.user).not.toBeNull();
-  return client;
-}
 
 async function balance(client: SupabaseClient, branchId: string, productId: string): Promise<number> {
   const { data, error } = await client
@@ -80,10 +31,11 @@ test.describe('QA-02 — cadeia completa de abastecimento', () => {
     expect(cdBranch).toMatch(UUID);
     expect(storeBranch, 'a fixture deve criar uma loja distinta da matriz/CD').not.toBe(cdBranch);
 
-    const client = await login();
-    const before = await balance(client, storeBranch, productId);
+    const store = await loginAs('store');
+    const manager = await loginAs('manager');
+    const before = await balance(manager, storeBranch, productId);
 
-    const created = await client.rpc('create_supply_request', {
+    const created = await store.rpc('create_supply_request', {
       p_branch_id: storeBranch,
       p_product_id: productId,
       p_quantity: 5,
@@ -94,11 +46,11 @@ test.describe('QA-02 — cadeia completa de abastecimento', () => {
     expect(String(createdRow?.status)).toBe('PENDENTE');
     const requestId = required('id da solicitacao', createdRow?.id);
 
-    const inbox = await client.rpc('factory_inbox');
+    const inbox = await manager.rpc('factory_inbox');
     expect(inbox.error, inbox.error?.message).toBeNull();
     expect(JSON.stringify(inbox.data ?? [])).toContain(requestId);
 
-    const decided = await client.rpc('decide_supply_request', {
+    const decided = await manager.rpc('decide_supply_request', {
       p_supply_request_id: requestId,
       p_source_kind: 'CD',
       p_source_branch_id: cdBranch,
@@ -109,7 +61,7 @@ test.describe('QA-02 — cadeia completa de abastecimento', () => {
     const transferId = required('transfer_order_id', decidedRow?.transfer_order_id);
     expect(transferId).toMatch(UUID);
 
-    const items = await client
+    const items = await manager
       .from('stock_transfer_items')
       .select('id, requested_qty, shipped_qty')
       .eq('transfer_id', transferId);
@@ -117,7 +69,7 @@ test.describe('QA-02 — cadeia completa de abastecimento', () => {
     expect(items.data, 'um produto deve gerar um unico item').toHaveLength(1);
     expect(Number(items.data?.[0]?.requested_qty)).toBe(5);
 
-    const order = await client
+    const order = await manager
       .from('stock_transfer_orders')
       .select('current_status, origin_unit_id, destination_unit_id')
       .eq('id', transferId)
@@ -130,7 +82,9 @@ test.describe('QA-02 — cadeia completa de abastecimento', () => {
     const startAt = chain.indexOf(String(order.data?.current_status));
     expect(startAt, `status inicial inesperado: ${order.data?.current_status}`).toBeGreaterThanOrEqual(0);
     for (const toStatus of chain.slice(startAt + 1)) {
-      const step = await client.rpc('transition_stock_transfer', {
+      // APROVADA e decisao do gestor; as demais transicoes sao operacao da rede.
+      const actor = toStatus === 'APROVADA' ? manager : store;
+      const step = await actor.rpc('transition_stock_transfer', {
         p_transfer_id: transferId,
         p_to_status: toStatus,
         p_items: (items.data ?? []).map((i) => ({ item_id: i.id, quantity: Number(i.requested_qty) })),
@@ -139,7 +93,7 @@ test.describe('QA-02 — cadeia completa de abastecimento', () => {
       expect(step.error, `${toStatus}: ${step.error?.message}`).toBeNull();
     }
 
-    const received = await client.rpc('transition_stock_transfer', {
+    const received = await store.rpc('transition_stock_transfer', {
       p_transfer_id: transferId,
       p_to_status: 'RECEBIDA',
       p_items: (items.data ?? []).map((i) => ({ item_id: i.id, quantity: 4 })),
@@ -150,7 +104,7 @@ test.describe('QA-02 — cadeia completa de abastecimento', () => {
     expect(String(receivedRow?.status)).toContain('DIVERGÊNCIA');
     expect(Number(receivedRow?.divergence)).toBe(1);
 
-    const finalOrder = await client
+    const finalOrder = await manager
       .from('stock_transfer_orders')
       .select('current_status')
       .eq('id', transferId)
@@ -158,7 +112,7 @@ test.describe('QA-02 — cadeia completa de abastecimento', () => {
     expect(finalOrder.error, finalOrder.error?.message).toBeNull();
     expect(String(finalOrder.data?.current_status)).toContain('DIVERGÊNCIA');
 
-    const after = await balance(client, storeBranch, productId);
+    const after = await balance(manager, storeBranch, productId);
     expect(after - before).toBe(4);
   });
 });
