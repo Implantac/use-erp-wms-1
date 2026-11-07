@@ -13,7 +13,18 @@ test('JWT: assina, verifica e rejeita adulteracao, expiracao e segredo errado', 
   assert.equal(claims.sub, 'user-1');
   assert.equal(claims.role, 'authenticated');
   assert.equal(verifyJwt(token, 'outro-segredo'), null);
-  assert.equal(verifyJwt(token.replace(/.$/, 'x'), SECRET), null);
+  // Adulteracao DETERMINISTICA do payload. Trocar apenas o ultimo caractere
+  // da assinatura base64url pode preservar os bytes decodificados (os 2 bits
+  // de padding nao sao significativos), tornando o teste flaky conforme o iat
+  // muda a cada execucao. Manter a assinatura e alterar o payload garante que
+  // o HMAC nunca confira.
+  const parts = token.split('.');
+  const forgedPayload = Buffer.from(JSON.stringify({
+    aud: 'authenticated', role: 'authenticated',
+    sub: 'atacante', email: 'a@b.test',
+    iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 3600,
+  })).toString('base64url');
+  assert.equal(verifyJwt(`${parts[0]}.${forgedPayload}.${parts[2]}`, SECRET), null);
   assert.equal(verifyJwt('lixo', SECRET), null);
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify({ sub: 'user-1', exp: 1 })).toString('base64url');
