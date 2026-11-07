@@ -9,11 +9,11 @@ import { generated, loginAs, required, UUID } from './isolated-helpers';
  * da rota, reserva de insumo por lote, inspecao e decisao de qualidade,
  * fail-closed da conclusao e presenca do ledger PROD-* no replay.
  *
- * PENDENCIA FORMAL (QA-03b): complete_production_order() — a transacao que
- * valida consumo por lote, etapas concluidas, qualidade, BOM e genealogia —
- * ainda NAO e exercitada pela suite. O teste prova que o atalho por UPDATE
- * direto e barrado, ou seja, nao ha falso verde: a conclusao continua
- * exigindo a transacao oficial. Ver docs/E2E-Lojas.md.
+ * A conclusao transacional complete_production_order() — consumo por lote,
+ * etapas concluidas, qualidade, BOM congelada e genealogia — e exercitada de
+ * ponta a ponta em isolated-production-completion.spec.ts (QA-03b). Este spec
+ * continua provando que o ATALHO por UPDATE direto e barrado, ou seja, a
+ * conclusao so acontece pela transacao oficial. Ver docs/E2E-Lojas.md.
  */
 test.describe('Producao - Golden Path (QA-03, ambiente isolado)', () => {
   test('OP com roteiro, reserva por lote e qualidade aprovada; conclusao exige transacao', async () => {

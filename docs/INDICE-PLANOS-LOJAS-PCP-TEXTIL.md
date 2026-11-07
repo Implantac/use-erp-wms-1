@@ -232,6 +232,7 @@ Esta seção cumpre a regra da §5 **sem reclassificar os 101 candidatos e sem r
 | `9080eead` | SEC-02/03: `.env` fora do índice, provisionamento por ambiente, refs/JWT legados removidos, `search_path` explícito e gates no harness/CI | `ENVIRONMENT.md` §0 |
 | `582b9ee6` → `d7af1dfb` | QA-01: ambiente E2E isolado sem segredos (504 migrations, 7/7), correção das 3 regressões de CI e bundle MCP passando a ser gerado | `E2E-Lojas.md` §0; plano-mestre §7.1 |
 | `14e793c` → QA-03 | Segunda identidade por papel, transporte com INSERT/UPDATE sob RLS, 3 golden paths convertidos de `fixme` e suíte isolada em 18/18 com `skip=0`; `complete_production_order()` registrado como pendência QA-03b | `E2E-Lojas.md` §0; plano-mestre §7.1 |
+| QA-03b | `complete_production_order()` de ponta a ponta: BOM congelada, 3 etapas, qualidade, 2 lotes, lote de saída, ledger, `material_consumptions`, genealogia, replay idempotente e 3 cenários fail-closed; suíte isolada em **20/20, `skip=0`** | `E2E-Lojas.md` §0; plano-mestre §7.1 |
 | `4365895` | Evidência dos runs de CI levada para os documentos versionados | `E2E-Lojas.md` §0; plano-mestre §7.1 |
 | `0211229` | INC-01: publicação no Lovable sem `VITE_SUPABASE_*` resultou em `supabaseKey is required.`; correção é **operacional** (painel + rebuild), não versionar `.env` | `ENVIRONMENT.md` §0.1; `src/integrations/supabase/client.ts` |
 
