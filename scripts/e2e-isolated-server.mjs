@@ -176,6 +176,47 @@ try {
   const companyId = await one(
     `SELECT id::text AS id FROM public.companies
       WHERE regexp_replace(coalesce(cnpj,''),'[^0-9]','','g') = '30965938000107' LIMIT 1`);
+
+  const hqRows = (await pool.query(
+    `SELECT id::text AS id FROM public.branches
+      WHERE company_id = $1 AND is_headquarters LIMIT 1`, [companyId])).rows;
+  const hqBranchId = hqRows[0]?.id ?? null;
+  const productId = await one(
+    `SELECT id::text AS id FROM public.products WHERE code = 'PLUMA-01' LIMIT 1`);
+
+  // QA-02 — fixtures deterministicas do AMBIENTE (nao da suite): os seeds
+  // criam apenas a Matriz, mas decide_supply_request exige origem != destino.
+  // Alem disso, apply_stock_movement_to_balance() casa o saldo por
+  // (empresa, filial, canal, produto, lote); a expedicao grava movimentos SEM
+  // lote, entao a origem precisa de um saldo sem lote para nao gerar um
+  // INSERT com quantidade negativa (gate estoque_negativo_proibido).
+  // Nada disso e dado de cliente: vive apenas no Postgres embarcado e e
+  // destruido no teardown.
+  if (companyId) {
+    await pool.query(
+      `INSERT INTO public.branches (company_id, name, code, is_headquarters, is_active)
+       SELECT $1, 'Loja QA-02', 'LOJA-QA02', false, true
+        WHERE NOT EXISTS (
+          SELECT 1 FROM public.branches WHERE company_id = $1 AND code = 'LOJA-QA02'
+        )`, [companyId]);
+  }
+  if (companyId && hqBranchId && productId) {
+    await pool.query(
+      `INSERT INTO public.stock_balances (
+         company_id, branch_id, canal_operacional, product_id,
+         product_code, product_name, lot_id, quantity, reserved_qty, unit
+       )
+       SELECT $1, $2, 'ATACADO_INDUSTRIA'::public.canal_operacional, $3,
+              p.code, p.name, NULL, 100, 0, 'UN'
+         FROM public.products p WHERE p.id = $3
+          AND NOT EXISTS (
+            SELECT 1 FROM public.stock_balances sb
+             WHERE sb.company_id = $1 AND sb.branch_id = $2
+               AND sb.product_id = $3 AND sb.lot_id IS NULL
+               AND sb.canal_operacional = 'ATACADO_INDUSTRIA'::public.canal_operacional
+          )`, [companyId, hqBranchId, productId]);
+  }
+
   const branches = (await pool.query(
     `SELECT id::text, is_headquarters FROM public.branches WHERE company_id = $1 ORDER BY created_at`,
     [companyId])).rows;
@@ -185,7 +226,7 @@ try {
     adminPassword: ADMIN_PASSWORD,
     storeBranchId: branches.find((b) => !b.is_headquarters)?.id ?? branches[0]?.id ?? null,
     cdBranchId: branches.find((b) => b.is_headquarters)?.id ?? branches[0]?.id ?? null,
-    productId: await one(`SELECT id::text AS id FROM public.products WHERE code = 'PLUMA-01' LIMIT 1`),
+    productId,
     weavingProductId: await one(`SELECT id::text AS id FROM public.products WHERE code = 'TECIDO-PLANO-01' LIMIT 1`),
     weavingComponentId: await one(`SELECT id::text AS id FROM public.products WHERE code = 'FIO-URD-30' LIMIT 1`),
     weavingLotId: await one(`SELECT id::text AS id FROM public.stock_lots WHERE lot_number = 'FIO-URD-LOTE-TESTE-001' LIMIT 1`),

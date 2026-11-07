@@ -21,6 +21,7 @@ export default defineConfig({
   testMatch: [
     'tests/e2e/isolated-environment.spec.ts',
     'tests/e2e/isolated-store-journey.spec.ts',
+    'tests/e2e/isolated-store-chain.spec.ts',
   ],
   globalTeardown: './isolated-global-teardown.ts',
   timeout: 60 * 1000,
