@@ -98,7 +98,7 @@ jobs:
 
 
   isolated-e2e:
-    name: Ambiente E2E isolado (QA-01/QA-02/QA-03)
+    name: Ambiente E2E isolado (QA-01/QA-02/QA-03/QA-04)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -111,7 +111,7 @@ jobs:
       - name: Instalar binários do Postgres embarcado
         working-directory: tests/harness
         run: bun install --frozen-lockfile
-      - name: Jornadas isoladas QA-01/QA-02/QA-03 sem segredos, sem skip e sem rede externa
+      - name: Jornadas isoladas QA-01/QA-02/QA-03/QA-04 sem segredos, sem skip e sem rede externa
         run: bun run e2e:isolated
       - name: Teardown garantido do ambiente isolado
         if: always()

@@ -48,6 +48,11 @@ const ANON_KEY = 'e2e-isolated-anon-key';
 // execucao e o servidor so escuta em 127.0.0.1.
 const STORE_EMAIL = 'loja-qa03@useerp.test';
 const STORE_PASSWORD = 'Qa03Loja@2026';
+// QA-04 — segundo TENANT isolado, para provar RLS entre empresas sem usar
+// nenhuma credencial de homologacao. CNPJ/email claramente ficticios.
+const TENANT_B_EMAIL = 'tenant-b-qa04@useerp.test';
+const TENANT_B_PASSWORD = 'Qa04TenantB@2026';
+const TENANT_B_CNPJ = '99.999.999/0001-91';
 const MARKER = 'QA-01-ISOLATED-E2E';
 const ENV = { ...process.env, LD_LIBRARY_PATH: LIB };
 const SECRET = randomBytes(32).toString('hex'); // nao persiste, muda a cada execucao
@@ -223,22 +228,17 @@ try {
           )`, [companyId, hqBranchId, productId]);
   }
 
-  // QA-03 — segunda identidade: OPERADOR DA LOJA (role 'operator'), sem
-  // nenhum papel de gestor. As guardas reais factory_inbox(),
-  // decide_supply_request() e a aprovacao em transition_stock_transfer()
-  // devem recusar este usuario, enquanto create_supply_request() e as
-  // transicoes de rede devem aceita-lo. Nada e mock: RLS e auth.uid() reais.
+  // QA-03/QA-04 — identidades REAIS (auth.users + auth.identities +
+  // profiles + user_roles). Uma unica funcao cria cada usuario com o papel e
+  // o tenant corretos; nao ha mock de auth.uid() nem de RLS.
   const cryptSchema = (await pool.query(
     `SELECT n.nspname AS s FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE p.proname = 'crypt' AND n.nspname IN ('extensions','public') LIMIT 1`)).rows[0]?.s;
   if (!cryptSchema || !/^[a-z_][a-z0-9_]*$/.test(cryptSchema)) {
-    throw new Error('pgcrypto/crypt ausente ou schema invalido: operador da loja nao pode ser criado');
+    throw new Error('pgcrypto/crypt ausente ou schema invalido: identidades nao podem ser criadas');
   }
-  const storeBranchId = (await pool.query(
-    `SELECT id::text AS id FROM public.branches
-      WHERE company_id = $1 AND code = 'LOJA-QA02' LIMIT 1`, [companyId])).rows[0]?.id ?? null;
-  let storeUserId = null;
-  if (companyId && storeBranchId) {
+
+  async function createIsolatedUser({ email, password, name, companyId: tenant, branchId, role }) {
     const conn = await pool.connect();
     try {
       await conn.query('BEGIN');
@@ -249,12 +249,12 @@ try {
       await conn.query(`SELECT set_config('request.jwt.claims', '{}', true)`);
       const hash = (await conn.query(
         `SELECT ${cryptSchema}.crypt($1, ${cryptSchema}.gen_salt('bf', 10)) AS h`,
-        [STORE_PASSWORD])).rows[0].h;
-      storeUserId = (await conn.query(
+        [password])).rows[0].h;
+      let uid = (await conn.query(
         `SELECT id::text AS id FROM auth.users WHERE lower(email) = lower($1) LIMIT 1`,
-        [STORE_EMAIL])).rows[0]?.id ?? null;
-      if (!storeUserId) {
-        storeUserId = (await conn.query(
+        [email])).rows[0]?.id ?? null;
+      if (!uid) {
+        uid = (await conn.query(
           `INSERT INTO auth.users (
              instance_id, id, aud, role, email, encrypted_password,
              email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
@@ -266,12 +266,12 @@ try {
              '00000000-0000-0000-0000-000000000000', gen_random_uuid(),
              'authenticated', 'authenticated', $1, $2, now(),
              '{"provider":"email","providers":["email"]}'::jsonb,
-             '{"name":"Operador Loja QA-03"}'::jsonb,
+             jsonb_build_object('name', $3::text),
              false, false, now(), now(), '', '', '', '', '', NULL, '', '', ''
-           ) RETURNING id::text AS id`, [STORE_EMAIL, hash])).rows[0].id;
+           ) RETURNING id::text AS id`, [email, hash, name])).rows[0].id;
       }
       await conn.query(
-        `DELETE FROM auth.identities WHERE user_id = $1 AND provider = 'email'`, [storeUserId]);
+        `DELETE FROM auth.identities WHERE user_id = $1::uuid AND provider = 'email'`, [uid]);
       await conn.query(
         `INSERT INTO auth.identities
            (id, user_id, identity_data, provider, provider_id,
@@ -279,30 +279,83 @@ try {
          VALUES (gen_random_uuid(), $1::uuid,
            jsonb_build_object('sub', $1::text, 'email', $2::text,
              'email_verified', true, 'phone_verified', false),
-           'email', $1::text, now(), now(), now())`,
-        [storeUserId, STORE_EMAIL]);
+           'email', $1::text, now(), now(), now())`, [uid, email]);
       await conn.query(
         `INSERT INTO public.profiles
            (id, name, email, company_id, branch_id, default_branch_id)
-         VALUES ($1, 'Operador Loja QA-03', $2, $3, $4, $4)
+         VALUES ($1::uuid, $3::text, $2::text, $4::uuid, $5::uuid, $5::uuid)
          ON CONFLICT (id) DO UPDATE SET
            name = EXCLUDED.name, email = EXCLUDED.email,
            company_id = EXCLUDED.company_id, branch_id = EXCLUDED.branch_id,
            default_branch_id = EXCLUDED.default_branch_id, updated_at = now()`,
-        [storeUserId, STORE_EMAIL, companyId, storeBranchId]);
+        [uid, email, name, tenant, branchId]);
       await conn.query(
         `INSERT INTO public.user_roles (user_id, role, company_id)
-         VALUES ($1, 'operator'::public.app_role, $2)
-         ON CONFLICT DO NOTHING`, [storeUserId, companyId]);
+         VALUES ($1::uuid, $3::public.app_role, $2::uuid)
+         ON CONFLICT DO NOTHING`, [uid, tenant, role]);
       await conn.query('COMMIT');
+      return uid;
     } catch (error) {
       await conn.query('ROLLBACK').catch(() => {});
-      throw new Error(`falha ao criar operador da loja: ${error.message}`);
+      throw new Error(`falha ao criar identidade ${email}: ${error.message}`);
     } finally {
       conn.release();
     }
   }
-  if (!storeUserId) throw new Error('segunda identidade nao criada: ambiente incompleto');
+
+  const storeBranchId = (await pool.query(
+    `SELECT id::text AS id FROM public.branches
+      WHERE company_id = $1 AND code = 'LOJA-QA02' LIMIT 1`, [companyId])).rows[0]?.id ?? null;
+  if (!companyId || !storeBranchId) {
+    throw new Error('filial da loja ausente: operador nao pode ser criado');
+  }
+  const storeUserId = await createIsolatedUser({
+    email: STORE_EMAIL, password: STORE_PASSWORD, name: 'Operador Loja QA-03',
+    companyId, branchId: storeBranchId, role: 'operator',
+  });
+
+  // QA-04 — segundo tenant COMPLETO: empresa, filial, produto e um admin
+  // proprio. As policies SELECT de companies/branches/products usam
+  // get_user_company_id(auth.uid()); sem esta massa, "B nao ve A" poderia ser
+  // apenas um banco vazio. Tudo e destruido no teardown.
+  let tenantBCompanyId = (await pool.query(
+    `SELECT id::text AS id FROM public.companies WHERE cnpj = $1 LIMIT 1`,
+    [TENANT_B_CNPJ])).rows[0]?.id ?? null;
+  if (!tenantBCompanyId) {
+    tenantBCompanyId = (await pool.query(
+      `INSERT INTO public.companies (name, trade_name, cnpj, status, segment)
+       VALUES ('Empresa QA-04 (tenant B)', 'QA-04', $1, 'active', 'textile')
+       RETURNING id::text AS id`, [TENANT_B_CNPJ])).rows[0].id;
+  }
+  let tenantBBranchId = (await pool.query(
+    `SELECT id::text AS id FROM public.branches
+      WHERE company_id = $1 AND code = 'QA04-MATRIZ' LIMIT 1`,
+    [tenantBCompanyId])).rows[0]?.id ?? null;
+  if (!tenantBBranchId) {
+    tenantBBranchId = (await pool.query(
+      `INSERT INTO public.branches
+         (company_id, name, code, is_headquarters, is_active)
+       VALUES ($1, 'Matriz QA-04', 'QA04-MATRIZ', true, true)
+       RETURNING id::text AS id`, [tenantBCompanyId])).rows[0].id;
+  }
+  let tenantBProductId = (await pool.query(
+    `SELECT id::text AS id FROM public.products
+      WHERE company_id = $1 AND code = 'PROD-QA04-01' LIMIT 1`,
+    [tenantBCompanyId])).rows[0]?.id ?? null;
+  if (!tenantBProductId) {
+    tenantBProductId = (await pool.query(
+      `INSERT INTO public.products (company_id, code, name, unit)
+       VALUES ($1, 'PROD-QA04-01', 'Produto exclusivo do tenant B', 'UN')
+       RETURNING id::text AS id`, [tenantBCompanyId])).rows[0].id;
+  }
+  const tenantBUserId = await createIsolatedUser({
+    email: TENANT_B_EMAIL, password: TENANT_B_PASSWORD, name: 'Admin Tenant B QA-04',
+    companyId: tenantBCompanyId, branchId: tenantBBranchId, role: 'admin',
+  });
+  if (!storeUserId || !tenantBUserId) {
+    throw new Error('identidades isoladas nao criadas: ambiente incompleto');
+  }
+
 
   const branches = (await pool.query(
     `SELECT id::text, is_headquarters FROM public.branches WHERE company_id = $1 ORDER BY created_at`,
@@ -316,6 +369,12 @@ try {
     storeEmail: STORE_EMAIL,
     storePassword: STORE_PASSWORD,
     storeUserId,
+    tenantBEmail: TENANT_B_EMAIL,
+    tenantBPassword: TENANT_B_PASSWORD,
+    tenantBUserId,
+    tenantBCompanyId,
+    tenantBBranchId,
+    tenantBProductId,
     storeBranchId: branches.find((b) => !b.is_headquarters)?.id ?? branches[0]?.id ?? null,
     cdBranchId: branches.find((b) => b.is_headquarters)?.id ?? branches[0]?.id ?? null,
     productId,
@@ -349,6 +408,12 @@ fs.writeFileSync(ENV_FILE, [
   `E2E_STORE_EMAIL=${discovered.storeEmail}`,
   `E2E_STORE_PASSWORD=${discovered.storePassword}`,
   `E2E_STORE_USER_ID=${discovered.storeUserId}`,
+  `E2E_TENANT_B_EMAIL=${discovered.tenantBEmail}`,
+  `E2E_TENANT_B_PASSWORD=${discovered.tenantBPassword}`,
+  `E2E_TENANT_B_USER_ID=${discovered.tenantBUserId}`,
+  `E2E_TENANT_B_COMPANY_ID=${discovered.tenantBCompanyId}`,
+  `E2E_TENANT_B_BRANCH_ID=${discovered.tenantBBranchId}`,
+  `E2E_TENANT_B_PRODUCT_ID=${discovered.tenantBProductId}`,
   `E2E_COMPANY_ID=${discovered.companyId}`,
   `E2E_PRODUCT_ID=${discovered.productId}`,
   `E2E_STORE_BRANCH_ID=${discovered.storeBranchId ?? ''}`,
