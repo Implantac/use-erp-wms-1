@@ -106,6 +106,8 @@ identificado, data, responsável, `docker compose config -q`, `migrate` sem erro
 segura, `validate-e2e-no-skip.mjs --strict` verde, `bun run e2e:critical` com **`skip=0`** e artefatos anexados.
 **CI verde não é evidência de aplicação utilizável.**
 
+A trilha de CI já publicada (inclusive a ausência dos 18 segredos em todos os SHAs) está em [EVIDENCIA-CI-QA.md](../../docs/EVIDENCIA-CI-QA.md).
+
 Documentos relacionados: [HOMOLOGACAO-LOCAL.md](../../docs/HOMOLOGACAO-LOCAL.md),
 [E2E-SEGREDOS-E-ROTACAO.md](../../docs/E2E-SEGREDOS-E-ROTACAO.md),
 [ADR-QA05-GRANT-REWORK.md](../../docs/ADR-QA05-GRANT-REWORK.md),

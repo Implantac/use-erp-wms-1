@@ -81,4 +81,6 @@ O assistente **não tem acesso** ao painel GitHub nem ao Supabase e não pode re
 
 O job autenticado só poderá ser declarado verde quando houver **evidência publicada** de: commit/SHA, ambiente de homologação identificado, data, responsável, os 18 segredos configurados de forma segura, **G-01/G-02 corrigidos e validados**, `node scripts/validate-e2e-no-skip.mjs --strict` com `exit 0`, `bun run e2e:critical` com `skip=0` e artefatos de relatório anexados. **CI verde não é evidência de aplicação utilizável**, e smoke público/não autenticado não substitui esse aceite.
 
+**Trilha auditável:** [EVIDENCIA-CI-QA.md](EVIDENCIA-CI-QA.md) consolida os runs de QA-01 a QA-07, com os 18 segredos ausentes confirmados nos logs de **todos** os SHAs revalidados e `504 migrations + 3 seeds` em cada job isolado.
+
 Documentos relacionados: [E2E-Lojas.md](E2E-Lojas.md) §0, [ENVIRONMENT.md](ENVIRONMENT.md) §0.2 e a avaliação técnica fora do repositório (`/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md`).

@@ -21,6 +21,8 @@ Operação e evidência (registrado em 06/11/2026, sem alterar a baseline acima)
 
 - [Auditoria anti-falso-verde do gate autenticado](E2E-GATE-ANTI-SKIP.md) — por que os 18 segredos, sozinhos, **não** bastariam: 2 testes podem passar sem validar nada e o reporter não congela a completude. Correções propostas, não aplicadas.
 
+- [Evidência de CI publicada — QA-01 a QA-07](EVIDENCIA-CI-QA.md) — SHA, run, job, contagem de testes e os **18** segredos ausentes em cada entrega; IDs reconsultados na API em 09/11/2026. **Nenhum `Playwright Tests` inteiro ficou verde.**
+
 Planos `.lovable/plan`, revisões datadas, `FEATURE_STATUS.md` e `FLUXO-PCP-OPERACIONAL.md` permanecem como histórico/evidência da época. Em divergência, prevalecem o código atual e o plano-mestre. **Produção: NO-GO** — nenhum documento desta pasta autoriza publicar o app, aplicar migrations ou operar em produção.
 
 ## Estrutura de Documentos

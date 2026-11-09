@@ -33,6 +33,8 @@ que prometem** e uma lacuna estrutural no reporter.
 O log do job autenticado `128272140678` (HEAD `6ea7f55`) confirma **exatamente
 18** linhas `Missing required isolated E2E setting` e `exit code 2`.
 
+A série completa de runs está em [EVIDENCIA-CI-QA.md](EVIDENCIA-CI-QA.md): os **18** segredos foram confirmados nos logs do job autenticado de **todos os 8 SHAs** revalidados em 09/11/2026.
+
 ## 3. Achados
 
 | ID | Sev. | Evidência | Impacto | Correção proposta (**não aplicada**) |
