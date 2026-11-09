@@ -4,7 +4,7 @@
 - **Data:** 05/11/2026.
 - **Baseline:** `main` em `5982a06422efdfac0d655f5e88d8b244ea496b74` (código de intercompany idêntico a `8a5dbb35`).
 - **Plano-mestre:** [PLANO-MESTRE-LOJAS-PCP-TEXTIL.md](PLANO-MESTRE-LOJAS-PCP-TEXTIL.md), seções 4.1, 7 e 8.1.
-- **Parecer de due diligence:** `/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md` (achado DD-04).
+- **Parecer de due diligence:** [Avaliação técnica para aquisição — 05/11/2026](AVALIACAO-TECNICA-ERP-2026-11-05.md) (achado DD-04; versionado em 09/11/2026, antes apenas local).
 - **Estado de produção:** **NO-GO**.
 
 ---

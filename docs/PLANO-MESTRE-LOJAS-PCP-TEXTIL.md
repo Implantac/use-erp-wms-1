@@ -205,7 +205,7 @@ Não se deve “corrigir” o ciclo apenas trocando `producao_solicitada` por `a
 
 ### 7.1 Achados de due diligence incorporados ao P0
 
-A avaliação técnica de 05/11/2026 (`/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md`) acrescentou três frentes ao P0, sem reabrir P0-02/P0-03:
+A avaliação técnica de 05/11/2026 ([Avaliação técnica para aquisição — 05/11/2026](AVALIACAO-TECNICA-ERP-2026-11-05.md), publicada no repositório em 09/11/2026) acrescentou três frentes ao P0, sem reabrir P0-02/P0-03:
 
 | ID | Achado | Correção exigida | Critério de saída |
 | --- | --- | --- | --- |

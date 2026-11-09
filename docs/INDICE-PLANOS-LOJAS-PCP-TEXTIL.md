@@ -26,7 +26,7 @@ Este índice classifica os **101 documentos candidatos** localizados em `docs/` 
 
 Além dos 101 candidatos, a revisão **criou o plano-mestre e este índice** (commit `5982a064`). O resumo executivo fica fora do repositório, em `/home/user/REVISAO-PLANOS-LOJAS-PCP-TEXTIL-2026-11-05.md`.
 
-Documentos acrescentados na etapa de implementação, que não fazem parte dos 101 candidatos: [DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md](DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md) (contrato proposto para LOJ-05/06, não implementado) e o parecer externo `/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md` (due diligence de aquisição). O índice continua classificando apenas o inventário histórico; mudanças de estado são governadas pelo plano-mestre.
+Documentos acrescentados na etapa de implementação, que não fazem parte dos 101 candidatos: [DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md](DESENHO-CICLO-INTERCOMPANY-PRODUCAO.md) (contrato proposto para LOJ-05/06, não implementado) e [Avaliação técnica para aquisição — 05/11/2026](AVALIACAO-TECNICA-ERP-2026-11-05.md) (due diligence de aquisição; publicado no repositório em 09/11/2026, antes externo). O índice continua classificando apenas o inventário histórico; mudanças de estado são governadas pelo plano-mestre.
 
 ---
 
@@ -240,7 +240,7 @@ Esta seção cumpre a regra da §5 **sem reclassificar os 101 candidatos e sem r
 | `4365895` | Evidência dos runs de CI levada para os documentos versionados | `E2E-Lojas.md` §0; plano-mestre §7.1 |
 | `0211229` | INC-01: publicação no Lovable sem `VITE_SUPABASE_*` resultou em `supabaseKey is required.`; correção é **operacional** (painel + rebuild), não versionar `.env` | `ENVIRONMENT.md` §0.1; `src/integrations/supabase/client.ts` |
 
-**Documentos novos fora dos 101 candidatos:** `ENVIRONMENT.md`. `E2E-Lojas.md` e o plano-mestre já existiam na revisão e foram atualizados; suas linhas no inventário (§2) seguem válidas como classificação. O parecer de due diligence continua fora do repositório, em `/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md`.
+**Documentos novos fora dos 101 candidatos:** `ENVIRONMENT.md`. `E2E-Lojas.md` e o plano-mestre já existiam na revisão e foram atualizados; suas linhas no inventário (§2) seguem válidas como classificação. O parecer de due diligence, antes externo, foi **versionado em 09/11/2026** como `AVALIACAO-TECNICA-ERP-2026-11-05.md` (uma redação no DD-08 exigida pelo SEC-02); a cópia de trabalho permanece em `/home/user/`.
 
 | QA-02 (06–07/11/2026) | Primeira escrita de negócio e depois a **cadeia completa** de abastecimento (decisão, expedição, divergência e saldo) no ambiente isolado: 11 testes, `skip=0`, fixtures determinísticas no boot. Golden paths `fixme` e separação de papéis ainda abertos | `E2E-Lojas.md` §0; `isolated-store-journey.spec.ts`; `isolated-store-chain.spec.ts` |
 

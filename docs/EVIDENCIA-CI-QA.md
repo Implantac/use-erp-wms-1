@@ -5,9 +5,11 @@
 
 ## 1. Por que este documento existe
 
-Até aqui as evidências de CI estavam registradas **apenas no parecer técnico**
-(`/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md`), que **não é versionado** por
-decisão anterior. Este documento leva ao repositório a trilha auditável: SHA,
+Até 09/11/2026 as evidências de CI estavam registradas **apenas no parecer
+técnico** (`/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md`), que então **não
+era versionado**. Na sequência o próprio parecer foi publicado como
+[AVALIACAO-TECNICA-ERP-2026-11-05.md](AVALIACAO-TECNICA-ERP-2026-11-05.md);
+este documento é a trilha resumida e reverificável na API: SHA,
 run, job e contagem de testes, para que terceiros possam conferir sem depender
 de um arquivo local. Segue o mesmo princípio do commit `4365895` ("Evidência
 dos runs de CI levada para os documentos versionados").

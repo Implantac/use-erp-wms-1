@@ -2,6 +2,11 @@
 
 Este diretório centraliza a inteligência técnica, arquitetural e operacional da plataforma.
 
+## 🧾 Avaliação técnica (due diligence)
+
+- [Avaliação técnica para aquisição — 05/11/2026](AVALIACAO-TECNICA-ERP-2026-11-05.md) — veredito **NÃO RECOMENDADO / NO-GO**, achados DD-01–DD-12 e histórico de QA-01 a QA-07. Publicado no repositório em 09/11/2026 por decisão do responsável (antes apenas local), com **uma redação** no DD-08 exigida pelo SEC-02. **O repositório é público.**
+- [Evidência de CI publicada — QA-01 a QA-07](EVIDENCIA-CI-QA.md) — trilha resumida, com IDs reconsultados na API.
+
 ## 📌 Planejamento ativo — Lojas e PCP Têxtil
 
 Para o estado atual, prioridades, dependências e critérios de aceite deste escopo, use estes dois documentos (revisão de 05/11/2026, baseline `8a5dbb35`):

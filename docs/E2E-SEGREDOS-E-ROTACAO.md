@@ -83,4 +83,4 @@ O job autenticado só poderá ser declarado verde quando houver **evidência pub
 
 **Trilha auditável:** [EVIDENCIA-CI-QA.md](EVIDENCIA-CI-QA.md) consolida os runs de QA-01 a QA-07, com os 18 segredos ausentes confirmados nos logs de **todos** os SHAs revalidados e `504 migrations + 3 seeds` em cada job isolado.
 
-Documentos relacionados: [E2E-Lojas.md](E2E-Lojas.md) §0, [ENVIRONMENT.md](ENVIRONMENT.md) §0.2 e a avaliação técnica fora do repositório (`/home/user/AVALIACAO-TECNICA-ERP-2026-11-05.md`).
+Documentos relacionados: [E2E-Lojas.md](E2E-Lojas.md) §0, [ENVIRONMENT.md](ENVIRONMENT.md) §0.2 e [Avaliação técnica para aquisição — 05/11/2026](AVALIACAO-TECNICA-ERP-2026-11-05.md) (versionada em 09/11/2026; cópia de trabalho em `/home/user/`).
