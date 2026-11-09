@@ -4,14 +4,17 @@
 > **O repositório é público**: o conteúdo abaixo, inclusive o veredito
 > **NÃO RECOMENDADO / NO-GO**, passa a ser de leitura pública.
 >
-> **Única redação aplicada nesta cópia:** no achado **DD-08**, o identificador
-> literal do projeto legado foi substituído por
+> **Única redação de conteúdo:** no achado **DD-08**, o identificador literal
+> do projeto legado foi substituído por
 > `<ref legado suprimido pelo gate SEC-02>`. O gate
 > `scripts/check-hardcoded-project-refs.mjs` varre `docs/` e reprova esse
 > literal em qualquer arquivo versionado. O DD-08 permanece integral em todos
-> os outros campos; **o arquivo local original não foi alterado** e conserva o
-> registro completo. Nenhum outro trecho foi removido, reescrito ou resumido —
-> DD-01…DD-12 e o histórico de QA-01 a QA-07 seguem aqui na íntegra.
+> os outros campos. **Normalização de higiene:** as 6 quebras de linha
+> Markdown do original (dois espaços no fim) foram convertidas em `<br>` para
+> manter `git diff --check` limpo — sem alterar nenhuma palavra. O **arquivo
+> local original não foi alterado** e conserva o registro completo. Nenhum
+> outro trecho foi removido, reescrito ou resumido — DD-01…DD-12 e o histórico
+> de QA-01 a QA-07 seguem aqui na íntegra.
 >
 > **Cópia canônica a partir de agora:**
 > `docs/AVALIACAO-TECNICA-ERP-2026-11-05.md`. O arquivo em `/home/user/`
@@ -22,18 +25,18 @@
 
 # Avaliação técnica para aquisição — USE ERP / WMS
 
-**Perspectiva:** empresa compradora avaliando um ERP confiável e funcional para operação real  
-**Data:** 05/11/2026  
-**Objeto avaliado:** `Implantac/use-erp-wms-1`, `main`, commit `5982a06422efdfac0d655f5e88d8b244ea496b74`  
-**Código avaliado:** idêntico a `8a5dbb35` (o último commit contém apenas documentação)  
-**Documentos de governança considerados:** [plano-mestre](use-erp-implementation/docs/PLANO-MESTRE-LOJAS-PCP-TEXTIL.md), [índice de planos](use-erp-implementation/docs/INDICE-PLANOS-LOJAS-PCP-TEXTIL.md), [resumo da revisão](REVISAO-PLANOS-LOJAS-PCP-TEXTIL-2026-11-05.md)  
+**Perspectiva:** empresa compradora avaliando um ERP confiável e funcional para operação real<br>
+**Data:** 05/11/2026<br>
+**Objeto avaliado:** `Implantac/use-erp-wms-1`, `main`, commit `5982a06422efdfac0d655f5e88d8b244ea496b74`<br>
+**Código avaliado:** idêntico a `8a5dbb35` (o último commit contém apenas documentação)<br>
+**Documentos de governança considerados:** [plano-mestre](use-erp-implementation/docs/PLANO-MESTRE-LOJAS-PCP-TEXTIL.md), [índice de planos](use-erp-implementation/docs/INDICE-PLANOS-LOJAS-PCP-TEXTIL.md), [resumo da revisão](REVISAO-PLANOS-LOJAS-PCP-TEXTIL-2026-11-05.md)<br>
 **Natureza:** parecer técnico de due diligence. Não é auditoria de segurança certificada, parecer fiscal/jurídico nem laudo de performance.
 
 ---
 
 ## 1. Veredito
 
-**NÃO RECOMENDADO para contrato de produção ou substituição de ERP em operação neste momento.**  
+**NÃO RECOMENDADO para contrato de produção ou substituição de ERP em operação neste momento.**<br>
 **Recomendável apenas como piloto assistido, em ambiente isolado, com dados de teste e aceite formal.**
 
 O sistema tem engenharia de dados mais séria do que a média de projetos em estágio semelhante: ledger de estoque com imutabilidade, 147 pontos de idempotência, 1.614 políticas RLS, harness de banco que reaplica as migrations do zero e um CI que reprova gates vazios. Isso é base real, não protótipo.
