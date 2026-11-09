@@ -1,7 +1,7 @@
 # Evidência de CI publicada — QA-01 a QA-07
 
 **Consolidação:** 09/11/2026 · **Fonte:** API do GitHub Actions (runs, jobs e logs por SHA), consultada nesta data
-**HEAD atual:** `c95e747` · **Produção: NO-GO**
+**Última entrega de QA consolidada:** `c95e747` · **Commit de criação deste documento:** `ab2fe8e` (documental) · **Produção: NO-GO**
 
 ## 1. Por que este documento existe
 
@@ -59,6 +59,9 @@ isolado* ✅ e *Jornadas autenticadas obrigatórias* ❌ no **step 4
 6. QA-06 e QA-07 **não acrescentaram testes ao job isolado** — por isso o nome
    do job permanece `Ambiente E2E isolado (QA-01 a QA-05)` e a contagem segue
    em **24**.
+7. O commit puramente documental `ab2fe8e` (que criou este arquivo) teve
+   `CI` `42611245126` ✅ e `Playwright Tests` `42611245090` ❌ no mesmo step 4 —
+   coerente com a tabela, sem nova entrega de QA.
 
 ## 4. O que esta evidência **não** prova
 
