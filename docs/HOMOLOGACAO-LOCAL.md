@@ -20,6 +20,8 @@
 
 **Segredo de isolamento:** `docker/local/web/40-useerp-config.sh` **reescreve** `/config.js` na subida com a `ANON_KEY` local. Sem isso, o `public/config.js` versionado (que aponta para a publicação no Lovable) faria a homologação falar com produção — ver `docs/ENVIRONMENT.md` §0.2.
 
+**QA-07 (07/11/2026):** `docs/E2E-GATE-ANTI-SKIP.md` auditou o gate autenticado e encontrou **dois testes que podem passar sem validar nada** (`logistic-fiscal-correlation.spec.ts:45` e `navigation.test.ts:82`) e a ausência de piso de **completude** no reporter anti-skip. `scripts/validate-e2e-no-skip.mjs` congela os 6 specs esperados, com 15 testes unitários. Nenhum spec, config ou workflow foi alterado; `--strict` falha de propósito enquanto a dívida não for corrigida.
+
 **Não substituído por este documento:** decisão sobre o grant de `production_rework_orders` ([ADR-QA05-GRANT-REWORK.md](ADR-QA05-GRANT-REWORK.md)), rotação de PATs/chave legada, restore, fiscal/PSP e **aceite formal**. **Produção: NO-GO.** O job autenticado do CI continua ❌ no step 4 pelos 18 segredos — comportamento correto do gate.
 
 ---

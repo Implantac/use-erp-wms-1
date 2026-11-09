@@ -89,6 +89,7 @@ O `bootstrap.sh` usa `trap … EXIT` para o `down -v` **mesmo em falha** e exige
   até rascunho de NF-e: precisa de SEFAZ/proxy mTLS e massa operacional pronta.
 - **PSP/PIX, Stripe, e-mail, RFID, IA**: as variáveis do compose ficam vazias
   por padrão; as funções respondem "indisponível". Isso é intencional.
+- **QA-07:** mesmo com este ambiente, **dois daqueles specs podem passar sem validar nada** — ver achados G-01/G-02 em `../../docs/E2E-GATE-ANTI-SKIP.md`. O gate anti-skip protege contra `skipped`, não contra asserção fraca nem contra perda de completude. Correções dependem de autorização.
 - **3 specs de navegador** (`store-journey-ui`, `logistic-fiscal-correlation`,
   `e2e/tests/navigation.test.ts`) continuam irredutíveis sem este ambiente
   validado de fato.
@@ -102,7 +103,7 @@ O `bootstrap.sh` usa `trap … EXIT` para o `down -v` **mesmo em falha** e exige
 Só declarar homologação funcional com evidência publicada de: SHA, ambiente
 identificado, data, responsável, `docker compose config -q`, `migrate` sem erro,
 504 migrations contadas, seeds aplicados, os 18 segredos configurados de forma
-segura, `bun run e2e:critical` com **`skip=0`** e artefatos anexados.
+segura, `validate-e2e-no-skip.mjs --strict` verde, `bun run e2e:critical` com **`skip=0`** e artefatos anexados.
 **CI verde não é evidência de aplicação utilizável.**
 
 Documentos relacionados: [HOMOLOGACAO-LOCAL.md](../../docs/HOMOLOGACAO-LOCAL.md),
