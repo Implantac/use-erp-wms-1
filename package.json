@@ -30,6 +30,7 @@
     "ux:forms": "node scripts/ux-forms-audit.mjs",
     "ux:a11y": "node scripts/ux-a11y-audit.mjs",
     "ux:labels": "node scripts/ux-labels-audit.mjs",
+    "ux:responsive": "node scripts/ux-responsive-audit.mjs",
     "ux:audit": "node scripts/ux-audit.mjs",
     "ux:journey": "node scripts/ux-journey.mjs",
     "e2e:isolated:teardown": "node scripts/e2e-isolated-server.mjs --teardown"

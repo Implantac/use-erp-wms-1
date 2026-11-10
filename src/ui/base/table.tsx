@@ -2,9 +2,29 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
+interface TableProps extends React.HTMLAttributes<HTMLTableElement> {
+  /** Nome da regiao rolavel para leitores de tela (acessibilidade por teclado). */
+  scrollRegionLabel?: string;
+}
+
+/**
+ * QA-UX (rodada 5): o wrapper ja tinha `overflow-auto`, mas a tabela usava
+ * `w-full` e as colunas se espremiam ate quebrar os cabecalhos em silabas em
+ * 375px ("Parâm/etro", "Categ/oria"). `whitespace-nowrap` nos <th> faz a
+ * largura natural da tabela exceder o container e ativa a rolagem existente,
+ * sem impor um min-width arbitrario e sem alterar o desktop.
+ *
+ * A regiao rolavel tambem precisa ser FOCAVEL: sem tabindex, quem navega por
+ * teclado nao consegue rolar horizontalmente (WCAG 2.1.1).
+ */
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  ({ className, scrollRegionLabel, ...props }, ref) => (
+    <div
+      role="region"
+      aria-label={scrollRegionLabel ?? "Tabela de dados — use as setas para ver mais colunas"}
+      tabIndex={0}
+      className="relative w-full overflow-auto rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+    >
       <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   ),
@@ -46,7 +66,7 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        "h-12 whitespace-nowrap px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}

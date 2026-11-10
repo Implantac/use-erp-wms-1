@@ -119,14 +119,17 @@ export default function Dashboard() {
   return (
     <main className="space-y-6" aria-label="Dashboard consolidado">
       {/* Header */}
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      {/* QA-UX (rodada 5): em 768px o titulo + filtros somavam 625px num
+          container de 464px e o botao "Atualizar" ficava cortado (body com
+          overflow-x:hidden). So dispor em linha a partir de lg (1024px). */}
+      <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard Consolidado</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Visão geral • {currentCompany?.name}{currentBranch ? ` - ${currentBranch.name}` : ''}
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap flex-col gap-2 lg:flex-row lg:items-center">
           <CanalFilter />
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20 gap-1">

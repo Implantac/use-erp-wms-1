@@ -334,7 +334,7 @@ export function FiscalProviderCard() {
           </div>
         )}
 
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <Button size="sm" variant="ghost" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>
             <ChevronLeft className="h-4 w-4" /> Voltar
           </Button>

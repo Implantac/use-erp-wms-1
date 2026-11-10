@@ -68,7 +68,7 @@ export function GroupOverviewPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-3 flex gap-2">
+          <div className="mb-3 flex flex-wrap gap-2">
             <Button size="sm" variant={stockView === 'empresa' ? 'default' : 'outline'} className="h-7 text-[10px] font-black" onClick={() => setStockView('empresa')}>POR EMPRESA (SEPARADO)</Button>
             <Button size="sm" variant={stockView === 'consolidado' ? 'default' : 'outline'} className="h-7 text-[10px] font-black" onClick={() => setStockView('consolidado')}>CONSOLIDADO DO GRUPO</Button>
           </div>

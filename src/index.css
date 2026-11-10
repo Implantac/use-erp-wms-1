@@ -378,6 +378,21 @@
 
   /* Utility: hard-clamp any container that must not overflow */
   .no-x-overflow { max-width: 100%; overflow-x: hidden; }
+
+  /* QA-UX (rodada 5): estados vazios renderizados dentro de <td colSpan>
+   * herdam a largura da tabela rolavel e, depois que os <th> passaram a
+   * white-space:nowrap, o texto ("Nenhum parâmetro encontrado ...") ficava
+   * cortado fora da viewport em 375px. Ancoramos o conteudo a borda da
+   * regiao rolavel e limitamos a largura a do viewport. Em desktop o limite
+   * e maior que qualquer container, portanto nao ha efeito visual.
+   * A/B controlado: 4 textos cortados -> 0, sem regressao nos cabecalhos. */
+  table td[colspan] > * {
+    position: sticky;
+    left: 0;
+    /* O limite superior fixo respeita cards estreitos em tablet (768px),
+       onde 100vw e bem maior que o container rolavel de ~462px. */
+    max-width: min(calc(100vw - 3rem), 420px);
+  }
 }
 
 

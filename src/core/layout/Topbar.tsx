@@ -47,11 +47,14 @@ export function Topbar() {
       </div>
 
        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+        {/* QA-UX (rodada 5): em 768px a barra de busca (~180px) fazia o lado
+            direito do header somar 543px num espaco de 512px, cortando o menu
+            do usuario. Ctrl+K / CommandPalette continuam disponiveis. */}
         <Button
           variant="ghost"
           size="sm"
            onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-           className="hidden md:flex items-center gap-2 h-9 px-3 rounded-md border border-sidebar-border bg-sidebar-accent/50 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:border-sidebar-primary/50 text-xs transition-colors"
+           className="hidden lg:flex items-center gap-2 h-9 px-3 rounded-md border border-sidebar-border bg-sidebar-accent/50 text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent hover:border-sidebar-primary/50 text-xs transition-colors"
         >
           <Search className="h-3.5 w-3.5" />
           <span>Buscar…</span>
