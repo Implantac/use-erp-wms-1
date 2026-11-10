@@ -157,3 +157,24 @@ bunx vitest run src/shared/components/ConfirmDialog.test.tsx
 **Arquivos criados:** `docs/AVALIACAO-UX-RODADA-3-2026-11-10.md`, `scripts/ux-a11y-audit.mjs`, `src/shared/components/ConfirmDialog.test.tsx`.
 
 **Arquivos modificados:** `src/shared/components/confirmContext.ts`, `src/shared/components/ConfirmDialog.tsx`, 16 telas/hooks migrados para `useConfirm`/`usePrompt`, 3 telas com `refetch` em vez de `reload`, `package.json` (atalho `ux:a11y`) e `docs/AVALIACAO-UX-2026-11-10.md` (índice das rodadas).
+
+---
+
+## 12. Correção pós-publicação: typecheck do CI
+
+O commit `24d34ac` deixou o **`CI` vermelho** — algo que não acontecia nas rodadas anteriores (padrão era `CI` ✅ / `Playwright` ❌). O step 5, **"Typecheck explícito e não vazio"** (`bun run typecheck`), acusou **3 erros reais introduzidos por esta rodada**:
+
+```
+OrderDetailDialog.tsx(58,32): error TS2304: Cannot find name 'ask'.
+ConfirmDialog.tsx(43,48): error TS2322: Type '(value: boolean | PromiseLike<boolean>) => void'
+  is not assignable to type '(v: string | boolean) => void'.
+ConfirmDialog.tsx(51,54): error TS2322: mesmo erro para Promise<string | null>.
+```
+
+**Causas:** (1) `OrderDetailDialog.tsx` contém **dois componentes** — o script de migração inseriu `usePrompt()` no `OrderDetailDialog`, mas `decideQuality` (que usa `ask`) vive no `OrderDetailContent`; (2) um único `resolverRef` com parâmetro de união `boolean | string | null` viola a **contravariância** dos callbacks de `Promise`.
+
+**Correção:** `usePrompt()` movido para `OrderDetailContent`; `ConfirmDialog` passou a usar **dois refs fortemente tipados** (`confirmResolverRef` / `promptResolverRef`), escolhidos pelo resolver pendente em `finish`, sem `any` e sem cast. Os 4 testes do provider continuam verdes, lint 0/0 e SEC-02 2663/0.
+
+> **Limitação metodológica:** o typecheck local completo (`tsgo`) não é executável neste sandbox — estourou 960 s e saturou a máquina, travando o shell temporariamente (o worktree foi revalidado íntegro: 0 deleções). A validação final de tipos é, portanto, **o próprio CI**, não uma execução local. Esta seção existe para não apresentar o `CI` ✅ anterior como garantia de que esta rodada também passaria.
+
+**Nenhum** gate, spec, workflow ou exceção do SEC-02 foi alterado para "consertar" o vermelho.

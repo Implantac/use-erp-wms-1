@@ -33,14 +33,18 @@ export const ConfirmDialogProvider = React.memo(({ children }: { children: React
   const [opts, setOpts] = useState<ConfirmOptions | PromptOptions | null>(null);
   const [mode, setMode] = useState<'confirm' | 'prompt'>('confirm');
   const [inputValue, setInputValue] = useState('');
-  const resolverRef = useRef<((v: boolean | string | null) => void) | null>(null);
+  // Resolvers separados e fortemente tipados. Um unico ref com tipo de uniao
+  // (boolean | string | null) e invalido por contravariancia: o `resolve` de
+  // Promise<boolean> nao aceita um parametro mais amplo (erro TS2322 no CI).
+  const confirmResolverRef = useRef<((v: boolean) => void) | null>(null);
+  const promptResolverRef = useRef<((v: string | null) => void) | null>(null);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
 
   const confirm = useCallback<ConfirmFn>((options) => {
     setOpts(options);
     setMode('confirm');
     setOpen(true);
-    return new Promise<boolean>((resolve) => { resolverRef.current = resolve; });
+    return new Promise<boolean>((resolve) => { confirmResolverRef.current = resolve; });
   }, []);
 
   const prompt = useCallback<PromptFn>((options) => {
@@ -48,13 +52,17 @@ export const ConfirmDialogProvider = React.memo(({ children }: { children: React
     setMode('prompt');
     setInputValue(options.defaultValue ?? '');
     setOpen(true);
-    return new Promise<string | null>((resolve) => { resolverRef.current = resolve; });
+    return new Promise<string | null>((resolve) => { promptResolverRef.current = resolve; });
   }, []);
 
   const finish = (result: boolean | string | null) => {
     setOpen(false);
-    resolverRef.current?.(result);
-    resolverRef.current = null;
+    // Identifica o dialog pelo resolver pendente, sem depender de `mode`
+    // (state) e sem cast para any.
+    if (promptResolverRef.current) promptResolverRef.current(typeof result === 'string' ? result : null);
+    else if (confirmResolverRef.current) confirmResolverRef.current(result === true);
+    promptResolverRef.current = null;
+    confirmResolverRef.current = null;
   };
 
   const handleClose = (confirmed: boolean) => {

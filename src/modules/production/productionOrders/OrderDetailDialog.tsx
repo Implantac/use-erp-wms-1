@@ -30,7 +30,6 @@ interface Props {
 }
 
 export function OrderDetailDialog({ order, open, onOpenChange, onChanged }: Props) {
-  const ask = usePrompt();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto">
@@ -42,6 +41,9 @@ export function OrderDetailDialog({ order, open, onOpenChange, onChanged }: Prop
 }
 
 function OrderDetailContent({ order, onChanged }: { order: ProductionOrderRow; onChanged?: () => Promise<void> | void }) {
+  // QA-UX (rodada 3): usePrompt precisa estar NESTE componente, onde fica
+  // decideQuality — nao no OrderDetailDialog que apenas envolve o Dialog.
+  const ask = usePrompt();
   const { orderSteps, refetch: refetchSteps } = useProductionOrderSteps(order.id);
   const { logs, refetch: refetchLogs } = useProductionLogs(order.id);
   const { inspections, refetch: refetchInspections } = useQualityInspections(order.id);
