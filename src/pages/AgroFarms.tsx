@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Sprout, Trash2, ChevronRight } from 'lucide-react';
@@ -16,6 +17,7 @@ import { EmptyState } from '@/shared/components/EmptyState';
 import { toSafeNumber } from '@/lib/numericValidation';
 
 export default function AgroFarms() {
+  const confirm = useConfirm();
   const { data: farms = [], isLoading } = useAgroFarms();
   const createFarm = useCreateAgroFarm();
   const deleteFarm = useDeleteAgroFarm();
@@ -99,7 +101,7 @@ export default function AgroFarms() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Button asChild variant="ghost" size="icon"><Link to={`/agro/fazendas/${f.id}`}><ChevronRight className="h-4 w-4" /></Link></Button>
-                        <Button variant="ghost" size="icon" onClick={() => { if (confirm(`Excluir fazenda ${f.name}?`)) deleteFarm.mutate(f.id); }}>
+                        <Button variant="ghost" size="icon" onClick={async () => { if (await confirm({ title: 'Excluir fazenda?', description: `A fazenda ${f.name} será excluída.`, confirmLabel: 'Excluir', variant: 'destructive' })) deleteFarm.mutate(f.id); }}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>

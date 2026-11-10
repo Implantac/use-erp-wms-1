@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, HeartPulse, Trash2, ChevronRight, Calendar, Stethoscope } from 'lucide-react';
@@ -26,6 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function HealthPatients() {
+  const confirm = useConfirm();
   const { data: patients = [], isLoading } = useHealthPatients();
   const { data: pros = [] } = useHealthProfessionals();
   const { data: appts = [] } = useHealthAppointments();
@@ -154,7 +156,7 @@ export default function HealthPatients() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button asChild variant="ghost" size="icon"><Link to={`/saude/pacientes/${p.id}`}><ChevronRight className="h-4 w-4" /></Link></Button>
-                            <Button variant="ghost" size="icon" onClick={() => { if (confirm(`Excluir paciente ${p.full_name}?`)) deletePatient.mutate(p.id); }}>
+                            <Button variant="ghost" size="icon" onClick={async () => { if (await confirm({ title: 'Excluir paciente?', description: `O paciente ${p.full_name} será excluído.`, confirmLabel: 'Excluir', variant: 'destructive' })) deletePatient.mutate(p.id); }}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>

@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { useState } from 'react';
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -22,11 +23,12 @@ interface ParametersTableProps {
 }
 
 export const ParametersTable = ({ parameters, onEdit }: ParametersTableProps) => {
+  const confirm = useConfirm();
   const { updateParameter } = useSystemParameters();
   const [showSensitive, setShowSensitive] = useState<Record<string, boolean>>({});
 
   const handleReset = async (param: ParameterRow) => {
-    if (confirm(`Deseja restaurar o parâmetro ${param.name} para o valor padrão?`)) {
+    if (await confirm({ title: 'Restaurar parâmetro?', description: `Deseja restaurar o parâmetro ${param.name} para o valor padrão?`, confirmLabel: 'Restaurar' })) {
       await updateParameter({ code: param.code, value: param.default_value });
     }
   };

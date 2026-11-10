@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, HardHat, Pencil, Trash2, ChevronRight } from 'lucide-react';
@@ -120,6 +121,7 @@ function NewProjectDialog() {
 }
 
 export default function ConstructionProjects() {
+  const confirm = useConfirm();
   const { data: projects, isLoading } = useConstructionProjects();
   const remove = useDeleteConstructionProject();
 
@@ -182,8 +184,8 @@ export default function ConstructionProjects() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => {
-                          if (confirm(`Remover obra ${p.code}?`)) remove.mutate(p.id);
+                        onClick={async () => {
+                          if (await confirm({ title: 'Remover obra?', description: `A obra ${p.code} será removida.`, confirmLabel: 'Remover', variant: 'destructive' })) remove.mutate(p.id);
                         }}
                       >
                         <Trash2 className="h-4 w-4" />

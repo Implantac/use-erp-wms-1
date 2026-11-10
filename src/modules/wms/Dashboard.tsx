@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useWMSDashboardStats, useWMSStorageLocations } from '@/hooks/wms/useWMSOperations';
 
 import { PageContainer } from '@/shared/components/PageContainer';
@@ -31,7 +32,7 @@ const quickActions = [
 ];
 
 export default function WMSDashboardPage() {
-  const { stats, recentMovements, loading } = useWMSDashboardStats();
+  const { stats, recentMovements, loading, refetch } = useWMSDashboardStats();
   const { locations } = useWMSStorageLocations();
 
   // Análise de ocupação real consolidada por zona para o Gêmeo Digital
@@ -82,7 +83,13 @@ export default function WMSDashboardPage() {
               <Zap className="h-4 w-4 text-primary animate-pulse" /> IA & Insights
             </Button>
           </Link>
-          <Button variant="outline" size="icon" title="Atualizar dados" onClick={() => window.location.reload()}>
+          <Button
+            variant="outline"
+            size="icon"
+            title="Atualizar dados"
+            aria-label="Atualizar dados"
+            onClick={() => { void refetch().then(() => toast.success('Dados atualizados')).catch(() => toast.error('Não foi possível atualizar os dados. Tente novamente.')); }}
+          >
             <Activity className="h-4 w-4" />
           </Button>
         </div>

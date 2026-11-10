@@ -1,3 +1,4 @@
+import { usePrompt } from '@/shared/components/confirmContext';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/ui/base/dialog';
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function OrderDetailDialog({ order, open, onOpenChange, onChanged }: Props) {
+  const ask = usePrompt();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[88vh] max-w-5xl overflow-y-auto">
@@ -53,7 +55,7 @@ function OrderDetailContent({ order, onChanged }: { order: ProductionOrderRow; o
   const decideQuality = async (inspectionId: string, status: 'approved' | 'rejected' | 'quarantine') => {
     let correctiveAction: string | null = null;
     if (status !== 'approved') {
-      correctiveAction = window.prompt('Motivo/ação corretiva obrigatória para rejeição ou quarentena:')?.trim() || null;
+      correctiveAction = await ask({ title: 'Decisão de qualidade', description: 'Informe o motivo ou a ação corretiva para rejeição/quarentena.', inputLabel: 'Motivo / ação corretiva', placeholder: 'Descreva o ocorrido', required: true, multiline: true, confirmLabel: 'Registrar decisão' });
       if (!correctiveAction) {
         toast.error('Informe o motivo ou a ação corretiva');
         return;

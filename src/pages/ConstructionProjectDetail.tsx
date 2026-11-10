@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, HardHat, Plus, Trash2, CheckCircle2, FileText } from 'lucide-react';
@@ -149,6 +150,7 @@ function NewDiaryDialog({ projectId }: { projectId: string }) {
 }
 
 export default function ConstructionProjectDetail() {
+  const confirm = useConfirm();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const projectId = id ?? '';
@@ -232,7 +234,7 @@ export default function ConstructionProjectDetail() {
                         <TableCell className="text-right">{brl(it.unit_cost)}</TableCell>
                         <TableCell className="text-right font-semibold">{brl(it.total)}</TableCell>
                         <TableCell>
-                          <Button size="icon" variant="ghost" onClick={() => { if (confirm('Remover item?')) removeItem.mutate(it.id); }}>
+                          <Button size="icon" variant="ghost" onClick={async () => { if (await confirm({ title: 'Remover item?', description: 'Este item será removido da obra.', confirmLabel: 'Remover', variant: 'destructive' })) removeItem.mutate(it.id); }}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>

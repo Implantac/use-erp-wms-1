@@ -28,6 +28,7 @@
     "e2e:public": "playwright test --config=e2e/playwright.public.config.ts",
     "ux:links": "node scripts/ux-links-audit.mjs",
     "ux:forms": "node scripts/ux-forms-audit.mjs",
+    "ux:a11y": "node scripts/ux-a11y-audit.mjs",
     "ux:audit": "node scripts/ux-audit.mjs",
     "ux:journey": "node scripts/ux-journey.mjs",
     "e2e:isolated:teardown": "node scripts/e2e-isolated-server.mjs --teardown"

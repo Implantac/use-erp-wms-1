@@ -1,3 +1,5 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import { PageContainer } from "@/shared/components/PageContainer";
 import { PageHeader } from "@/shared/components/PageHeader";
@@ -34,6 +36,7 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secon
 export default function CommerceStorefrontDetail() {
   const { storefrontId = "" } = useParams<{ storefrontId: string }>();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { data: storefront, isLoading } = useStorefront(storefrontId);
   const { data: theme } = useCommerceTheme(storefront?.theme_id ?? null);
   const updateStatus = useUpdateStorefrontStatus();
@@ -247,11 +250,22 @@ export default function CommerceStorefrontDetail() {
                       variant="outline"
                       onClick={async () => {
                         const { supabase } = await import("@/integrations/supabase/client");
-                        await supabase
+                        // QA-UX (rodada 3): antes o erro era ignorado e a pagina
+                        // era recarregada de qualquer forma, dando a impressao
+                        // de que a alteracao tinha sido aplicada.
+                        const { error } = await supabase
                           .from("storefronts")
                           .update({ auto_authorize_nfce: !autoNfce })
                           .eq("id", storefront.id);
-                        window.location.reload();
+                        if (error) {
+                          toast.error("Não foi possível alterar a autorização automática. Tente novamente.");
+                          return;
+                        }
+                        await Promise.all([
+                          qc.invalidateQueries({ queryKey: ["storefront", storefront.id] }),
+                          qc.invalidateQueries({ queryKey: ["storefronts"] }),
+                        ]);
+                        toast.success(autoNfce ? "Autorização automática desativada" : "Autorização automática ativada");
                       }}
                     >
                       {autoNfce ? "Desativar" : "Ativar"}

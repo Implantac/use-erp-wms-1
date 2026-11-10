@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";
 import { Button } from "@/ui/base/button";
 import { Input } from "@/ui/base/input";
@@ -43,6 +44,7 @@ export function PluginForm({
   onRemove,
   removePending,
 }: Props) {
+  const confirm = useConfirm();
   return (
     <Card>
       <CardHeader>
@@ -150,8 +152,8 @@ export function PluginForm({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  if (confirm(`Remover o plugin "${draft.name}"?`)) {
+                onClick={async () => {
+                  if (await confirm({ title: 'Remover plugin?', description: `O plugin "${draft.name}" será removido.`, confirmLabel: 'Remover', variant: 'destructive' })) {
                     onRemove(draft.id!);
                   }
                 }}

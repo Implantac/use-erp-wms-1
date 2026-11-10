@@ -3,6 +3,7 @@ import { errorMessage } from '@/lib/errors';
 import type { Json } from '@/integrations/supabase/types';
 import { supabase } from "@/integrations/supabase/client";
 import { handleMutationError, toastSuccess } from "@/lib/toastHelpers";
+import { usePrompt } from "@/shared/components/confirmContext";
 import type { PluginDraft, PluginRow, PluginVersionRow } from "./types";
 
 export function usePluginsAll() {
@@ -120,6 +121,10 @@ export function usePublishVersion(opts: {
   manifestText: string;
 }) {
   const qc = useQueryClient();
+  // QA-UX (rodada 3): usePrompt e chamado no corpo do hook (regras de hooks),
+  // nao dentro da mutationFn assincrona. Cancelar nao deve publicar nem
+  // disparar onSuccess.
+  const ask = usePrompt();
   return useMutation({
     mutationFn: async () => {
       const { pluginId, draft, manifestText } = opts;
@@ -130,7 +135,15 @@ export function usePublishVersion(opts: {
       } catch (e) {
         throw new Error(`Manifest JSON inválido: ${errorMessage(e)}`);
       }
-      const changelog = window.prompt(`Changelog para versão ${draft.version}:`, "") ?? "";
+      const changelog = await ask({
+        title: 'Publicar versão',
+        description: `Registre as alterações da versão ${draft.version}.`,
+        inputLabel: 'Changelog',
+        placeholder: 'Descreva as alterações desta versão',
+        multiline: true,
+        confirmLabel: 'Publicar',
+      });
+      if (changelog === null) return { cancelled: true };
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from("plugin_versions").insert({
         plugin_id: pluginId,
@@ -141,8 +154,10 @@ export function usePublishVersion(opts: {
         published_by: user?.id ?? null,
       });
       if (error) throw error;
+      return { cancelled: false };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result.cancelled) return;
       toastSuccess("Versão publicada");
       qc.invalidateQueries({ queryKey: ["plugin_versions", opts.pluginId] });
     },

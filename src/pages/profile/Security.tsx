@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/ui/base/button";
@@ -13,6 +14,7 @@ import { PageHeader } from "@/shared/components/PageHeader";
 type Factor = { id: string; friendly_name?: string; factor_type: string; status: string };
 
 export default function ProfileSecurity() {
+  const confirm = useConfirm();
   const [factors, setFactors] = useState<Factor[]>([]);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
@@ -72,7 +74,7 @@ export default function ProfileSecurity() {
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Remover este fator 2FA?")) return;
+    if (!await confirm({ title: 'Remover fator 2FA?', description: 'Este método de autenticação será desativado.', confirmLabel: 'Remover', variant: 'destructive' })) return;
     const { error } = await supabase.auth.mfa.unenroll({ factorId: id });
     if (error) toast.error(error.message);
     else toast.success("Fator removido");

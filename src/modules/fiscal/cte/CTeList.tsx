@@ -1,3 +1,4 @@
+import { usePrompt } from '@/shared/components/confirmContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/base/table';
 import { Button } from '@/ui/base/button';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function CTeList({ ctes, isLoading, onTransmit, onCancel }: Props) {
+  const ask = usePrompt();
   return (
     <Card>
       <CardHeader><CardTitle>Conhecimentos de Transporte</CardTitle></CardHeader>
@@ -39,7 +41,7 @@ export function CTeList({ ctes, isLoading, onTransmit, onCancel }: Props) {
                   <TableCell><FiscalStatusBadge status={c.status} /></TableCell>
                   <TableCell className="text-right space-x-1">
                     {c.status === 'draft' && <Button size="sm" variant="outline" onClick={() => onTransmit(c.id)}><Send className="h-3 w-3" /></Button>}
-                    {c.status === 'authorized' && <Button size="sm" variant="ghost" onClick={() => { const r = prompt('Justificativa do cancelamento:'); if (r) onCancel(c.id, r); }}><Ban className="h-3 w-3" /></Button>}
+                    {c.status === 'authorized' && <Button size="sm" variant="ghost" onClick={async () => { const r = await ask({ title: 'Cancelar CT-e', description: 'A justificativa é obrigatória para o cancelamento.', inputLabel: 'Justificativa', placeholder: 'Motivo do cancelamento', required: true, multiline: true, confirmLabel: 'Cancelar CT-e', variant: 'destructive' }); if (r) onCancel(c.id, r); }}><Ban className="h-3 w-3" /></Button>}
                   </TableCell>
                 </TableRow>
               ))}

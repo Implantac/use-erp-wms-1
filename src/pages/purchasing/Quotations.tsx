@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -45,6 +46,7 @@ interface Quotation {
 const total = (items: Item[] = []) => items.reduce((s, i) => s + i.quantity * (i.unit_price ?? 0), 0);
 
 export default function QuotationsPage() {
+  const confirm = useConfirm();
   const { currentCompany } = useEnterprise();
   const companyId = currentCompany?.id;
   const qc = useQueryClient();
@@ -162,7 +164,7 @@ export default function QuotationsPage() {
                             ? <Badge variant="outline">Pedido gerado</Badge>
                             : <Button size="sm" disabled={toOrder.isPending} onClick={() => toOrder.mutate(q.id)}>Gerar pedido</Button>)}
                           {(q.status === 'draft' || q.status === 'cancelled') && (
-                            <Button size="icon" variant="ghost" aria-label={`Excluir ${q.number}`} onClick={() => { if (confirm(`Excluir a cotação ${q.number}?`)) remove.mutate(q.id); }}>
+                            <Button size="icon" variant="ghost" aria-label={`Excluir ${q.number}`} onClick={async () => { if (await confirm({ title: 'Excluir cotação?', description: `A cotação ${q.number} será excluída.`, confirmLabel: 'Excluir', variant: 'destructive' })) remove.mutate(q.id); }}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}

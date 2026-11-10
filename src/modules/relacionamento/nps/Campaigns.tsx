@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import type { Tables } from '@/integrations/supabase/types';
 import type { NPSCampaignInput } from './hooks/campaigns';
 import { useState } from 'react';
@@ -14,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2, Edit2, Play, Pause } from 'lucide-react';
 
 export default function Campaigns() {
+  const confirm = useConfirm();
   const { data: campaigns = [], isLoading } = useNPSCampaigns();
   const create = useCreateCampaign();
   const update = useUpdateCampaign();
@@ -58,7 +60,7 @@ export default function Campaigns() {
                     {c.status === 'active' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </Button>
                   <Button size="icon" variant="ghost" onClick={() => openEdit(c)}><Edit2 className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => confirm('Excluir campanha?') && del.mutate(c.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                  <Button size="icon" variant="ghost" onClick={async () => { if (await confirm({ title: 'Excluir campanha?', description: 'A campanha será removida permanentemente.', confirmLabel: 'Excluir', variant: 'destructive' })) del.mutate(c.id); }}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                 </div>
               </CardContent>
             </Card>

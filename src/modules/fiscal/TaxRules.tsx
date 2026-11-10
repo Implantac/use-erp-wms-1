@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { useState, useMemo } from 'react';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
@@ -36,6 +37,7 @@ const empty: Partial<TaxRule> = {
 };
 
 export default function TaxRulesPage() {
+  const confirm = useConfirm();
   const { data: rules = [], isLoading } = useTaxRules();
   const upsert = useUpsertTaxRule();
   const del = useDeleteTaxRule();
@@ -148,7 +150,7 @@ export default function TaxRulesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => confirm(`Remover?`) && del.mutate(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Button variant="ghost" size="icon" onClick={async () => { if (await confirm({ title: 'Remover regra tributária?', description: 'Esta regra tributária será removida.', confirmLabel: 'Remover', variant: 'destructive' })) del.mutate(r.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
                 ))

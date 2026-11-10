@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from '@/ui/base/table';
@@ -28,6 +29,7 @@ interface UsersTableProps {
 }
 
 export const UsersTable = ({ users, onEdit }: UsersTableProps) => {
+  const confirm = useConfirm();
   const { deleteUser, toggleBan, resetPassword } = useUsers();
 
   const handleToggleStatus = async (user: SystemUser) => {
@@ -40,7 +42,7 @@ export const UsersTable = ({ users, onEdit }: UsersTableProps) => {
   };
 
   const handleDeleteUser = async (user: SystemUser) => {
-    if (confirm('Tem certeza que deseja excluir este usuário permanentemente?')) {
+    if (await confirm({ title: 'Excluir usuário?', description: 'Tem certeza que deseja excluir este usuário permanentemente?', confirmLabel: 'Excluir', variant: 'destructive' })) {
       await deleteUser(user.id);
     }
   };

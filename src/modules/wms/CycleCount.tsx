@@ -1,3 +1,4 @@
+import { usePrompt } from '@/shared/components/confirmContext';
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";
 import { Button } from "@/ui/base/button";
@@ -38,6 +39,7 @@ const statusVariant: Record<CountRow["status"], "default" | "secondary" | "outli
 };
 
 export default function CycleCount() {
+  const ask = usePrompt();
   const [rows, setRows] = useState<CountRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -283,8 +285,8 @@ export default function CycleCount() {
                       {r.status === "in_progress" && (
                         <Button
                           size="sm"
-                          onClick={() => {
-                            const v = window.prompt("Quantas divergências encontradas?", "0");
+                          onClick={async () => {
+                            const v = await ask({ title: 'Concluir contagem', description: 'Informe quantas divergências foram encontradas.', inputLabel: 'Divergências encontradas', defaultValue: '0', placeholder: '0', required: true, confirmLabel: 'Concluir' });
                             if (v !== null) complete(r.id, Number(v) || 0);
                           }}
                         >

@@ -1,10 +1,22 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { subHours, startOfHour, format } from 'date-fns';
 import { useRFID } from '@/hooks/system/useRFIDQuery';
 import { ZONE_COLORS, STATUS_COLORS, STATUS_LABELS } from './constants';
 
 export function useRFIDDashboard() {
+  const queryClient = useQueryClient();
   const { readers, readersLoading, tags, tagsLoading, getEvents } = useRFID();
+
+  // QA-UX (rodada 3): botao "Atualizar" recarregava a pagina inteira,
+  // perdendo filtros, scroll e qualquer rascunho. Agora só re-busca os dados.
+  const refetch = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['rfid_readers'] }),
+      queryClient.invalidateQueries({ queryKey: ['rfid_tags'] }),
+      queryClient.invalidateQueries({ queryKey: ['rfid_events'] }),
+    ]);
+  }, [queryClient]);
   const { data: events = [], isLoading: loadingEvents } = getEvents(500);
 
   const loading = readersLoading || tagsLoading || loadingEvents;
@@ -72,5 +84,5 @@ export function useRFIDDashboard() {
     );
   }, [readers]);
 
-  return { readers, tags, events, loading, summary, eventsPerHour, eventsByZone, readerStatusData, tagAlerts, offlineReaders };
+  return { readers, tags, events, loading, summary, eventsPerHour, eventsByZone, readerStatusData, tagAlerts, offlineReaders, refetch };
 }

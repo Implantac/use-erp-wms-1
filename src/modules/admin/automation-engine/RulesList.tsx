@@ -1,3 +1,4 @@
+import { useConfirm } from '@/shared/components/confirmContext';
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";
 import { Button } from "@/ui/base/button";
 import { Badge } from "@/ui/base/badge";
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function RulesList({ rules, isLoading, onEdit, onHistory, onToggle, onRemove }: Props) {
+  const confirm = useConfirm();
   return (
     <Card>
       <CardHeader>
@@ -63,8 +65,8 @@ export function RulesList({ rules, isLoading, onEdit, onHistory, onToggle, onRem
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => {
-                      if (confirm(`Excluir regra "${r.name}"?`)) onRemove(r.id);
+                    onClick={async () => {
+                      if (await confirm({ title: 'Excluir regra?', description: `A regra "${r.name}" será removida.`, confirmLabel: 'Excluir', variant: 'destructive' })) onRemove(r.id);
                     }}
                   >
                     <Trash2 className="h-4 w-4" />

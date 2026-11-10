@@ -6,7 +6,10 @@
 
 > Este documento cobre **experiência de uso**. Ele não substitui, não altera e não revalida `docs/AVALIACAO-TECNICA-ERP-2026-11-05.md`. **CI verde não é evidência de aplicação utilizável.**
 >
-> **Rodada 2 (10/11/2026):** [AVALIACAO-UX-RODADA-2-2026-11-10.md](./AVALIACAO-UX-RODADA-2-2026-11-10.md) — S005 (teclado no lançamento), auditoria de 105 links do menu, dedupe de toasts e identidade PWA. Este relatório da rodada 1 fica preservado como histórico.
+> **Rodada 2 (10/11/2026):** [AVALIACAO-UX-RODADA-2-2026-11-10.md](./AVALIACAO-UX-RODADA-2-2026-11-10.md) — S005 (teclado no lançamento), auditoria de 105 links do menu, dedupe de toasts e identidade PWA.
+> **Rodada 3 (10/11/2026):** [AVALIACAO-UX-RODADA-3-2026-11-10.md](./AVALIACAO-UX-RODADA-3-2026-11-10.md) — unificação de dialogs de confirmação, `usePrompt` acessível e fim dos recarregamentos de página.
+>
+> Este relatório da rodada 1 fica preservado como histórico.
 
 ---
 
