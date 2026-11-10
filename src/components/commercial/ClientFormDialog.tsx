@@ -3,6 +3,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/base/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/ui/base/tabs';
 import { Button } from '@/ui/base/button';
+import { scheduleFocusInvalid } from '@/ui/base/focusInvalid';
 import { useCnpjLookup } from '@/hooks/system/useCnpjLookup';
 import { useClientDuplicateCheck } from '@/hooks/commercial/useClientDuplicateCheck';
 import { useSalesReps } from '@/hooks/commercial/useSalesReps';
@@ -110,11 +111,14 @@ export function ClientFormDialog({ open, onOpenChange, client, totalClients }: P
       if (e.name || e.document || e.email || e.phone) setTab('identification');
       else if (e.address_zip_code || e.address_city || e.address_state) setTab('address');
       toastError('Há campos obrigatórios pendentes.', undefined, 'Verifique os campos');
+      // QA-UX r6: setTab() pode trocar de aba; o foco precisa esperar o commit.
+      scheduleFocusInvalid(() => document.querySelector('[role="dialog"]'));
       return;
     }
     if (duplicate) {
       toastError(`Já existe o cadastro "${duplicate.name}" (${duplicate.code}) com este documento.`, undefined, 'Documento duplicado');
       setTab('identification');
+      scheduleFocusInvalid(() => document.querySelector('[role="dialog"]'), 'document');
       return;
     }
 

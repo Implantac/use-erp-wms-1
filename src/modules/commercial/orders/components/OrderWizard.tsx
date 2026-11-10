@@ -81,6 +81,15 @@ export function OrderWizard({ onSuccess, onCancel }: OrderWizardProps) {
     if (currentStep > 0) setCurrentStep(prev => prev - 1);
   };
 
+  /** QA-UX r6: "Próximo Passo" travado precisa dizer O QUE falta. */
+  const nextHint = (): string | null => {
+    if (canGoNext()) return null;
+    if (currentStep === 0) return 'Selecione um cliente para avançar para os itens.';
+    if (currentStep === 1) return 'Adicione ao menos um item com produto e quantidade para avançar.';
+    if (currentStep === 2) return 'Selecione a forma de pagamento e a condição para avançar.';
+    return null;
+  };
+
   const handleSubmit = () => {
     createOrder.mutate({
       client_id: formClient.id,
@@ -370,8 +379,13 @@ export function OrderWizard({ onSuccess, onCancel }: OrderWizardProps) {
         </Button>
         
         <div className="flex items-center gap-3">
+          {nextHint() && (
+            <span role="status" className="max-w-[260px] text-right text-xs text-muted-foreground">
+              {nextHint()}
+            </span>
+          )}
           <Button 
-            onClick={handleNext} 
+            onClick={handleNext}
             disabled={!canGoNext() || createOrder.isPending}
             className="gap-2 min-w-[140px]"
           >

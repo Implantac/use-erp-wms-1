@@ -35,36 +35,63 @@ function present(value: number | null | undefined): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-export function validateFiberClassification(values: FiberClassification): string | null {
+/**
+ * QA-UX (rodada 6): a validacao antes devolvia so a mensagem. O dialogo
+ * nao conseguia saber QUAL campo focar, entao o foco ficava no botao.
+ * Agora uma unica fonte de verdade devolve `{ field, message }`; as
+ * funcoes `validate*` continuam com a mesma assinatura e as MESMAS
+ * mensagens (testes existentes dependem delas).
+ */
+export interface FiberValidationIssue {
+  field: keyof FiberReceiptFormValues;
+  message: string;
+}
+
+export function fiberClassificationIssue(values: FiberClassification): FiberValidationIssue | null {
   if (present(values.bale_count) && (!Number.isInteger(values.bale_count) || values.bale_count < 0)) {
-    return "A quantidade de fardos deve ser um número inteiro maior ou igual a zero.";
+    return { field: "bale_count", message: "A quantidade de fardos deve ser um número inteiro maior ou igual a zero." };
   }
-  if (present(values.gross_weight_kg) && values.gross_weight_kg < 0) return "O peso bruto não pode ser negativo.";
-  if (present(values.net_weight_kg) && values.net_weight_kg < 0) return "O peso líquido não pode ser negativo.";
+  if (present(values.gross_weight_kg) && values.gross_weight_kg < 0)
+    return { field: "gross_weight_kg", message: "O peso bruto não pode ser negativo." };
+  if (present(values.net_weight_kg) && values.net_weight_kg < 0)
+    return { field: "net_weight_kg", message: "O peso líquido não pode ser negativo." };
   if (present(values.gross_weight_kg) && present(values.net_weight_kg) && values.net_weight_kg > values.gross_weight_kg) {
-    return "O peso líquido não pode ser maior que o peso bruto.";
+    return { field: "net_weight_kg", message: "O peso líquido não pode ser maior que o peso bruto." };
   }
   if (present(values.moisture_pct) && (values.moisture_pct < 0 || values.moisture_pct > 100)) {
-    return "A umidade deve ficar entre 0% e 100%.";
+    return { field: "moisture_pct", message: "A umidade deve ficar entre 0% e 100%." };
   }
-  if (present(values.micronaire) && values.micronaire < 0) return "O micronaire não pode ser negativo.";
-  if (present(values.staple_length_mm) && values.staple_length_mm < 0) return "O comprimento da fibra não pode ser negativo.";
-  if (present(values.strength_g_tex) && values.strength_g_tex < 0) return "A resistência da fibra não pode ser negativa.";
+  if (present(values.micronaire) && values.micronaire < 0)
+    return { field: "micronaire", message: "O micronaire não pode ser negativo." };
+  if (present(values.staple_length_mm) && values.staple_length_mm < 0)
+    return { field: "staple_length_mm", message: "O comprimento da fibra não pode ser negativo." };
+  if (present(values.strength_g_tex) && values.strength_g_tex < 0)
+    return { field: "strength_g_tex", message: "A resistência da fibra não pode ser negativa." };
   if (present(values.trash_pct) && (values.trash_pct < 0 || values.trash_pct > 100)) {
-    return "O teor de impurezas deve ficar entre 0% e 100%.";
+    return { field: "trash_pct", message: "O teor de impurezas deve ficar entre 0% e 100%." };
   }
   return null;
 }
 
-export function validateFiberReceipt(values: FiberReceiptFormValues): string | null {
-  if (!values.product_id) return "Selecione o produto de fibra/pluma recebido.";
-  if (!values.supplier_name.trim() && !values.supplier_id) return "Informe o fornecedor do lote.";
-  if (!values.lot_number.trim()) return "Informe o número do lote do fornecedor.";
-  if (!present(values.quantity_kg) || values.quantity_kg <= 0) return "Informe o peso recebido em kg.";
+export function fiberReceiptIssue(values: FiberReceiptFormValues): FiberValidationIssue | null {
+  if (!values.product_id) return { field: "product_id", message: "Selecione o produto de fibra/pluma recebido." };
+  if (!values.supplier_name.trim() && !values.supplier_id)
+    return { field: "supplier_name", message: "Informe o fornecedor do lote." };
+  if (!values.lot_number.trim()) return { field: "lot_number", message: "Informe o número do lote do fornecedor." };
+  if (!present(values.quantity_kg) || values.quantity_kg <= 0)
+    return { field: "quantity_kg", message: "Informe o peso recebido em kg." };
   if (present(values.net_weight_kg) && Math.abs(values.net_weight_kg - values.quantity_kg) > 0.001) {
-    return "O peso líquido deve ser igual ao peso que entrará no estoque.";
+    return { field: "net_weight_kg", message: "O peso líquido deve ser igual ao peso que entrará no estoque." };
   }
-  return validateFiberClassification(values);
+  return fiberClassificationIssue(values);
+}
+
+export function validateFiberClassification(values: FiberClassification): string | null {
+  return fiberClassificationIssue(values)?.message ?? null;
+}
+
+export function validateFiberReceipt(values: FiberReceiptFormValues): string | null {
+  return fiberReceiptIssue(values)?.message ?? null;
 }
 
 export function fiberClassificationPayload(values: FiberClassification): FiberClassification {

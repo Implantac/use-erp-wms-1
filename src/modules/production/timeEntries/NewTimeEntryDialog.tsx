@@ -31,6 +31,13 @@ interface Props {
 export function NewTimeEntryDialog({ open, onOpenChange, activeOrders, form, setForm, onSubmit }: Props) {
   const formRef = useEnterToNextField<HTMLDivElement>();
 
+  // QA-UX r6: "Iniciar" desabilitado sem explicacao era uma barreira
+  // silenciosa — o usuario nao sabia qual dos campos faltava.
+  const pending: string[] = [];
+  if (!form.operator.trim()) pending.push('Operador');
+  if (!form.orderId) pending.push('Ordem de Produção');
+  if (!form.operationName.trim()) pending.push('Operação / Etapa');
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -81,6 +88,11 @@ export function NewTimeEntryDialog({ open, onOpenChange, activeOrders, form, set
           </FormField>
         </div>
         <DialogFooter>
+          {pending.length > 0 && (
+            <p role="status" className="mr-auto text-xs text-muted-foreground">
+              Preencha {pending.join(', ')} para iniciar o apontamento.
+            </p>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={onSubmit} disabled={!form.orderId || !form.operationName || !form.operator}>
             <Play className="h-4 w-4 mr-2" /> Iniciar

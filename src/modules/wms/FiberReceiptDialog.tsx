@@ -8,14 +8,15 @@ import { Input } from "@/ui/base/input";
 import { Label } from "@/ui/base/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/base/select";
 import { Textarea } from "@/ui/base/textarea";
+import { scheduleFocusInvalid } from "@/ui/base/focusInvalid";
 import { useProducts } from "@/hooks/inventory/useProducts";
 import { useSuppliers } from "@/hooks/purchasing/useSuppliers";
 import { useFiberReceipt, type FiberReceiptResult } from "@/hooks/wms/useFiberReceipt";
 import { isFiberProduct } from "@/lib/pcp/productFilters";
 import { toSafeNumber } from "@/lib/numericValidation";
 import {
+  fiberReceiptIssue,
   validateFiberClassification,
-  validateFiberReceipt,
   type FiberClassification,
   type FiberReceiptFormValues,
 } from "@/lib/wms/fiberReceipt";
@@ -53,11 +54,16 @@ function OptionalNumberField({
   value,
   onChange,
   step = "0.01",
+  field,
+  invalid = false,
 }: {
   label: string;
   value: number | null | undefined;
   onChange: (value: number | null) => void;
   step?: string;
+  /** QA-UX r6: chave do campo para o foco apos validacao. */
+  field?: string;
+  invalid?: boolean;
 }) {
   return (
     <div>
@@ -66,6 +72,8 @@ function OptionalNumberField({
         type="number"
         min={0}
         step={step}
+        data-field={field}
+        aria-invalid={invalid || undefined}
         value={value ?? ""}
         onChange={(event) => onChange(event.target.value === "" ? null : toSafeNumber(event.target.value))}
       />
@@ -76,21 +84,24 @@ function OptionalNumberField({
 export function FiberClassificationFields({
   values,
   onChange,
+  invalidField = null,
 }: {
   values: FiberClassification;
   onChange: (patch: Partial<FiberClassification>) => void;
+  /** QA-UX r6: campo que falhou na validacao, para marcar e focar. */
+  invalidField?: string | null;
 }) {
   return (
     <div className="space-y-3">
       <div className="grid gap-3 md:grid-cols-3">
-        <OptionalNumberField label="Fardos" step="1" value={values.bale_count} onChange={(v) => onChange({ bale_count: v })} />
-        <OptionalNumberField label="Peso bruto (kg)" value={values.gross_weight_kg} onChange={(v) => onChange({ gross_weight_kg: v })} />
-        <OptionalNumberField label="Peso líquido (kg)" value={values.net_weight_kg} onChange={(v) => onChange({ net_weight_kg: v })} />
-        <OptionalNumberField label="Umidade (%)" value={values.moisture_pct} onChange={(v) => onChange({ moisture_pct: v })} />
-        <OptionalNumberField label="Micronaire" value={values.micronaire} onChange={(v) => onChange({ micronaire: v })} />
-        <OptionalNumberField label="Comprimento (mm)" value={values.staple_length_mm} onChange={(v) => onChange({ staple_length_mm: v })} />
-        <OptionalNumberField label="Resistência (gf/tex)" value={values.strength_g_tex} onChange={(v) => onChange({ strength_g_tex: v })} />
-        <OptionalNumberField label="Impurezas (%)" value={values.trash_pct} onChange={(v) => onChange({ trash_pct: v })} />
+        <OptionalNumberField field="bale_count" invalid={invalidField === "bale_count"} label="Fardos" step="1" value={values.bale_count} onChange={(v) => onChange({ bale_count: v })} />
+        <OptionalNumberField field="gross_weight_kg" invalid={invalidField === "gross_weight_kg"} label="Peso bruto (kg)" value={values.gross_weight_kg} onChange={(v) => onChange({ gross_weight_kg: v })} />
+        <OptionalNumberField field="net_weight_kg" invalid={invalidField === "net_weight_kg"} label="Peso líquido (kg)" value={values.net_weight_kg} onChange={(v) => onChange({ net_weight_kg: v })} />
+        <OptionalNumberField field="moisture_pct" invalid={invalidField === "moisture_pct"} label="Umidade (%)" value={values.moisture_pct} onChange={(v) => onChange({ moisture_pct: v })} />
+        <OptionalNumberField field="micronaire" invalid={invalidField === "micronaire"} label="Micronaire" value={values.micronaire} onChange={(v) => onChange({ micronaire: v })} />
+        <OptionalNumberField field="staple_length_mm" invalid={invalidField === "staple_length_mm"} label="Comprimento (mm)" value={values.staple_length_mm} onChange={(v) => onChange({ staple_length_mm: v })} />
+        <OptionalNumberField field="strength_g_tex" invalid={invalidField === "strength_g_tex"} label="Resistência (gf/tex)" value={values.strength_g_tex} onChange={(v) => onChange({ strength_g_tex: v })} />
+        <OptionalNumberField field="trash_pct" invalid={invalidField === "trash_pct"} label="Impurezas (%)" value={values.trash_pct} onChange={(v) => onChange({ trash_pct: v })} />
         <div>
           <Label>Classe da fibra</Label>
           <Input value={values.classification_grade ?? ""} onChange={(e) => onChange({ classification_grade: e.target.value })} />
@@ -123,6 +134,7 @@ export function FiberReceiptDialog({
   const [form, setForm] = useState<FiberReceiptFormValues>(emptyForm);
   const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey);
   const [error, setError] = useState<string | null>(null);
+  const [invalidField, setInvalidField] = useState<string | null>(null);
 
   const productOptions = useMemo(() => {
     const active = products.filter((product) => product.status !== "inactive");
@@ -131,18 +143,22 @@ export function FiberReceiptDialog({
   }, [products]);
 
   useEffect(() => {
-    if (open) setError(null);
+    if (open) { setError(null); setInvalidField(null); }
   }, [open ]);
 
   const patch = (change: Partial<FiberReceiptFormValues>) => {
     setForm((current) => ({ ...current, ...change }));
     setError(null);
+    setInvalidField(null);
   };
 
   const submit = async () => {
-    const validationError = validateFiberReceipt(form);
-    if (validationError) {
-      setError(validationError);
+    const issue = fiberReceiptIssue(form);
+    if (issue) {
+      setError(issue.message);
+      setInvalidField(issue.field);
+      // QA-UX r6: leva o teclado ao campo que precisa ser corrigido.
+      scheduleFocusInvalid(() => document.querySelector('[role="dialog"]'), issue.field);
       return;
     }
     try {
@@ -152,6 +168,8 @@ export function FiberReceiptDialog({
       });
       onSuccess?.(result);
       setForm(emptyForm);
+      setError(null);
+      setInvalidField(null);
       setIdempotencyKey(newIdempotencyKey());
       onOpenChange(false);
     } catch (err) {
@@ -181,7 +199,9 @@ export function FiberReceiptDialog({
             <div>
               <Label>Produto de fibra/pluma *</Label>
               <Select value={form.product_id} onValueChange={(value) => patch({ product_id: value })}>
-                <SelectTrigger><SelectValue placeholder={productsLoading ? "Carregando produtos…" : "Selecione o produto"} /></SelectTrigger>
+                <SelectTrigger data-field="product_id" aria-invalid={invalidField === "product_id" || undefined}>
+                  <SelectValue placeholder={productsLoading ? "Carregando produtos…" : "Selecione o produto"} />
+                </SelectTrigger>
                 <SelectContent>
                   {productOptions.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
@@ -204,7 +224,9 @@ export function FiberReceiptDialog({
                   patch({ supplier_id: value, supplier_name: supplier?.name ?? "" });
                 }}
               >
-                <SelectTrigger><SelectValue placeholder={suppliersLoading ? "Carregando fornecedores…" : "Selecione o fornecedor"} /></SelectTrigger>
+                <SelectTrigger data-field="supplier_id" aria-invalid={invalidField === "supplier_id" || undefined}>
+                  <SelectValue placeholder={suppliersLoading ? "Carregando fornecedores…" : "Selecione o fornecedor"} />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="manual">Informar nome manualmente</SelectItem>
                   {suppliers.map((supplier) => (
@@ -216,6 +238,8 @@ export function FiberReceiptDialog({
                 <Input
                   className="mt-2"
                   placeholder="Nome do fornecedor"
+                  data-field="supplier_name"
+                  aria-invalid={invalidField === "supplier_name" || undefined}
                   value={form.supplier_name}
                   onChange={(event) => patch({ supplier_name: event.target.value })}
                 />
@@ -223,7 +247,12 @@ export function FiberReceiptDialog({
             </div>
             <div>
               <Label>Lote do fornecedor *</Label>
-              <Input value={form.lot_number} onChange={(event) => patch({ lot_number: event.target.value })} />
+              <Input
+                data-field="lot_number"
+                aria-invalid={invalidField === "lot_number" || undefined}
+                value={form.lot_number}
+                onChange={(event) => patch({ lot_number: event.target.value })}
+              />
             </div>
             <div>
               <Label>Peso que entrará no estoque (kg) *</Label>
@@ -231,6 +260,8 @@ export function FiberReceiptDialog({
                 type="number"
                 min={0}
                 step="0.001"
+                data-field="quantity_kg"
+                aria-invalid={invalidField === "quantity_kg" || undefined}
                 value={form.quantity_kg ?? ""}
                 onChange={(event) => patch({ quantity_kg: event.target.value === "" ? null : toSafeNumber(event.target.value) })}
               />
@@ -253,7 +284,7 @@ export function FiberReceiptDialog({
                 Preencha somente o que foi pesado ou informado no laudo. Campo vazio permanece como “não informado”.
               </p>
             </div>
-            <FiberClassificationFields values={form} onChange={(change) => patch(change)} />
+            <FiberClassificationFields values={form} onChange={(change) => patch(change)} invalidField={invalidField} />
           </div>
 
           {error && (

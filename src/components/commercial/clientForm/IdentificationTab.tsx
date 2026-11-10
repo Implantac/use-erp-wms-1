@@ -53,6 +53,8 @@ export function IdentificationTab({ formData, update, errors, setPersonType, han
             value={formData.document}
             onChange={(e) => update({ document: formData.person_type === 'PJ' ? maskCNPJ(e.target.value) : maskCPF(e.target.value) })}
             placeholder={formData.person_type === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
+            data-field="document"
+            aria-invalid={Boolean(errors.document || duplicate) || undefined}
             className={errors.document ? 'border-destructive' : ''}
           />
           {formData.person_type === 'PJ' && (
@@ -72,7 +74,7 @@ export function IdentificationTab({ formData, update, errors, setPersonType, han
 
       <div className="space-y-2">
         <Label>{formData.person_type === 'PJ' ? 'Razão Social' : 'Nome Completo'} *</Label>
-        <Input value={formData.name} onChange={(e) => update({ name: e.target.value })} className={errors.name ? 'border-destructive' : ''} />
+        <Input value={formData.name} onChange={(e) => update({ name: e.target.value })} aria-invalid={!!errors.name || undefined} className={errors.name ? 'border-destructive' : ''} />
         {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
       </div>
 
@@ -129,12 +131,12 @@ export function IdentificationTab({ formData, update, errors, setPersonType, han
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>E-mail *</Label>
-          <Input type="email" value={formData.email} onChange={(e) => update({ email: e.target.value })} className={errors.email ? 'border-destructive' : ''} />
+          <Input type="email" value={formData.email} onChange={(e) => update({ email: e.target.value })} aria-invalid={!!errors.email || undefined} className={errors.email ? 'border-destructive' : ''} />
           {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
         </div>
         <div className="space-y-2">
           <Label>Telefone *</Label>
-          <Input value={formData.phone} onChange={(e) => update({ phone: maskPhone(e.target.value) })} placeholder="(00) 0000-0000" className={errors.phone ? 'border-destructive' : ''} />
+          <Input value={formData.phone} onChange={(e) => update({ phone: maskPhone(e.target.value) })} placeholder="(00) 0000-0000" aria-invalid={!!errors.phone || undefined} className={errors.phone ? 'border-destructive' : ''} />
           {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
         </div>
       </div>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  fiberClassificationIssue,
   fiberClassificationPayload,
+  fiberReceiptIssue,
   formatFiberClassificationSummary,
   validateFiberClassification,
   validateFiberReceipt,
@@ -35,6 +37,29 @@ describe("fiber receipt validation", () => {
     expect(validateFiberClassification({ moisture_pct: 101 })).toMatch(/umidade/i);
     expect(validateFiberClassification({ trash_pct: -1 })).toMatch(/impurezas/i);
     expect(validateFiberClassification({ gross_weight_kg: 100, net_weight_kg: 101 })).toMatch(/líquido/i);
+  });
+
+  // QA-UX r6: o dialogo precisa saber QUAL campo focar, nao so a mensagem.
+  it("names the first invalid field without changing the message", () => {
+    const empty = { ...baseReceipt, product_id: "" };
+    expect(fiberReceiptIssue(empty)).toEqual({
+      field: "product_id",
+      message: "Selecione o produto de fibra/pluma recebido.",
+    });
+    expect(validateFiberReceipt(empty)).toBe(fiberReceiptIssue(empty)?.message);
+
+    expect(fiberReceiptIssue({ ...baseReceipt, supplier_name: "" })?.field).toBe("supplier_name");
+    expect(fiberReceiptIssue({ ...baseReceipt, lot_number: "" })?.field).toBe("lot_number");
+    expect(fiberReceiptIssue({ ...baseReceipt, quantity_kg: 0 })?.field).toBe("quantity_kg");
+    expect(fiberReceiptIssue({ ...baseReceipt, net_weight_kg: 990 })?.field).toBe("net_weight_kg");
+    expect(fiberReceiptIssue(baseReceipt)).toBeNull();
+  });
+
+  it("names classification fields too", () => {
+    expect(fiberClassificationIssue({ moisture_pct: 101 })?.field).toBe("moisture_pct");
+    expect(fiberClassificationIssue({ trash_pct: -1 })?.field).toBe("trash_pct");
+    expect(fiberClassificationIssue({ gross_weight_kg: 100, net_weight_kg: 101 })?.field).toBe("net_weight_kg");
+    expect(fiberClassificationIssue({})).toBeNull();
   });
 });
 

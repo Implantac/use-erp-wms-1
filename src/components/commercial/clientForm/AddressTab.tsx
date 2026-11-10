@@ -27,6 +27,7 @@ export function AddressTab({ formData, update, errors, handleCepLookup, cepLoadi
               value={formData.address_zip_code}
               onChange={(e) => update({ address_zip_code: maskCEP(e.target.value) })}
               placeholder="00000-000"
+              aria-invalid={!!errors.address_zip_code || undefined}
               className={errors.address_zip_code ? 'border-destructive' : ''}
             />
             <Button type="button" variant="outline" size="icon" onClick={handleCepLookup} disabled={cepLoading} title="Buscar endereço pelo CEP">
@@ -59,12 +60,12 @@ export function AddressTab({ formData, update, errors, handleCepLookup, cepLoadi
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2 space-y-2">
           <Label>Cidade *</Label>
-          <Input value={formData.address_city} onChange={(e) => update({ address_city: e.target.value })} className={errors.address_city ? 'border-destructive' : ''} />
+          <Input value={formData.address_city} onChange={(e) => update({ address_city: e.target.value })} aria-invalid={!!errors.address_city || undefined} className={errors.address_city ? 'border-destructive' : ''} />
         </div>
         <div className="space-y-2">
           <Label>UF *</Label>
           <Select value={formData.address_state} onValueChange={(v) => update({ address_state: v })}>
-            <SelectTrigger className={errors.address_state ? 'border-destructive' : ''}><SelectValue placeholder="UF" /></SelectTrigger>
+            <SelectTrigger aria-invalid={!!errors.address_state || undefined} className={errors.address_state ? 'border-destructive' : ''}><SelectValue placeholder="UF" /></SelectTrigger>
             <SelectContent>
               {brazilianStates.map((s) => (
                 <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>

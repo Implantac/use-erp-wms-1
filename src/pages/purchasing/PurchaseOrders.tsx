@@ -9,6 +9,7 @@ import { useEnterToNextField } from '@/hooks/useEnterToNextField';
 import { ExportButton } from '@/shared/components/ExportButton';
 import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
+import { scheduleFocusInvalid } from '@/ui/base/focusInvalid';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
 import { formatBRL, formatDate } from '@/lib/formatters';
 import {
@@ -71,6 +72,8 @@ export default function PurchaseOrdersPage() {
   const [newPriority, setNewPriority] = useState('medium');
   const [newExpected, setNewExpected] = useState('');
   const [draftItems, setDraftItems] = useState<DraftItem[]>([{ productId: '', quantity: 1, unitPrice: 0 }]);
+  // QA-UX r6: campo que bloqueou o ultimo submit, para marcar aria-invalid.
+  const [createInvalidField, setCreateInvalidField] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') || '');
 
@@ -123,8 +126,13 @@ export default function PurchaseOrdersPage() {
     const validItems = draftItems.filter((i) => i.productId && Number(i.quantity) > 0);
     if (!supplier || validItems.length === 0) {
       toastError('Selecione um fornecedor e ao menos um item com quantidade.');
+      const field = !supplier ? 'fornecedor' : 'produto-0';
+      setCreateInvalidField(field);
+      // QA-UX r6: tira o foco do botao e leva ao campo que falta preencher.
+      scheduleFocusInvalid(() => document.querySelector('[role="dialog"]'), field);
       return;
     }
+    setCreateInvalidField(null);
 
     await createOrder({
       supplierId: supplier.id,
@@ -286,7 +294,7 @@ export default function PurchaseOrdersPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+      <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); if (!open) setCreateInvalidField(null); }}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Novo Pedido de Compra</DialogTitle>
@@ -300,8 +308,12 @@ export default function PurchaseOrdersPage() {
           <div ref={createFormRef} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
               <FormField label="Fornecedor" required>
-                <Select value={newSupplierId} onValueChange={setNewSupplierId}>
-                  <SelectTrigger aria-label="Selecione o fornecedor"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <Select value={newSupplierId} onValueChange={(v) => { setNewSupplierId(v); setCreateInvalidField(null); }}>
+                  <SelectTrigger
+                    data-field="fornecedor"
+                    aria-invalid={createInvalidField === 'fornecedor' || undefined}
+                    aria-label="Selecione o fornecedor"
+                  ><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {suppliers.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
                   </SelectContent>
@@ -330,13 +342,20 @@ export default function PurchaseOrdersPage() {
                   <FormField label="Produto" className="space-y-1">
                     <Select
                       value={item.productId}
-                      onValueChange={(value) => setDraftItems((prev) => prev.map((it, i) => {
-                        if (i !== index) return it;
-                        const product = (products || []).find((p) => p.id === value);
-                        return { ...it, productId: value, unitPrice: it.unitPrice || Number(product?.cost_price || 0) };
-                      }))}
+                      onValueChange={(value) => {
+                        setDraftItems((prev) => prev.map((it, i) => {
+                          if (i !== index) return it;
+                          const product = (products || []).find((p) => p.id === value);
+                          return { ...it, productId: value, unitPrice: it.unitPrice || Number(product?.cost_price || 0) };
+                        }));
+                        setCreateInvalidField(null);
+                      }}
                     >
-                      <SelectTrigger aria-label="Selecione o produto"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                      <SelectTrigger
+                        data-field={`produto-${index}`}
+                        aria-invalid={createInvalidField === `produto-${index}` || undefined}
+                        aria-label="Selecione o produto"
+                      ><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
                       <SelectContent>
                         {(products || []).map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}
                       </SelectContent>
