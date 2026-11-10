@@ -2,7 +2,7 @@
 
 > **Pedido:** *"lovable atualizado, prossiga com as melhorias"* — terceira confirmação de rebuild feito **no painel pelo usuário** (`index-BQGFwPFJ.js`, 14.234 bytes, 259 chunks com as strings da rodada 3).
 > **Escopo desta rodada:** acessibilidade perceptível — **nomes acessíveis, rótulos de campos e contraste de texto**, medidos com Chromium real.
-> **Status:** validado localmente. **Não publicado, não implantado.** HEAD/`origin/main` permanece `f7e304b`.
+> **Status:** publicado no GitHub por autorização pontual (`"atualize o github"`) em `cb8c771` + fix corretivo. **Não implantado** — o rebuild no painel do Lovable continua sendo decisão do usuário. Ver §8 para o incidente de CI.
 
 ---
 
@@ -113,7 +113,8 @@ O `--assert` **não esconde essa dívida**: congela exatamente as 5 cores e o li
 
 ## 7. O que **não** foi feito (por falta de autorização)
 
-- ❌ **Nenhum commit, push, rebuild ou deploy.** `f7e304b` segue como HEAD e `origin/main`. As alterações existem **apenas no workspace local**; para chegar ao Lovable é preciso autorização explícita de publicação e, depois, rebuild no painel.
+- ✅ **Commit e push autorizados** por `"atualize o github"` (pedido pontual, consumido; **não** cria autorização permanente para novos pushes). HEAD/`origin/main` = `cb8c771` + fix corretivo (§8).
+- ❌ **Nenhum rebuild, deploy ou publicação no Lovable.** O código está no GitHub, mas o sistema publicado pelo painel **ainda está no build da rodada 3** (`index-BQGFwPFJ.js`). Para o usuário final perceber a rodada 4, falta **um rebuild no painel**, que só o usuário executa.
 - ❌ Nenhum dado real, produção, homologação, migration em banco real, grant/RLS, rotação automática de credenciais, smoke autenticado em produção, piloto ou aceite presumido.
 - ❌ Gate dos **18 segredos** não foi alterado, reduzido ou burlado; `--strict` continua `exit 2`; nenhuma nova exceção SEC-02; `public/config.js` continua sendo a única.
 - ❌ Nenhum PAT gravado, nenhum `credential.helper`, nenhum askpass persistido. O PAT usado em `24d34ac`/`f7e304b` (**4 usos no total**) segue **sem revogação** — rotação urgente, junto de `anon`/JWT legado e de **todas** as credenciais do `Usehub.xlsx`.
@@ -121,7 +122,26 @@ O `--assert` **não esconde essa dívida**: congela exatamente as 5 cores e o li
 
 ---
 
-## 8. Conclusão
+## 8. Incidente de CI e correção (pós-publicação)
+
+O primeiro push (`f7e304b..cb8c771`, run **`42852212383`**) reprovou no step 5 **"Typecheck explícito e não vazio"**:
+
+```
+src/modules/commercial/orders/OrdersTable.tsx(88,50):
+error TS2339: Property 'order_number' does not exist on type 'DbOrder'.
+```
+
+**Causa:** o `aria-label` de *"Ações do pedido …"* (UX4-02) usou `order.order_number`, mas o tipo `DbOrder` (`src/hooks/commercial/orders/types.ts`) expõe o campo **`number`**. A auditoria de nomes acessíveis roda no browser e não faz checagem de tipos; os 447 testes unitários e o `lint:ci` também não tipam. **O typecheck completo não é executado localmente** neste sandbox (historicamente satura e apaga arquivos) — o **CI é o oráculo de tipos**, como já registrado na rodada 3.
+
+**Correção:** `order.number ?? order.id`, mantendo o nome acessível com contexto. Verificados os demais `aria-label` dinâmicos desta rodada: `client.name` existe em `DbClient`; `order.order_number` é válido nas OPs (`productionOrders/OrdersTable.tsx:48`). O log do CI continha **apenas esse 1 erro TS**.
+
+Nenhum workflow, spec, gate, configuração de tipos ou exceção SEC-02 foi alterado para "curar" o CI.
+
+**`Playwright Tests` (`42852212645`):** ❌ no job *"Jornadas autenticadas obrigatórias"*, step 4 *"Validate isolated E2E configuration"* — os **18 segredos** de sempre. Jobs *"Ambiente E2E isolado (QA-01 a QA-05)"* e *"Smoke público obrigatório"* ✅. Comportamento esperado, **não** é regressão da rodada 4.
+
+---
+
+## 9. Conclusão
 
 A rodada 4 corrigiu o que o usuário **enxerga e o leitor de tela anuncia**: texto secundário abaixo do mínimo legal em todo o ERP, badges de prioridade praticamente ilegíveis (1.63:1), 7 botões sem nome, 9 buscas sem rótulo e 1 controle que não respondia ao clique. Tudo foi **medido antes e depois no mesmo build**, com gate de regressão que comprovadamente falha ao reintroduzir o defeito.
 
@@ -129,4 +149,4 @@ A rodada 4 corrigiu o que o usuário **enxerga e o leitor de tela anuncia**: tex
 
 > **"CI verde não é evidência de aplicação utilizável."**
 
-**Próximo passo que depende de você:** autorizar (ou não) a publicação destas 104 alterações no GitHub e, em seguida, o rebuild no painel do Lovable. A dívida de paleta (§5) aguarda decisão de design separada.
+**Próximo passo que depende de você:** executar o **rebuild no painel do Lovable** para que o build publicado incorpore a rodada 4, e decidir sobre a dívida de paleta (§5). O GitHub já está atualizado.
