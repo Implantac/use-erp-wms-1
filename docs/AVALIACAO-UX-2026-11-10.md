@@ -10,9 +10,9 @@
 > **Rodada 3 (10/11/2026):** [AVALIACAO-UX-RODADA-3-2026-11-10.md](./AVALIACAO-UX-RODADA-3-2026-11-10.md) — unificação de dialogs de confirmação, `usePrompt` acessível e fim dos recarregamentos de página.
 > **Rodada 4 (10/11/2026):** [AVALIACAO-UX-RODADA-4-2026-11-10.md](./AVALIACAO-UX-RODADA-4-2026-11-10.md) — nomes acessíveis, rótulos de campos e contraste WCAG AA (medidos com Chromium, A/B controlado).
 > **Rodada 5 (10/11/2026):** [AVALIACAO-UX-RODADA-5-2026-11-10.md](./AVALIACAO-UX-RODADA-5-2026-11-10.md) — responsividade em 375/768/1440 px, cabeçalhos de tabela, controles cortados e regiões roláveis focáveis. Publicada no GitHub em `543911e`; **rebuild no Lovable a cargo do usuário, ainda pendente**.
-> **Rodada 6 (10/11/2026):** [AVALIACAO-UX-RODADA-6-2026-11-10.md](./AVALIACAO-UX-RODADA-6-2026-11-10.md) — jornadas de negócio por clique: nomes acessíveis (19→0), foco no primeiro campo inválido (3→0), mensagens acionáveis e dica para botões travados (2→0). **Apenas local, sem commit/push sem nova autorização.**
+> **Rodada 6 (10/11/2026):** [AVALIACAO-UX-RODADA-6-2026-11-10.md](./AVALIACAO-UX-RODADA-6-2026-11-10.md) — jornadas de negócio por clique: nomes acessíveis (19→0), foco no primeiro campo inválido (3→0), mensagens acionáveis e dica para botões travados (2→0). **Publicada no GitHub em `2ca213c`**; CI `42900215336` ✅, Playwright `42900215858` ❌ apenas no step 4 (18 segredos).
 >
-> **Estado atual (após a rodada 6):** r1–r4 aplicadas ao deploy pelo usuário; r5 publicada no GitHub e **aguardando rebuild no Lovable**; r6 **apenas local**, sem commit/push. O parecer técnico segue **NO-GO**.
+> **Estado atual (após a rodada 6):** r1–r4 aplicadas ao deploy pelo usuário; r5 (`543911e`) e r6 (`2ca213c`) publicadas no GitHub e **aguardando rebuild no Lovable**, a cargo do usuário. O parecer técnico segue **NO-GO**. **CI verde não é evidência de aplicação utilizável.**
 >
 > Este relatório da rodada 1 fica preservado como histórico.
 
