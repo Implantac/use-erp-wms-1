@@ -25,7 +25,7 @@ const alertIcons = {
 
 const alertColors = {
   error: 'bg-destructive/8 text-destructive border-destructive/15',
-  warning: 'bg-warning/8 text-warning border-warning/15',
+  warning: 'bg-warning/8 text-warning-text border-warning/15',
   info: 'bg-info/8 text-info border-info/15',
   success: 'bg-success/8 text-success border-success/15',
 };

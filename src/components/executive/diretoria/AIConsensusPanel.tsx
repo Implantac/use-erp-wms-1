@@ -105,7 +105,7 @@ const modules: AIConsensusModule[] = [
 
 const statusConfig: Record<ModuleStatus, { label: string; color: string; icon: LucideIcon }> = {
   healthy: { label: 'Saudável', color: 'text-success bg-success/10 border-success/20', icon: ShieldCheck },
-  warning: { label: 'Atenção', color: 'text-warning bg-warning/10 border-warning/20', icon: AlertCircle },
+  warning: { label: 'Atenção', color: 'text-warning-text bg-warning/10 border-warning/20', icon: AlertCircle },
   critical: { label: 'Crítico', color: 'text-destructive bg-destructive/10 border-destructive/20', icon: ShieldAlert },
   syncing: { label: 'Sincronizando', color: 'text-primary bg-primary/10 border-primary/20', icon: RefreshCw }
 };

@@ -8,6 +8,7 @@
 >
 > **Rodada 2 (10/11/2026):** [AVALIACAO-UX-RODADA-2-2026-11-10.md](./AVALIACAO-UX-RODADA-2-2026-11-10.md) — S005 (teclado no lançamento), auditoria de 105 links do menu, dedupe de toasts e identidade PWA.
 > **Rodada 3 (10/11/2026):** [AVALIACAO-UX-RODADA-3-2026-11-10.md](./AVALIACAO-UX-RODADA-3-2026-11-10.md) — unificação de dialogs de confirmação, `usePrompt` acessível e fim dos recarregamentos de página.
+> **Rodada 4 (10/11/2026):** [AVALIACAO-UX-RODADA-4-2026-11-10.md](./AVALIACAO-UX-RODADA-4-2026-11-10.md) — nomes acessíveis, rótulos de campos e contraste WCAG AA (medidos com Chromium, A/B controlado).
 >
 > Este relatório da rodada 1 fica preservado como histórico.
 

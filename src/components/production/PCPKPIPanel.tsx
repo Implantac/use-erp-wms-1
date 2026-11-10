@@ -33,7 +33,7 @@ export default function PCPKPIPanel({ orders, timeEntries, capacities, sheets, s
 
   const severityIcon = (s: string) => {
     if (s === 'critical') return <AlertTriangle className="h-4 w-4 text-destructive" />;
-    if (s === 'warning') return <AlertTriangle className="h-4 w-4 text-warning" />;
+    if (s === 'warning') return <AlertTriangle className="h-4 w-4 text-warning-text" />;
     return <Lightbulb className="h-4 w-4 text-primary" />;
   };
 

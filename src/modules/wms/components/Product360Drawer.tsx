@@ -77,7 +77,7 @@ export function Product360Drawer({ open, onOpenChange, productId, productName }:
               </CardContent></Card>
               <Card><CardContent className="p-3">
                 <p className="text-[10px] uppercase text-muted-foreground font-bold">Reservado</p>
-                <p className="text-lg font-black text-warning">{product.reservedQty}</p>
+                <p className="text-lg font-black text-warning-text">{product.reservedQty}</p>
               </CardContent></Card>
               <Card><CardContent className="p-3">
                 <p className="text-[10px] uppercase text-muted-foreground font-bold">Status</p>
@@ -125,7 +125,7 @@ export function Product360Drawer({ open, onOpenChange, productId, productName }:
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-[10px] uppercase text-muted-foreground">Margem</p>
-                          <p className={`text-xl font-black ${costData.profit_margin > 20 ? 'text-success' : 'text-warning'}`}>
+                          <p className={`text-xl font-black ${costData.profit_margin > 20 ? 'text-success' : 'text-warning-text'}`}>
                             {costData.profit_margin.toFixed(1)}%
                           </p>
                         </div>

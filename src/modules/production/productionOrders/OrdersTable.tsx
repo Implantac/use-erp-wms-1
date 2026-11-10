@@ -71,11 +71,11 @@ export function OrdersTable({ orders, onView, onStart, onPause, onResume }: Prop
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <QRCodeOPButton orderNumber={order.order_number} orderId={order.id} productName={order.product_name} batchCode={order.batch_code || undefined} />
-                      <Button variant="ghost" size="sm" onClick={() => onView(order)}><Eye className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => onView(order)} aria-label={`Ver detalhes da OP ${order.order_number}`}><Eye className="h-4 w-4" /></Button>
                       {order.status === 'planned' && <Button variant="outline" size="sm" onClick={() => onStart(order)}><Play className="h-4 w-4 mr-1" />Iniciar</Button>}
                       {order.status === 'in_progress' && (
                         <>
-                          <Button variant="outline" size="sm" onClick={() => onPause(order)}><Pause className="h-4 w-4" /></Button>
+                          <Button variant="outline" size="sm" onClick={() => onPause(order)} aria-label={`Pausar OP ${order.order_number}`}><Pause className="h-4 w-4" /></Button>
                           <Button variant="outline" size="sm" onClick={() => onView(order)} title="Abrir a execução PCP para concluir pela transação auditável"><CheckCircle className="h-4 w-4 mr-1" />Concluir na execução</Button>
                         </>
                       )}

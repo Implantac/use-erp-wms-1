@@ -19,7 +19,7 @@ export function OrderTrackingKPIs({ totalOrders, statusCounts }: Props) {
         (statusCounts['awaiting_financial_approval'] || 0) +
         (statusCounts['pending'] || 0),
       icon: Clock,
-      color: 'text-warning',
+      color: 'text-warning-text',
     },
     {
       label: 'Em Andamento',

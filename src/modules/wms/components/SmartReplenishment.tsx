@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { RefreshCw, ArrowRight, AlertTriangle, CheckCircle, Search, Filter, Brain, CheckSquare, Square, Rocket, Trash2, History, RotateCcw, Undo2, Redo2 } from 'lucide-react';
+import { RefreshCw, ArrowRight, AlertTriangle, CheckCircle, Search, Brain, CheckSquare, Square, Rocket, Trash2, History, RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/ui/base/card';
 import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
@@ -506,10 +506,13 @@ export function SmartReplenishment() {
                 className="pl-9 bg-background" 
               />
             </div>
-            <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}>
+            <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading} aria-label="Atualizar sugestões de reposição" aria-busy={isLoading}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
-            <Button variant="outline" size="icon"><Filter className="h-4 w-4" /></Button>
+            {/* QA-UX (rodada 4): este botao de filtro nao tinha onClick — era um
+                controle inerte que nao fazia nada ao ser clicado. Removido em
+                vez de prometer uma funcao inexistente; o campo de busca ao
+                lado ja cumpre a filtragem. */}
           </div>
 
           {error ? (

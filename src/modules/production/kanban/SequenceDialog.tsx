@@ -46,7 +46,7 @@ export function SequenceDialog({ open, onOpenChange, result, applying, onApply }
                 </Card>
                 <Card className="border-warning/30 bg-warning/5">
                   <CardContent className="py-3 px-4 text-center">
-                    <p className="text-2xl font-bold text-warning">{result.setupChanges ?? "—"}</p>
+                    <p className="text-2xl font-bold text-warning-text">{result.setupChanges ?? "—"}</p>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Mudanças de grupo</p>
                   </CardContent>
                 </Card>
@@ -80,7 +80,7 @@ export function SequenceDialog({ open, onOpenChange, result, applying, onApply }
                       </Badge>
                     </div>
                     {s.setup_change && (
-                      <Badge className="text-[9px] bg-warning/20 text-warning shrink-0">🔧 Setup</Badge>
+                      <Badge className="text-[9px] bg-warning/20 text-warning-text shrink-0">🔧 Setup</Badge>
                     )}
                   </div>
                 ))}

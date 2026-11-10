@@ -252,8 +252,8 @@ export default function SalesRepsPage() {
               <Card className="border-dashed">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-warning" />
-                    <p className="font-semibold text-warning">Sem Representante</p>
+                    <Briefcase className="h-4 w-4 text-warning-text" />
+                    <p className="font-semibold text-warning-text">Sem Representante</p>
                   </div>
                   <p className="text-sm text-muted-foreground">{portfolioData.unassigned.length} clientes sem responsável</p>
                   <div className="max-h-32 overflow-y-auto space-y-1">

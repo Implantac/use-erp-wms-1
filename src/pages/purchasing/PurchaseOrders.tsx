@@ -51,7 +51,7 @@ const looseClient = supabase as unknown as { from(table: 'accounts_payable'): Pa
 const priorityConfig: Record<string, { label: string; className: string }> = {
   low: { label: 'Baixa', className: 'bg-muted text-muted-foreground' },
   medium: { label: 'Média', className: 'bg-info/10 text-info' },
-  high: { label: 'Alta', className: 'bg-warning/10 text-warning' },
+  high: { label: 'Alta', className: 'bg-warning/10 text-warning-text' },
   urgent: { label: 'Urgente', className: 'bg-destructive/10 text-destructive' },
 };
 

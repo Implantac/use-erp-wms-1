@@ -54,7 +54,7 @@ function RecommendationRow({
                 'text-[9px] h-4 py-0',
                 rec.urgency === 'critical'
                   ? 'bg-destructive/10 text-destructive border-destructive/20'
-                  : 'bg-warning/10 text-warning border-warning/20',
+                  : 'bg-warning/10 text-warning-text border-warning/20',
               )}
             >
               {rec.urgency === 'critical' ? 'Ruptura' : 'Atenção'}

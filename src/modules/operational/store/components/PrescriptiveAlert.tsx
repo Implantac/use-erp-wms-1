@@ -45,7 +45,7 @@ export function PrescriptiveAlert() {
           {critical.map((rec) => (
             <div key={rec.productId} className="bg-background/60 p-3 rounded border border-destructive/20 space-y-2">
               <div className="flex items-center gap-2 text-xs font-bold">
-                <Lightbulb className="h-3 w-3 text-warning" /> {rec.productName}
+                <Lightbulb className="h-3 w-3 text-warning-text" /> {rec.productName}
               </div>
               <p className="text-[11px] text-muted-foreground">{rec.reason}</p>
               {rec.sourceBranchId ? (

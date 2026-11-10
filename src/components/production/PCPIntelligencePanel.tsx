@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 
 const severityConfig = {
   critical: { bg: 'bg-destructive/10 border-destructive/30', icon: AlertTriangle, color: 'text-destructive', badge: 'bg-destructive text-destructive-foreground' },
-  warning: { bg: 'bg-warning/10 border-warning/30', icon: Clock, color: 'text-warning', badge: 'bg-warning/20 text-warning' },
+  warning: { bg: 'bg-warning/10 border-warning/30', icon: Clock, color: 'text-warning-text', badge: 'bg-warning/20 text-warning-text' },
   info: { bg: 'bg-primary/10 border-primary/30', icon: Lightbulb, color: 'text-primary', badge: 'bg-primary/20 text-primary' },
 };
 
@@ -70,7 +70,7 @@ export default function PCPIntelligencePanel({ suggestions, summary, compact = f
               </Badge>
             )}
             {summary.opsLate > 0 && (
-              <Badge className="bg-warning/20 text-warning text-xs">
+              <Badge className="bg-warning/20 text-warning-text text-xs">
                 {summary.opsLate} atrasada{summary.opsLate > 1 ? 's' : ''}
               </Badge>
             )}

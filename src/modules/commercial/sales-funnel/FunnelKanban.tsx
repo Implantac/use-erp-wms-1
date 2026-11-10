@@ -106,7 +106,7 @@ export function FunnelKanban({
                         <div className="flex items-center gap-1">
                           <Badge variant="outline" className="text-[10px]">{item.probability}%</Badge>
                           {isStagnant && (
-                            <Badge variant="secondary" className="text-[9px] px-1 py-0 text-warning">
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0 text-warning-text">
                               <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />{daysInStage}d
                             </Badge>
                           )}

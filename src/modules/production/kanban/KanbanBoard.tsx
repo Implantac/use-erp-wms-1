@@ -47,7 +47,7 @@ export function KanbanBoard({ columns, onDragEnd, onMove, outsourcingByOP, timeL
                   {col.wipLimit > 0 && <span className="opacity-60">/{col.wipLimit}</span>}
                 </Badge>
                 {isOverWip && <span className="text-[10px] text-destructive">⚠</span>}
-                {isNearWip && <span className="text-[10px] text-warning">⚡</span>}
+                {isNearWip && <span className="text-[10px] text-warning-text">⚡</span>}
               </div>
 
               <Droppable droppableId={col.key}>

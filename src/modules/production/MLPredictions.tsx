@@ -47,7 +47,7 @@ export default function MLPredictions() {
         </Card>
         <Card className={cn('border-l-4', anomalyCount > 0 ? 'border-l-warning' : 'border-l-success')}>
           <CardContent className="p-4 flex items-center gap-3">
-            <BarChart3 className={cn('h-8 w-8', anomalyCount > 0 ? 'text-warning' : 'text-success')} />
+            <BarChart3 className={cn('h-8 w-8', anomalyCount > 0 ? 'text-warning-text' : 'text-success')} />
             <div>
               <p className="text-xs text-muted-foreground">Anomalias Detectadas</p>
               <p className="text-xl font-bold">{anomalyCount}</p>

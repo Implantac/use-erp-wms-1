@@ -55,7 +55,7 @@ export function ProfitTab({ metrics }: { metrics: BIMetrics }) {
 
       {lowMarginProducts.length > 0 && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning" /> Produtos com margem cadastrada abaixo do limite</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-warning-text" /> Produtos com margem cadastrada abaixo do limite</CardTitle></CardHeader>
           <CardContent>
             <Table>
               <TableHeader><TableRow>
@@ -68,7 +68,7 @@ export function ProfitTab({ metrics }: { metrics: BIMetrics }) {
                     <TableCell className="font-medium">{p.product_name}</TableCell>
                     <TableCell className="text-right">{formatBRL(p.sale_price)}</TableCell>
                     <TableCell className="text-right">{formatBRL(p.total_cost)}</TableCell>
-                    <TableCell className="text-right"><span className={cn('font-bold', p.profit_margin < 0 ? 'text-destructive' : 'text-warning')}>{p.profit_margin.toFixed(1)}%</span></TableCell>
+                    <TableCell className="text-right"><span className={cn('font-bold', p.profit_margin < 0 ? 'text-destructive' : 'text-warning-text')}>{p.profit_margin.toFixed(1)}%</span></TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{p.profit_margin < 0 ? '🔴 Revisar preço' : '🟡 Otimizar custo'}</Badge></TableCell>
                   </TableRow>
                 ))}

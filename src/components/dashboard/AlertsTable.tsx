@@ -16,7 +16,7 @@ const iconMap = {
 };
 
 const colorMap = {
-  warning: 'text-warning',
+  warning: 'text-warning-text',
   error: 'text-destructive',
   info: 'text-info',
   success: 'text-success',

@@ -76,7 +76,7 @@ export default function ProductCostsPage() {
 
       {lowMarginProducts.length > 0 && (
         <Card className="border-warning/30">
-          <CardHeader><CardTitle className="flex items-center gap-2 text-warning"><AlertTriangle className="h-5 w-5" /> Produtos com Margem Baixa (&lt;15%)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2 text-warning-text"><AlertTriangle className="h-5 w-5" /> Produtos com Margem Baixa (&lt;15%)</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2">
               {lowMarginProducts.map(c => (

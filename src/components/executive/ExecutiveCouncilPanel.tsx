@@ -68,8 +68,8 @@ export function ExecutiveCouncilPanel() {
             <ExecutiveIntelligenceStatus qualityScore={saude === 'critico' ? 15 : saude === 'alerta' ? 65 : 94} />
             <Badge variant="outline" className={cn(
               "text-[10px] border-primary/20 whitespace-nowrap",
-              saude === 'critico' ? 'bg-destructive/10 text-destructive border-destructive/20' : 
-              saude === 'alerta' ? 'bg-warning/10 text-warning border-warning/20' : 
+              saude === 'critico' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+              saude === 'alerta' ? 'bg-warning/10 text-warning-text border-warning/20' :
               'text-primary'
             )}>
               {saude === 'critico' ? '🔴 Estado Crítico' : saude === 'alerta' ? '⚠️ Alerta Ativo' : '✅ Sistema Saudável'}

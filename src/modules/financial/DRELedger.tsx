@@ -165,7 +165,7 @@ function KPI({ title, value, subtitle, icon, tone }: { title: string; value: num
   const toneCls = {
     primary: 'text-primary bg-primary/10',
     success: 'text-success bg-success/10',
-    warning: 'text-warning bg-warning/10',
+    warning: 'text-warning-text bg-warning/10',
     danger: 'text-destructive bg-destructive/10',
   }[tone];
   return (

@@ -95,7 +95,7 @@ export function KanbanCard({ order, dragHandleProps, isDragging, columnKey, onMo
             </Badge>
           )}
           {outsourcingLate && !isLate && (
-            <Badge className="text-[9px] gap-0.5 px-1 h-4 bg-warning/20 text-warning">
+            <Badge className="text-[9px] gap-0.5 px-1 h-4 bg-warning/20 text-warning-text">
               <Truck className="h-2.5 w-2.5" /> Terc. atrasado
             </Badge>
           )}
@@ -143,7 +143,7 @@ export function KanbanCard({ order, dragHandleProps, isDragging, columnKey, onMo
                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                   <Timer className="h-2.5 w-2.5" />
                   {isRunning && <span className="text-emerald-400 font-medium animate-pulse">● Rodando</span>}
-                  {isPaused && <span className="text-warning font-medium">⏸ Pausado ({formatElapsed(pausedLog!.elapsed_seconds)})</span>}
+                  {isPaused && <span className="text-warning-text font-medium">⏸ Pausado ({formatElapsed(pausedLog!.elapsed_seconds)})</span>}
                   {totalFinished > 0 && <span className="ml-auto">Total: {formatElapsed(totalFinished)}</span>}
                 </div>
               )}
@@ -156,7 +156,7 @@ export function KanbanCard({ order, dragHandleProps, isDragging, columnKey, onMo
                 )}
                 {isRunning && (
                   <>
-                    <Button size="sm" variant="outline" className="text-[10px] h-6 flex-1 px-1 text-warning border-warning/30 hover:bg-warning/10"
+                    <Button size="sm" variant="outline" className="text-[10px] h-6 flex-1 px-1 text-warning-text border-warning/30 hover:bg-warning/10"
                       onClick={() => timeLogs.pauseTimer(order.id)}>
                       <Pause className="h-2.5 w-2.5 mr-0.5" /> Pausar
                     </Button>

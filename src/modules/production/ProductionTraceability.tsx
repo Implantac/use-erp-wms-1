@@ -15,13 +15,13 @@ import { cn } from '@/lib/utils';
 
 const eventTypeConfig: Record<string, { label: string; color: string; icon: string }> = {
   start: { label: 'Início', color: 'bg-info/15 text-info border-info/30', icon: '▶️' },
-  pause: { label: 'Pausa', color: 'bg-warning/15 text-warning border-warning/30', icon: '⏸️' },
+  pause: { label: 'Pausa', color: 'bg-warning/15 text-warning-text border-warning/30', icon: '⏸️' },
   resume: { label: 'Retomada', color: 'bg-success/15 text-success border-success/30', icon: '🔄' },
   complete: { label: 'Finalização', color: 'bg-success/15 text-success border-success/30', icon: '✅' },
   quality_check: { label: 'Qualidade', color: 'bg-primary/15 text-primary border-primary/30', icon: '🔍' },
   defect: { label: 'Defeito', color: 'bg-destructive/15 text-destructive border-destructive/30', icon: '❌' },
   info: { label: 'Info', color: 'bg-muted text-muted-foreground border-border', icon: 'ℹ️' },
-  material: { label: 'Material', color: 'bg-warning/15 text-warning border-warning/30', icon: '📦' },
+  material: { label: 'Material', color: 'bg-warning/15 text-warning-text border-warning/30', icon: '📦' },
 };
 
 export default function ProductionTraceabilityPage() {

@@ -13,7 +13,7 @@ export function AlertsTab({ machinesList }: { machinesList: Machine[] }) {
         <div className="space-y-3">
           {alerts.map(m => (
             <div key={m.id} className="flex items-center gap-3 p-4 rounded-lg border border-warning/50 bg-warning/5">
-              <AlertTriangle className="h-6 w-6 text-warning" />
+              <AlertTriangle className="h-6 w-6 text-warning-text" />
               <div className="flex-1">
                 <p className="font-medium">{m.name} ({m.code})</p>
                 <p className="text-sm text-muted-foreground">{m.telemetry!.predictiveAlert}</p>

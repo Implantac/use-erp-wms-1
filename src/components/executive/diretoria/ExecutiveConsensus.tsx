@@ -46,7 +46,7 @@ export function ExecutiveConsensus() {
                   {member.sentiment === 'positive' ? (
                     <TrendingUp className="h-3.5 w-3.5 text-success" />
                   ) : (
-                    <ShieldAlert className="h-3.5 w-3.5 text-warning animate-bounce" />
+                    <ShieldAlert className="h-3.5 w-3.5 text-warning-text animate-bounce" />
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed italic line-clamp-2">

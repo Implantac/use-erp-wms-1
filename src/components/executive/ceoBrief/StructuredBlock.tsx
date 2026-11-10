@@ -16,7 +16,7 @@ export function StructuredBlock({ structured, dataStatus }: { structured: CEOStr
     <div className="space-y-4">
       {dataStatus === 'insufficient' && (
         <div className="rounded-lg border-l-4 border-l-warning bg-warning/5 p-4 flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-warning-text shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-foreground">Dados insuficientes para análise confiável</p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -115,11 +115,11 @@ export function StructuredBlock({ structured, dataStatus }: { structured: CEOStr
           {(structured.plano.acoes?.length ?? 0) > 0 && (
             <div className="rounded-lg border bg-card p-3">
               <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <Lightbulb className="h-4 w-4 text-warning" /> Ações
+                <Lightbulb className="h-4 w-4 text-warning-text" /> Ações
               </h4>
               <ul className="space-y-1.5">
                 {structured.plano.acoes.map((a: string, i: number) => (
-                  <li key={i} className="text-sm flex gap-2"><span className="text-warning">⚙️</span><span>{a}</span></li>
+                  <li key={i} className="text-sm flex gap-2"><span className="text-warning-text">⚙️</span><span>{a}</span></li>
                 ))}
               </ul>
             </div>

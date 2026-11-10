@@ -33,7 +33,7 @@ const kpiConfig = [
   { label: 'Total Linhas', icon: Layers, color: 'text-primary', ring: 'ring-primary/20' },
   { label: 'Ativas', icon: Activity, color: 'text-success', ring: 'ring-success/20' },
   { label: 'Cap. Total/h', icon: Gauge, color: 'text-info', ring: 'ring-info/20' },
-  { label: 'Setores Vinc.', icon: Users, color: 'text-warning', ring: 'ring-warning/20' },
+  { label: 'Setores Vinc.', icon: Users, color: 'text-warning-text', ring: 'ring-warning/20' },
 ];
 
 export default function ProductionLinesPage() {

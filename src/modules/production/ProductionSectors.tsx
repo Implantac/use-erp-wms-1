@@ -22,7 +22,7 @@ const kpiConfig = [
   { label: 'Total Setores', icon: Building2, color: 'text-primary', ring: 'ring-primary/20' },
   { label: 'Ativos', icon: Activity, color: 'text-success', ring: 'ring-success/20' },
   { label: 'Produção', icon: Factory, color: 'text-info', ring: 'ring-info/20' },
-  { label: 'Apoio', icon: Building2, color: 'text-warning', ring: 'ring-warning/20' },
+  { label: 'Apoio', icon: Building2, color: 'text-warning-text', ring: 'ring-warning/20' },
 ];
 
 export default function ProductionSectorsPage() {

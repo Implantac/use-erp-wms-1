@@ -78,7 +78,7 @@ export function AlertsInsightsCard({ stuckOrders, alerts, openAlerts }: { stuckO
     <Card>
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTriangle className="h-4 w-4 text-warning-text" />
           Alertas e Insights ({openAlerts + stuckOrders.length})
         </CardTitle>
       </CardHeader>

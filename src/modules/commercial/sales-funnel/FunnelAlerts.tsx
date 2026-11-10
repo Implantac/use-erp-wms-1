@@ -13,7 +13,7 @@ export function FunnelAlerts({
     <Card>
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-warning" />
+          <AlertTriangle className="h-4 w-4 text-warning-text" />
           Oportunidades Estagnadas ({items.length})
         </CardTitle>
       </CardHeader>
@@ -30,7 +30,7 @@ export function FunnelAlerts({
                     <div>
                       <p className="text-sm font-medium">{item.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {stage?.label} • {formatBRL(item.value)} • Parado há <span className="font-semibold text-warning">{days} dias</span>
+                        {stage?.label} • {formatBRL(item.value)} • Parado há <span className="font-semibold text-warning-text">{days} dias</span>
                       </p>
                     </div>
                   </div>

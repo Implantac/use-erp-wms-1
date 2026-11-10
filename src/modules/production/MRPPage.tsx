@@ -73,7 +73,7 @@ export default function MRPPage() {
       {opsWithoutBom.length > 0 && (
         <Card className="border-warning/40">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm text-warning">
+            <CardTitle className="flex items-center gap-2 text-sm text-warning-text">
               <AlertTriangle className="h-4 w-4" /> {opsWithoutBom.length} OP(s) sem BOM — excluídas do cálculo líquido
             </CardTitle>
           </CardHeader>

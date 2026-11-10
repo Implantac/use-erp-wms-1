@@ -12,11 +12,11 @@ const eventTypeLabels: Record<string, { label: string; color: string }> = {
   op_cancelled: { label: 'OP Cancelada', color: 'bg-destructive/15 text-destructive' },
   op_status_changed: { label: 'Status OP', color: 'bg-muted text-muted-foreground' },
   step_started: { label: 'Etapa Iniciada', color: 'bg-primary/10 text-primary' },
-  step_paused: { label: 'Etapa Pausada', color: 'bg-warning/15 text-warning' },
+  step_paused: { label: 'Etapa Pausada', color: 'bg-warning/15 text-warning-text' },
   step_completed: { label: 'Etapa Concluída', color: 'bg-success/10 text-success' },
   step_updated: { label: 'Etapa Atualizada', color: 'bg-muted text-muted-foreground' },
   iot_threshold_exceeded: { label: 'IoT Alerta', color: 'bg-destructive/15 text-destructive' },
-  iot_anomaly: { label: 'IoT Anomalia', color: 'bg-warning/15 text-warning' },
+  iot_anomaly: { label: 'IoT Anomalia', color: 'bg-warning/15 text-warning-text' },
 };
 
 interface Props {

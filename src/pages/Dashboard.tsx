@@ -35,7 +35,7 @@ const iconMap = [DollarSign, TrendingUp, ArrowDownCircle, ArrowUpCircle];
 const colorClasses: Record<string, { bg: string; icon: string; ring: string }> = {
   primary: { bg: 'bg-primary/10', icon: 'text-primary', ring: 'ring-primary/20' },
   success: { bg: 'bg-success/10', icon: 'text-success', ring: 'ring-success/20' },
-  warning: { bg: 'bg-warning/10', icon: 'text-warning', ring: 'ring-warning/20' },
+  warning: { bg: 'bg-warning/10', icon: 'text-warning-text', ring: 'ring-warning/20' },
   info: { bg: 'bg-info/10', icon: 'text-info', ring: 'ring-info/20' },
 };
 

@@ -34,8 +34,8 @@ export function PredictiveTab({ machinesList }: { machinesList: Machine[] }) {
                   <TableCell className="text-center"><span className={cn('font-bold', getHealthColor(t.healthScore))}>{t.healthScore}%</span></TableCell>
                   <TableCell className="text-right font-mono">{t.mtbf}</TableCell>
                   <TableCell className="text-right font-mono">{t.mttr}</TableCell>
-                  <TableCell className="text-right"><span className={cn('font-bold', availability >= 95 ? 'text-success' : availability >= 85 ? 'text-warning' : 'text-destructive')}>{availability.toFixed(1)}%</span></TableCell>
-                  <TableCell className="text-right">{t.hoursToMaintenance < 100 ? <span className="text-warning font-bold">{t.hoursToMaintenance}h</span> : `${t.hoursToMaintenance}h`}</TableCell>
+                  <TableCell className="text-right"><span className={cn('font-bold', availability >= 95 ? 'text-success' : availability >= 85 ? 'text-warning-text' : 'text-destructive')}>{availability.toFixed(1)}%</span></TableCell>
+                  <TableCell className="text-right">{t.hoursToMaintenance < 100 ? <span className="text-warning-text font-bold">{t.hoursToMaintenance}h</span> : `${t.hoursToMaintenance}h`}</TableCell>
                   <TableCell>{t.predictiveAlert ? <Badge variant="secondary" className="text-xs">{t.predictiveAlert}</Badge> : <CheckCircle className="h-4 w-4 text-success" />}</TableCell>
                 </TableRow>
               );

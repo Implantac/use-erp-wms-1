@@ -77,7 +77,7 @@ export function ReceivableTable({ accounts, now, onReceive, onView, onDelete }: 
                           <DollarSign className="h-4 w-4" />
                         </Button>
                         {(account.status === 'overdue' || (account.status === 'pending' && new Date(account.due_date) < now)) && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-warning hover:text-warning" title="Enviar cobrança"
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-warning-text hover:text-warning-text" title="Enviar cobrança"
                             onClick={() => toastSuccess('Lembrete enviado', `Cobrança enviada para ${account.client_name}`)}>
                             <Mail className="h-4 w-4" />
                           </Button>

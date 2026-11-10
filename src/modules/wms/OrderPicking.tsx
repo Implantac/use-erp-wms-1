@@ -66,7 +66,7 @@ export default function OrderPicking() {
       case 'reserved':
         return <Badge className="bg-info/10 text-info border-info/30">Reservado</Badge>;
       case 'partial_picked':
-        return <Badge className="bg-warning/10 text-warning border-warning/30">Separação parcial</Badge>;
+        return <Badge className="bg-warning/10 text-warning-text border-warning/30">Separação parcial</Badge>;
       case 'picked':
         return <Badge className="bg-success/10 text-success border-success/30">Separado</Badge>;
       case 'shipped':

@@ -105,7 +105,7 @@ export function NetworkMap() {
                     <p
                       className={cn(
                         'text-sm font-bold',
-                        status === 'critical' ? 'text-destructive' : status === 'attention' ? 'text-warning' : 'text-success',
+                        status === 'critical' ? 'text-destructive' : status === 'attention' ? 'text-warning-text' : 'text-success',
                       )}
                     >
                       {Math.round(u.available)} un

@@ -50,7 +50,7 @@ export function EnergyTab({ machinesList, totalEnergy, runningCount, avgEfficien
                   <TableCell className="font-medium">{m.name}</TableCell>
                   <TableCell><Badge variant="outline" className="text-xs">{m.status}</Badge></TableCell>
                   <TableCell className="text-right font-mono">{m.telemetry!.power} kW</TableCell>
-                  <TableCell className="text-right"><span className={cn(m.telemetry!.energyEfficiency >= 80 ? 'text-success' : 'text-warning')}>{m.telemetry!.energyEfficiency}%</span></TableCell>
+                  <TableCell className="text-right"><span className={cn(m.telemetry!.energyEfficiency >= 80 ? 'text-success' : 'text-warning-text')}>{m.telemetry!.energyEfficiency}%</span></TableCell>
                   <TableCell className="text-right font-mono">{m.telemetry!.rpm}</TableCell>
                 </TableRow>
               ))}

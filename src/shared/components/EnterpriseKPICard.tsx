@@ -49,7 +49,7 @@ interface EnterpriseKPICardProps {
 const colorMap: Record<string, { border: string; iconBg: string; iconText: string }> = {
   primary: { border: "border-l-primary", iconBg: "bg-primary/10", iconText: "text-primary" },
   success: { border: "border-l-success", iconBg: "bg-success/10", iconText: "text-success" },
-  warning: { border: "border-l-warning", iconBg: "bg-warning/10", iconText: "text-warning" },
+  warning: { border: "border-l-warning", iconBg: "bg-warning/10", iconText: "text-warning-text" },
   danger: { border: "border-l-destructive", iconBg: "bg-destructive/10", iconText: "text-destructive" },
   info: { border: "border-l-info", iconBg: "bg-info/10", iconText: "text-info" },
   accent: { border: "border-l-primary", iconBg: "bg-accent/10", iconText: "text-accent-foreground" },
@@ -129,7 +129,7 @@ export function EnterpriseKPICard(props: EnterpriseKPICardProps) {
   };
 
   const statusColor =
-    status === "critical" ? "bg-destructive/10 text-destructive" : status === "warn" ? "bg-warning/10 text-warning" : status === "healthy" ? "bg-success/10 text-success" : "";
+    status === "critical" ? "bg-destructive/10 text-destructive" : status === "warn" ? "bg-warning/10 text-warning-text" : status === "healthy" ? "bg-success/10 text-success" : "";
 
   return (
     <Card

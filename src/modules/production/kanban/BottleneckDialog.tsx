@@ -66,7 +66,7 @@ export function BottleneckDialog({ open, onOpenChange, data }: BottleneckDialogP
                 </Card>
                 <Card className="border-warning/30 bg-warning/5">
                   <CardContent className="py-3 px-2">
-                    <p className="text-2xl font-bold text-warning">{data.totalStepsAnalyzed}</p>
+                    <p className="text-2xl font-bold text-warning-text">{data.totalStepsAnalyzed}</p>
                     <p className="text-[10px] text-muted-foreground uppercase">Etapas</p>
                   </CardContent>
                 </Card>
@@ -98,7 +98,7 @@ export function BottleneckDialog({ open, onOpenChange, data }: BottleneckDialogP
                             <Clock className="h-2.5 w-2.5 mr-0.5" /> {b.avgMinutes}min
                           </Badge>
                           {b.rejectRate > 0 && (
-                            <Badge className="text-[10px] bg-warning/20 text-warning">
+                            <Badge className="text-[10px] bg-warning/20 text-warning-text">
                               {b.rejectRate}% refugo
                             </Badge>
                           )}
@@ -112,7 +112,7 @@ export function BottleneckDialog({ open, onOpenChange, data }: BottleneckDialogP
               {(data.stepBottlenecks?.length ?? 0) > 0 && (
                 <div>
                   <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
-                    <AlertTriangle className="h-4 w-4 text-warning" /> Etapas que Excedem Estimativa
+                    <AlertTriangle className="h-4 w-4 text-warning-text" /> Etapas que Excedem Estimativa
                   </h4>
                   <div className="space-y-1.5">
                     {data.stepBottlenecks?.map((s, i) => (

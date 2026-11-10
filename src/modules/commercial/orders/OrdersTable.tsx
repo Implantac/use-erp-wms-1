@@ -85,6 +85,7 @@ export function OrdersTable({
           <Button
             variant="ghost"
             size="icon"
+            aria-label={`Ações do pedido ${order.order_number ?? order.id}`}
             className={`h-8 w-8 ${isDeletePending && selectedOrder?.id === order.id ? 'opacity-50' : ''}`}
             disabled={isDeletePending}
           >

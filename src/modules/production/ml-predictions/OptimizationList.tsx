@@ -12,7 +12,7 @@ export function OptimizationList({ items }: { items: OptimizationSuggestion[] })
           <CardContent className="p-5">
             <div className="flex items-start gap-4">
               <div className={cn('rounded-full p-2', opt.type === 'warning' ? 'bg-warning/10' : opt.type === 'improvement' ? 'bg-success/10' : 'bg-primary/10')}>
-                {opt.type === 'warning' ? <AlertTriangle className="h-5 w-5 text-warning" /> : opt.type === 'improvement' ? <Lightbulb className="h-5 w-5 text-success" /> : <Brain className="h-5 w-5 text-primary" />}
+                {opt.type === 'warning' ? <AlertTriangle className="h-5 w-5 text-warning-text" /> : opt.type === 'improvement' ? <Lightbulb className="h-5 w-5 text-success" /> : <Brain className="h-5 w-5 text-primary" />}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">

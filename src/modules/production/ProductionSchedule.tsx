@@ -128,7 +128,7 @@ export default function ProductionSchedulePage() {
     if (s.status === 'cancelled') return <Badge variant="secondary">Cancelado</Badge>;
     if (isLate) return <Badge variant="destructive">Atrasado</Badge>;
     if (s.status === 'completed') return <Badge className="bg-success/15 text-success border-success/30">Janela encerrada</Badge>;
-    if (s.actual_start) return <Badge className="bg-warning/15 text-warning border-warning/30">Janela iniciada</Badge>;
+    if (s.actual_start) return <Badge className="bg-warning/15 text-warning-text border-warning/30">Janela iniciada</Badge>;
     return <Badge variant="outline">Agendado</Badge>;
   };
 

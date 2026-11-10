@@ -16,7 +16,7 @@ export function ExecutiveIntelligenceStatus({ qualityScore, lastAnalysis }: Prop
       <div className="flex items-center gap-1.5 px-1.5 border-r border-border/50">
         <Database className={cn(
           "h-3.5 w-3.5",
-          isHealthy ? "text-success" : isWarning ? "text-warning" : "text-destructive"
+          isHealthy ? "text-success" : isWarning ? "text-warning-text" : "text-destructive"
         )} />
         <span className="text-[10px] font-bold text-muted-foreground">
           DADOS: <span className="text-foreground">{qualityScore}%</span>

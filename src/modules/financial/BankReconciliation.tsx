@@ -106,7 +106,7 @@ export default function BankReconciliation() {
       case 'reconciled':
         return <Badge className="bg-success/10 text-success border-success/30"><CheckCircle2 className="mr-1 h-3 w-3" />Conciliado</Badge>;
       case 'pending':
-        return <Badge className="bg-warning/10 text-warning border-warning/30"><AlertTriangle className="mr-1 h-3 w-3" />Pendente</Badge>;
+        return <Badge className="bg-warning/10 text-warning-text border-warning/30"><AlertTriangle className="mr-1 h-3 w-3" />Pendente</Badge>;
       case 'divergent':
         return <Badge className="bg-destructive/10 text-destructive border-destructive/30"><XCircle className="mr-1 h-3 w-3" />Divergente</Badge>;
     }

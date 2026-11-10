@@ -56,7 +56,7 @@ export function DecisionsList({
     <div>
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-sm font-semibold flex items-center gap-2">
-          <Lightbulb className="h-4 w-4 text-warning" /> Decisões sugeridas (requerem aprovação)
+          <Lightbulb className="h-4 w-4 text-warning-text" /> Decisões sugeridas (requerem aprovação)
         </h4>
         <Button onClick={onApprove} disabled={isPending} size="sm" variant="outline" className="h-7">
           {isPending ? <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}

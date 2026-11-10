@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, Info } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   good: 'bg-success/10 text-success border-success/30',
-  warning: 'bg-warning/10 text-warning border-warning/30',
+  warning: 'bg-warning/10 text-warning-text border-warning/30',
   critical: 'bg-destructive/10 text-destructive border-destructive/30',
 };
 

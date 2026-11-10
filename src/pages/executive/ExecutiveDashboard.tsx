@@ -152,7 +152,7 @@ export default function ExecutiveDashboard() {
       {isInsufficient && (
         <Card className="border-l-4 border-l-warning bg-warning/5" role="alert">
           <CardContent className="p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" aria-hidden="true" />
+            <AlertTriangle className="h-5 w-5 text-warning-text shrink-0 mt-0.5" aria-hidden="true" />
             <div>
               <p className="text-sm font-semibold">Dados insuficientes para análise confiável</p>
               <p className="text-xs text-muted-foreground mt-1">

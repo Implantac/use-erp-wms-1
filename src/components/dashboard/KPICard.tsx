@@ -33,8 +33,8 @@ const colorClasses: Record<string, { bg: string; icon: string; badge: string }> 
   },
   warning: {
     bg: 'bg-warning/10',
-    icon: 'text-warning',
-    badge: 'bg-warning/10 text-warning',
+    icon: 'text-warning-text',
+    badge: 'bg-warning/10 text-warning-text',
   },
   destructive: {
     bg: 'bg-destructive/10',

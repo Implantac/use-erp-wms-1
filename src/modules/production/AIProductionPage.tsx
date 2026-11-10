@@ -14,8 +14,8 @@ import { cn } from '@/lib/utils';
 
 const severityConfig: Record<string, { color: string; icon: LucideIcon }> = {
   low: { color: 'bg-info/15 text-info', icon: Zap },
-  medium: { color: 'bg-warning/15 text-warning', icon: AlertTriangle },
-  high: { color: 'bg-warning/15 text-warning', icon: AlertTriangle },
+  medium: { color: 'bg-warning/15 text-warning-text', icon: AlertTriangle },
+  high: { color: 'bg-warning/15 text-warning-text', icon: AlertTriangle },
   critical: { color: 'bg-destructive/15 text-destructive', icon: TrendingDown },
 };
 
@@ -199,7 +199,7 @@ export default function AIProductionPage() {
                         )}>
                           <div className="flex items-center justify-between">
                             <span className="font-medium">{m.material}</span>
-                            <Badge className={m.urgency === 'high' ? 'bg-destructive/15 text-destructive' : 'bg-warning/15 text-warning'}>
+                            <Badge className={m.urgency === 'high' ? 'bg-destructive/15 text-destructive' : 'bg-warning/15 text-warning-text'}>
                               {m.urgency}
                             </Badge>
                           </div>

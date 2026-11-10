@@ -37,7 +37,7 @@ const kpiConfig = [
   { label: 'Total Recursos', icon: Wrench, color: 'text-primary', ring: 'ring-primary/20' },
   { label: 'Máquinas', icon: Cog, color: 'text-info', ring: 'ring-info/20' },
   { label: 'Cap. Total/h', icon: Monitor, color: 'text-success', ring: 'ring-success/20' },
-  { label: 'Custo/h Total', icon: DollarSign, color: 'text-warning', ring: 'ring-warning/20' },
+  { label: 'Custo/h Total', icon: DollarSign, color: 'text-warning-text', ring: 'ring-warning/20' },
 ];
 
 export default function ProductionResourcesPage() {

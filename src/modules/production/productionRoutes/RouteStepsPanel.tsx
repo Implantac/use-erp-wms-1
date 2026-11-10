@@ -76,7 +76,7 @@ export function RouteStepsPanel({ routeId, onClose }: { routeId: string; onClose
                   <SelectTrigger><SelectValue placeholder="Selecione uma operação ativa" /></SelectTrigger>
                   <SelectContent>{selectableOperations.map(op => <SelectItem key={op.id} value={op.name}>{op.name}</SelectItem>)}</SelectContent>
                 </Select>
-                {selectableOperations.length === 0 && <p className="text-xs text-warning">Cadastre uma operação ativa com nome único para esta empresa antes de adicionar etapas.</p>}
+                {selectableOperations.length === 0 && <p className="text-xs text-warning-text">Cadastre uma operação ativa com nome único para esta empresa antes de adicionar etapas.</p>}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Setor</Label>

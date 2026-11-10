@@ -140,7 +140,7 @@ export default function ShopFloorDashboardPage() {
           <CardContent>
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {allAlerts.map((a, i) => (
-                <div key={i} className={cn('p-3 rounded-lg text-sm', a.severity === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning')}>⚠️ {a.message}</div>
+                <div key={i} className={cn('p-3 rounded-lg text-sm', a.severity === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning-text')}>⚠️ {a.message}</div>
               ))}
             </div>
           </CardContent>

@@ -19,7 +19,7 @@ import { toastSuccess } from '@/lib/toastHelpers';
 import { EmptyState } from '@/shared/components/EmptyState';
 
 const typeConfig = {
-  warning: { icon: AlertTriangle, color: 'text-warning', bg: 'bg-warning/10', badge: 'bg-warning/20 text-warning' },
+  warning: { icon: AlertTriangle, color: 'text-warning-text', bg: 'bg-warning/10', badge: 'bg-warning/20 text-warning-text' },
   error: { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', badge: 'bg-destructive/20 text-destructive' },
   info: { icon: Info, color: 'text-info', bg: 'bg-info/10', badge: 'bg-info/20 text-info' },
   success: { icon: CheckCircle, color: 'text-success', bg: 'bg-success/10', badge: 'bg-success/20 text-success' },

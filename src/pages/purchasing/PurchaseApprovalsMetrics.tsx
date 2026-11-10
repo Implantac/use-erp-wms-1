@@ -100,7 +100,7 @@ export default function PurchaseApprovalsMetrics() {
                 <p className="text-2xl font-bold">{totals.breach_rate.toFixed(1)}%</p>
               </div>
               <AlertTriangle
-                className={`h-5 w-5 ${totals.breach_rate > 20 ? "text-destructive" : "text-warning"}`}
+                className={`h-5 w-5 ${totals.breach_rate > 20 ? "text-destructive" : "text-warning-text"}`}
                 aria-hidden
               />
             </div>

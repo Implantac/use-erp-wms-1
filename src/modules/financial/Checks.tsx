@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { formatBRL } from '@/lib/formatters';
 
 const statusVariant: Record<string, string> = {
-  received: 'bg-warning/10 text-warning border-warning/30',
+  received: 'bg-warning/10 text-warning-text border-warning/30',
   deposited: 'bg-info/10 text-info border-info/30',
   cleared: 'bg-success/10 text-success border-success/30',
   bounced: 'bg-destructive/10 text-destructive border-destructive/30',

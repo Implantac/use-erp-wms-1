@@ -29,7 +29,12 @@
     
     /* Muted */
     --muted: 215 20% 93%;
-    --muted-foreground: 215 16% 47%;
+    /* QA-UX (rodada 4 / WCAG AA): 215 16% 47% dava apenas 4.27:1 sobre
+       --background e 4.00:1 sobre --muted — abaixo dos 4.5:1 exigidos para
+       texto normal. Como este token e usado em breadcrumbs, abas, labels e
+       textos secundarios em TODO o ERP, a correcao e sistemica. O novo valor
+       mantem o mesmo matiz/saturacao com 5.55:1 / 5.20:1 de contraste. */
+    --muted-foreground: 215 16% 40%;
     
     /* Accent - Orange */
     --accent: 32 70% 95%;
@@ -44,6 +49,11 @@
     
     --warning: 45 100% 51%;
     --warning-foreground: 0 0% 0%;
+    /* QA-UX (rodada 4 / WCAG AA): o amarelo da marca (45 100% 51%) tem
+       apenas 1.63:1 sobre fundo claro — e usado como TEXTO em badges de
+       prioridade, status e alertas. Mantemos --warning para fundos/icones
+       e introduzimos uma variante legivel (4.80:1) para texto. */
+    --warning-text: 38 95% 32%;
     
     --info: 207 90% 54%;
     --info-foreground: 0 0% 100%;
@@ -121,6 +131,8 @@
     
     --warning: 45 100% 51%;
     --warning-foreground: 0 0% 0%;
+    /* No modo escuro o amarelo da marca ja e legivel sobre o fundo escuro. */
+    --warning-text: 45 100% 65%;
     
     --info: 207 90% 54%;
     --info-foreground: 0 0% 100%;

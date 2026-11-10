@@ -188,7 +188,7 @@ export default function DigitalTwinPage() {
                 <div className="flex justify-between"><span className="text-muted-foreground">Previsão</span><span className="font-bold">{format(simCompletionDate, 'dd/MM/yyyy')}</span></div>
                 {simNewOrders > 0 && (
                   <div className="pt-2 border-t space-y-2">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Impacto</span><span className={cn('font-bold', simDaysToComplete - daysToComplete > 0 ? 'text-warning' : 'text-success')}>+{simDaysToComplete - daysToComplete} dias</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Impacto</span><span className={cn('font-bold', simDaysToComplete - daysToComplete > 0 ? 'text-warning-text' : 'text-success')}>+{simDaysToComplete - daysToComplete} dias</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Utilização Mensal</span><span className="font-bold">{capacityUtilization.toFixed(0)}%</span></div>
                     <Progress value={capacityUtilization} className={cn('h-2', capacityUtilization > 90 && '[&>div]:bg-destructive')} />
                   </div>

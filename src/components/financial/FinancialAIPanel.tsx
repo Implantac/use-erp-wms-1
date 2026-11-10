@@ -8,7 +8,7 @@ import { Brain, AlertTriangle, TrendingUp, Lightbulb, ShieldCheck } from 'lucide
 import { formatBRL, formatDateTime, formatNumber } from '@/lib/formatters';
 const severityColor: Record<string, string> = {
   critical: 'bg-destructive/10 text-destructive border-destructive/30',
-  high: 'bg-warning/10 text-warning border-warning/30',
+  high: 'bg-warning/10 text-warning-text border-warning/30',
   medium: 'bg-warning/5 text-warning-foreground border-warning/20',
   low: 'bg-muted text-muted-foreground border-border',
 };
@@ -36,7 +36,7 @@ export function FinancialAIPanel() {
   const gradeColor =
     data.scoreGrade === 'A' ? 'text-success' :
     data.scoreGrade === 'B' ? 'text-primary' :
-    data.scoreGrade === 'C' ? 'text-warning' : 'text-destructive';
+    data.scoreGrade === 'C' ? 'text-warning-text' : 'text-destructive';
 
   return (
     <Card className="border-primary/20">

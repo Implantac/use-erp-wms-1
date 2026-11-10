@@ -13,7 +13,7 @@ import { ptBR } from 'date-fns/locale';
 
 const typeColors = {
   error: 'bg-destructive/10 text-destructive',
-  warning: 'bg-warning/10 text-warning',
+  warning: 'bg-warning/10 text-warning-text',
   info: 'bg-info/10 text-info',
   success: 'bg-success/10 text-success',
 };

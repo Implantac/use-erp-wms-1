@@ -42,6 +42,8 @@ export default {
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
+          /** QA-UX (rodada 4): variante WCAG AA para TEXTO amarelo. */
+          text: "hsl(var(--warning-text))",
         },
         info: {
           DEFAULT: "hsl(var(--info))",

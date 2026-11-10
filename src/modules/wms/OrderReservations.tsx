@@ -183,7 +183,7 @@ export default function OrderReservations() {
                         </Badge>
                       )}
                       {o.reservation_status === 'partial' && (
-                        <Badge className="bg-warning/10 text-warning border-warning/30">
+                        <Badge className="bg-warning/10 text-warning-text border-warning/30">
                           <AlertTriangle className="h-3 w-3 mr-1" />
                           Parcial ({o.pending_lines} pend.)
                         </Badge>

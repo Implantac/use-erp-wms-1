@@ -27,7 +27,7 @@ const icons = {
 const variants = {
   error: "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
   success: "border-primary/50 text-primary dark:border-primary [&>svg]:text-primary",
-  warning: "border-warning/50 text-warning dark:border-warning [&>svg]:text-warning",
+  warning: "border-warning/50 text-warning-text dark:border-warning [&>svg]:text-warning-text",
   info: "border-info/50 text-info dark:border-info [&>svg]:text-info",
 };
 

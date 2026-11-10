@@ -59,7 +59,7 @@ export default function MRPSimulation({ orders, sheets, supplies, capacities }: 
 
   const severityIcon = (severity: string) => {
     if (severity === 'critical') return <AlertTriangle className="h-4 w-4 text-destructive" />;
-    if (severity === 'warning') return <AlertTriangle className="h-4 w-4 text-warning" />;
+    if (severity === 'warning') return <AlertTriangle className="h-4 w-4 text-warning-text" />;
     return <Lightbulb className="h-4 w-4 text-primary" />;
   };
 
@@ -150,7 +150,7 @@ export default function MRPSimulation({ orders, sheets, supplies, capacities }: 
             <Card className={cn(result.kpis.criticalOPs > 0 && 'border-warning/40')}>
               <CardContent className="pt-4 text-center">
                 <p className="text-xs text-muted-foreground">OPs Críticas</p>
-                <p className={cn('text-3xl font-extrabold', result.kpis.criticalOPs > 0 ? 'text-warning' : 'text-success')}>
+                <p className={cn('text-3xl font-extrabold', result.kpis.criticalOPs > 0 ? 'text-warning-text' : 'text-success')}>
                   {result.kpis.criticalOPs}
                 </p>
               </CardContent>

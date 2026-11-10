@@ -23,7 +23,7 @@ import { formatBRL } from '@/lib/formatters';
 import { toastSuccess } from '@/lib/toastHelpers';
 
 const statusVariant: Record<string, string> = {
-  pending: 'bg-warning/10 text-warning border-warning/30',
+  pending: 'bg-warning/10 text-warning-text border-warning/30',
   registered: 'bg-info/10 text-info border-info/30',
   paid: 'bg-success/10 text-success border-success/30',
   cancelled: 'bg-muted text-muted-foreground',

@@ -12,7 +12,7 @@ const severityConfig: Record<
   { label: string; icon: typeof AlertTriangle; dot: string; text: string; ring: string }
 > = {
   critical: { label: 'Crítico', icon: AlertTriangle, dot: 'bg-destructive', text: 'text-destructive', ring: 'ring-destructive/20' },
-  attention: { label: 'Atenção', icon: AlertCircle, dot: 'bg-warning', text: 'text-warning', ring: 'ring-warning/20' },
+  attention: { label: 'Atenção', icon: AlertCircle, dot: 'bg-warning', text: 'text-warning-text', ring: 'ring-warning/20' },
   pending: { label: 'Pendência', icon: Clock, dot: 'bg-info', text: 'text-info', ring: 'ring-info/20' },
   info: { label: 'Informação', icon: Info, dot: 'bg-muted-foreground', text: 'text-muted-foreground', ring: 'ring-border' },
 };

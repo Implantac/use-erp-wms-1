@@ -26,7 +26,7 @@ export function DiagnosisSheet({ validationByStep, totalIssues, diagnosisSearch,
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className={cn('gap-2', totalIssues > 0 ? 'border-warning text-warning hover:bg-warning/5' : 'border-success text-success hover:bg-success/5')}>
+        <Button variant="outline" size="sm" className={cn('gap-2', totalIssues > 0 ? 'border-warning text-warning-text hover:bg-warning/5' : 'border-success text-success hover:bg-success/5')}>
           <ListChecks className="h-4 w-4" />
           Inconsistências ({totalIssues})
         </Button>
@@ -34,7 +34,7 @@ export function DiagnosisSheet({ validationByStep, totalIssues, diagnosisSearch,
       <SheetContent className="w-[400px] sm:w-[540px]">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-warning" />
+            <AlertTriangle className="h-5 w-5 text-warning-text" />
             Diagnóstico de CT-e
           </SheetTitle>
           <SheetDescription>Resumo das validações pendentes para a emissão do CT-e.</SheetDescription>

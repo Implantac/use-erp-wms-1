@@ -43,7 +43,7 @@ export function MachinesTab({ machinesList }: { machinesList: Machine[] }) {
                   </div>
                   {t.predictiveAlert && (
                     <div className="p-2 rounded bg-warning/10 text-xs flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3 text-warning" /><span>{t.predictiveAlert}</span>
+                      <AlertTriangle className="h-3 w-3 text-warning-text" /><span>{t.predictiveAlert}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-xs text-muted-foreground">

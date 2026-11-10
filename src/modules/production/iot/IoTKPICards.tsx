@@ -30,7 +30,7 @@ export function IoTKPICards({ connectedCount, totalMachines, runningCount, alert
       </Card>
       <Card className={cn('border-l-4', alertCount > 0 ? 'border-l-warning' : 'border-l-success')}>
         <CardContent className="p-3 flex items-center gap-2">
-          <ShieldAlert className={cn('h-5 w-5', alertCount > 0 ? 'text-warning' : 'text-success')} />
+          <ShieldAlert className={cn('h-5 w-5', alertCount > 0 ? 'text-warning-text' : 'text-success')} />
           <div><p className="text-xs text-muted-foreground">Alertas Preditivos</p><p className="text-lg font-bold">{alertCount}</p></div>
         </CardContent>
       </Card>

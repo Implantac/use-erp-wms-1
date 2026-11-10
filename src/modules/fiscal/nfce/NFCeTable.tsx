@@ -65,7 +65,7 @@ export function NFCeTable({ nfces, onView, onReprint, onReturn, onCancel }: Prop
                   <div className="flex flex-wrap gap-1">
                     <StatusBadge status={nfce.status} />
                     {nfce.returnStatus === 'partial' && (
-                      <Badge variant="outline" className="border-warning/40 text-warning gap-1">
+                      <Badge variant="outline" className="border-warning/40 text-warning-text gap-1">
                         <Undo2 className="h-3 w-3" /> Dev. parcial
                       </Badge>
                     )}

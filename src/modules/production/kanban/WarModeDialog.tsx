@@ -46,7 +46,7 @@ export function WarModeDialog({ open, onOpenChange, result, loading, onConfirm }
               {result.priorityChanges?.length > 0 ? (
                 <div>
                   <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
-                    <Zap className="h-4 w-4 text-warning" /> Repriorização ({result.priorityChanges.length})
+                    <Zap className="h-4 w-4 text-warning-text" /> Repriorização ({result.priorityChanges.length})
                   </h4>
                   <div className="space-y-1.5">
                     {result.priorityChanges.map((c, i) => (

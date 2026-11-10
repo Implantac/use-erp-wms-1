@@ -127,7 +127,7 @@ export default function EnterpriseConfig() {
         </div>
       </PageHeader>
 
-      <p role="note" className="text-sm text-warning">
+      <p role="note" className="text-sm text-warning-text">
         Alterar estas preferências não habilita módulos, emissão fiscal, estoque negativo, aprovações ou processos industriais. Acesso e regras dependem do backend e de homologação por cliente.
       </p>
       <Tabs defaultValue="general" className="space-y-6">

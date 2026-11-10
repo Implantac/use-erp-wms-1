@@ -45,7 +45,7 @@ export default function FoodFeedDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Consumo de Energia / Ton</CardTitle>
-            <Zap className="h-4 w-4 text-warning" />
+            <Zap className="h-4 w-4 text-warning-text" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">12.5 kWh</div>

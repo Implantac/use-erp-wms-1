@@ -44,7 +44,7 @@ export function FunnelAnalytics({
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className={m.avgDays > 14 ? 'text-warning font-semibold' : ''}>{m.avgDays} dias</span>
+                        <span className={m.avgDays > 14 ? 'text-warning-text font-semibold' : ''}>{m.avgDays} dias</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">

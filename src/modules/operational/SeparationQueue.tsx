@@ -20,7 +20,7 @@ import type { TablesUpdate, Tables } from '@/integrations/supabase/types';
 type StockReservationRow = Tables<'stock_reservations'>;
 
 const reservationStatusConfig: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Pendente', color: 'bg-warning/10 text-warning' },
+  pending: { label: 'Pendente', color: 'bg-warning/10 text-warning-text' },
   reserved: { label: 'Reservado', color: 'bg-info/10 text-info' },
   picked: { label: 'Separado', color: 'bg-success/10 text-success' },
   released: { label: 'Liberado', color: 'bg-muted text-muted-foreground' },
@@ -93,7 +93,7 @@ export default function SeparationQueue() {
           <div><p className="text-2xl font-bold">{statusCounts['picked'] || 0}</p><p className="text-xs text-muted-foreground">Separados</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <XCircle className="h-8 w-8 text-warning" />
+          <XCircle className="h-8 w-8 text-warning-text" />
           <div><p className="text-2xl font-bold">{statusCounts['pending'] || 0}</p><p className="text-xs text-muted-foreground">Pendentes</p></div>
         </CardContent></Card>
       </div>

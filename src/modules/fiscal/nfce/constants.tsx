@@ -12,7 +12,7 @@ import { Badge } from '@/ui/base/badge';
 const statusConfig: Record<string, { color: string; icon: React.ComponentType<{ className?: string }> }> = {
   authorized: { color: 'bg-success/10 text-success', icon: CheckCircle },
   cancelled: { color: 'bg-muted text-muted-foreground', icon: XCircle },
-  contingency: { color: 'bg-warning/10 text-warning', icon: AlertTriangle },
+  contingency: { color: 'bg-warning/10 text-warning-text', icon: AlertTriangle },
 };
 
 const statusLabels: Record<string, string> = {

@@ -76,7 +76,7 @@ export function KanbanSuggestions({ suggestions }: { suggestions: Suggestion[] }
     <Card className="border-warning/30 bg-warning/5">
       <CardContent className="py-3 px-4">
         <div className="flex items-center gap-2 mb-2">
-          <Star className="h-4 w-4 text-warning" />
+          <Star className="h-4 w-4 text-warning-text" />
           <span className="text-sm font-medium">Sugestões Inteligentes</span>
         </div>
         <div className="space-y-1">
@@ -84,7 +84,7 @@ export function KanbanSuggestions({ suggestions }: { suggestions: Suggestion[] }
             <p key={i} className={cn(
               'text-xs',
               s.severity === 'critical' ? 'text-destructive font-medium'
-                : s.severity === 'warning' ? 'text-warning' : 'text-muted-foreground'
+                : s.severity === 'warning' ? 'text-warning-text' : 'text-muted-foreground'
             )}>
               {s.icon} {s.text}
             </p>

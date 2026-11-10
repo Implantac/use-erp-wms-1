@@ -32,7 +32,7 @@ export function DelayRiskTable({ rows }: { rows: DelayRisk }) {
               {rows.slice(0, 15).map((r, i) => (
                 <TableRow key={i} className={cn(r.riskScore >= 70 && 'bg-destructive/5')}>
                   <TableCell>
-                    <div className={cn('text-xl font-bold text-center', r.riskScore >= 70 ? 'text-destructive' : r.riskScore >= 40 ? 'text-warning' : 'text-success')}>
+                    <div className={cn('text-xl font-bold text-center', r.riskScore >= 70 ? 'text-destructive' : r.riskScore >= 40 ? 'text-warning-text' : 'text-success')}>
                       {r.riskScore}
                     </div>
                   </TableCell>

@@ -206,7 +206,7 @@ export default function APSPage() {
                       <TableCell className="text-right font-mono">{(o.estMinutes / 60).toFixed(1)}</TableCell>
                       <TableCell className={cn(o.isLate && 'text-destructive font-medium')}>{o.due_date ? format(new Date(o.due_date), 'dd/MM') : '-'}</TableCell>
                       <TableCell>{format(o.startDate, 'dd/MM')}</TableCell>
-                      <TableCell className={cn(o.willBeLate && 'text-warning font-medium')}>{format(o.endDate, 'dd/MM')}</TableCell>
+                      <TableCell className={cn(o.willBeLate && 'text-warning-text font-medium')}>{format(o.endDate, 'dd/MM')}</TableCell>
                       <TableCell>
                         {o.isLate ? <Badge variant="destructive" className="text-xs">⚠ Atrasada</Badge>
                           : o.willBeLate ? <Badge variant="secondary" className="text-xs">⏳ Risco</Badge>
@@ -317,14 +317,14 @@ export default function APSPage() {
               <CardContent className="pt-6 text-center space-y-2">
                 <Target className="h-8 w-8 mx-auto text-success" />
                 <p className="text-sm text-muted-foreground">Taxa de Cumprimento</p>
-                <p className={cn('text-5xl font-extrabold', onTrack / Math.max(sequencedOPs.length, 1) >= 0.8 ? 'text-success' : 'text-warning')}>
+                <p className={cn('text-5xl font-extrabold', onTrack / Math.max(sequencedOPs.length, 1) >= 0.8 ? 'text-success' : 'text-warning-text')}>
                   {sequencedOPs.length > 0 ? ((onTrack / sequencedOPs.length) * 100).toFixed(0) : 0}%
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6 text-center space-y-2">
-                <Zap className="h-8 w-8 mx-auto text-warning" />
+                <Zap className="h-8 w-8 mx-auto text-warning-text" />
                 <p className="text-sm text-muted-foreground">Capacidade Diária</p>
                 <p className="text-3xl font-extrabold">{formatNumber(totalCapPerDay)}</p>
                 <p className="text-xs text-muted-foreground">unidades/dia ({capacities.length} recursos)</p>

@@ -6,7 +6,7 @@ import { Badge } from '@/ui/base/badge';
 import type { FiscalReport } from '@/types/fiscal';
 
 export const statusConfig: Record<string, { color: string; icon: React.ComponentType<{ className?: string }> }> = {
-  pending: { color: 'bg-warning/10 text-warning', icon: Clock },
+  pending: { color: 'bg-warning/10 text-warning-text', icon: Clock },
   generated: { color: 'bg-success/10 text-success', icon: CheckCircle },
   error: { color: 'bg-destructive/10 text-destructive', icon: XCircle },
 };

@@ -17,7 +17,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
 const shipmentStatusConfig: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Pendente', color: 'bg-warning/10 text-warning' },
+  pending: { label: 'Pendente', color: 'bg-warning/10 text-warning-text' },
   loading: { label: 'Em Carregamento', color: 'bg-info/10 text-info' },
   dispatched: { label: 'Despachado', color: 'bg-primary/10 text-primary' },
   in_transit: { label: 'Em Trânsito', color: 'bg-info/10 text-info' },
@@ -63,7 +63,7 @@ export default function ShipmentPage() {
           <div><p className="text-2xl font-bold">{shipments?.length || 0}</p><p className="text-xs text-muted-foreground">Total Expedições</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <Clock className="h-8 w-8 text-warning" />
+          <Clock className="h-8 w-8 text-warning-text" />
           <div><p className="text-2xl font-bold">{statusCounts['pending'] || 0}</p><p className="text-xs text-muted-foreground">Pendentes</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">

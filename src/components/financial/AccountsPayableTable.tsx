@@ -36,8 +36,8 @@ export function AccountsPayableTable({
     if (status === 'paid' || status === 'cancelled') return null;
     const days = differenceInDays(now, new Date(dueDate));
     if (days <= 0) return null;
-    if (days <= 7) return <Badge variant="outline" className="text-warning border-warning/30 bg-warning/10 text-xs">{days}d</Badge>;
-    if (days <= 30) return <Badge variant="outline" className="text-warning border-warning/50 bg-warning/20 text-xs">{days}d</Badge>;
+    if (days <= 7) return <Badge variant="outline" className="text-warning-text border-warning/30 bg-warning/10 text-xs">{days}d</Badge>;
+    if (days <= 30) return <Badge variant="outline" className="text-warning-text border-warning/50 bg-warning/20 text-xs">{days}d</Badge>;
     return <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/5 text-xs">{days}d</Badge>;
   };
 

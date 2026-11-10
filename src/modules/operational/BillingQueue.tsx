@@ -62,7 +62,7 @@ export default function BillingQueuePage() {
           <div><p className="text-2xl font-bold">{items?.length || 0}</p><p className="text-xs text-muted-foreground">Total na Fila</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">
-          <Clock className="h-8 w-8 text-warning" />
+          <Clock className="h-8 w-8 text-warning-text" />
           <div><p className="text-2xl font-bold">{statusCounts['awaiting_billing'] || 0}</p><p className="text-xs text-muted-foreground">Aguardando</p></div>
         </CardContent></Card>
         <Card><CardContent className="p-4 flex items-center gap-3">

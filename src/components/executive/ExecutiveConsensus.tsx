@@ -1,11 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
 import { Badge } from '@/ui/base/badge';
-import { 
-  Brain, 
-  MessageSquare, 
-  CheckCircle2, 
-  AlertCircle, 
-  TrendingUp, 
+import {
+  Brain,
+  MessageSquare,
+  CheckCircle2,
+  AlertCircle,
+  TrendingUp,
   Lightbulb,
   ArrowRight,
   ChevronRight,
@@ -19,37 +19,37 @@ import { ScrollArea } from '@/ui/base/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/ui/base/tooltip';
 
 const moduleStatusMap: Record<string, { label: string; color: string; explanation: string; icon: LucideIcon }> = {
-  commercial: { 
-    label: 'Otimizado', 
-    color: 'text-success', 
+  commercial: {
+    label: 'Otimizado',
+    color: 'text-success',
     explanation: 'Motor de conversão operando com 94% de eficiência preditiva. Lead score calibrado.',
 
     icon: TrendingUp
   },
-  financial: { 
-    label: 'Estável', 
-    color: 'text-primary', 
+  financial: {
+    label: 'Estável',
+    color: 'text-primary',
     explanation: 'Fluxo de caixa projetado sem rupturas nos próximos 45 dias. DRE em conformidade.',
 
     icon: CheckCircle2
   },
-  production: { 
-    label: 'Atenção', 
-    color: 'text-warning', 
+  production: {
+    label: 'Atenção',
+    color: 'text-warning-text',
     explanation: 'Gargalo identificado na linha de tecelagem 04. IA sugerindo re-balanceamento de turnos.',
 
     icon: AlertCircle
   },
-  inventory: { 
-    label: 'Crítico', 
-    color: 'text-destructive', 
+  inventory: {
+    label: 'Crítico',
+    color: 'text-destructive',
     explanation: 'Ruptura de estoque iminente em 12 SKUs de alta rotatividade. Necessário ressuprimento urgente.',
 
     icon: AlertCircle
   },
-  rh: { 
-    label: 'Saudável', 
-    color: 'text-success', 
+  rh: {
+    label: 'Saudável',
+    color: 'text-success',
     explanation: 'Clima organizacional e produtividade acima da meta setorial. Turnover reduzido em 12%.',
     icon: CheckCircle2
   },
@@ -108,13 +108,13 @@ type BrainItem = { titulo?: string; acao?: string; modulo?: string };
 export function ExecutiveConsensus({ consensus = [] }: { consensus?: ConsensusItem[] }) {
   const { data: runs = [] } = useBrainRuns();
   const lastRun = runs[0];
-  
+
   const structured = (lastRun?.structured ?? {}) as { riscos?: BrainItem[]; oportunidades?: BrainItem[] };
   const brainRisks: BrainItem[] = structured.riscos ?? [];
   const brainOpps: BrainItem[] = structured.oportunidades ?? [];
-  
+
   const { data: dashboardData } = useExecutiveDashboard();
-  
+
   const brainConsensus: ConsensusItem[] = [
     ...brainRisks.map((r) => ({
       specialist: 'Risk Advisor',
@@ -159,7 +159,7 @@ export function ExecutiveConsensus({ consensus = [] }: { consensus?: ConsensusIt
           </Badge>
         </div>
       </CardHeader>
-      
+
       <div className="flex flex-col h-[500px]">
         {/* Status por Módulo */}
         <div className="p-3 border-b border-border/30 bg-muted/20 space-y-2 shrink-0">
@@ -200,8 +200,8 @@ export function ExecutiveConsensus({ consensus = [] }: { consensus?: ConsensusIt
         <ScrollArea className="flex-1">
           <div className="divide-y divide-border/30">
             {items.map((item, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className="group flex items-start gap-3 p-4 hover:bg-primary/5 transition-all cursor-default relative overflow-hidden"
               >
                 <div className={cn(
@@ -245,7 +245,7 @@ export function ExecutiveConsensus({ consensus = [] }: { consensus?: ConsensusIt
             ))}
           </div>
         </ScrollArea>
-        
+
         <div className="p-3 bg-muted/30 border-t border-border/50 shrink-0">
           <div className="flex items-center justify-between mb-1">
             <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">

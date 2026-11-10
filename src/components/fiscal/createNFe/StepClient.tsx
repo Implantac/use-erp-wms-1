@@ -46,7 +46,7 @@ export function StepClient({ clientOptions, clientId, clientName, clientDocument
                 <Label className="text-[10px] uppercase text-muted-foreground">Estado (UF)</Label>
                 <div className="flex items-center gap-2">
                   <Badge className="font-bold">{clientUF}</Badge>
-                  {clientUF !== 'SP' && <Badge variant="secondary" className="text-[10px] bg-warning/20 text-warning border-warning">Interestadual</Badge>}
+                  {clientUF !== 'SP' && <Badge variant="secondary" className="text-[10px] bg-warning/20 text-warning-text border-warning">Interestadual</Badge>}
                 </div>
               </div>
             </CardContent>

@@ -315,7 +315,7 @@ export default function StoreCentral() {
                           <div className={cn(
                             "p-2 rounded-full ring-1 ring-inset relative z-10",
                             alert.type === 'critical' ? "bg-destructive/10 text-destructive ring-destructive/20 shadow-[0_0_10px_rgba(239,68,68,0.2)]" : 
-                            alert.type === 'warning' ? "bg-warning/10 text-warning ring-warning/20" : "bg-primary/10 text-primary ring-primary/20"
+                            alert.type === 'warning' ? "bg-warning/10 text-warning-text ring-warning/20" : "bg-primary/10 text-primary ring-primary/20"
                           )}>
                             {alert.category === 'rupture' && <AlertTriangle className="h-5 w-5" />}
                             {alert.category === 'receiving' && <Package className="h-5 w-5" />}
@@ -765,7 +765,7 @@ function KPICard({ title, value, icon: Icon, variant = 'default' }: {
             "h-4 w-4",
             variant === 'default' && "text-muted-foreground",
             variant === 'info' && "text-info",
-            variant === 'warning' && "text-warning",
+            variant === 'warning' && "text-warning-text",
             variant === 'success' && "text-success",
           )} />
         </div>

@@ -67,7 +67,7 @@ function CurrentAccountTable({ rows, search }: { rows: Row[]; search: string }) 
           <CardContent className="p-0">
             <div className="px-4 py-3 border-b flex items-center justify-between bg-muted/40">
               <div className="font-semibold">{g.party}</div>
-              <div className={`font-mono font-semibold ${g.total > 0 ? 'text-warning' : 'text-success'}`}>
+              <div className={`font-mono font-semibold ${g.total > 0 ? 'text-warning-text' : 'text-success'}`}>
                 Saldo: {formatBRL(g.total)}
               </div>
             </div>
@@ -98,7 +98,7 @@ function CurrentAccountTable({ rows, search }: { rows: Row[]; search: string }) 
                         {r.status === 'paid' && <Badge className="bg-success/15 text-success">Pago</Badge>}
                         {r.status === 'pending' && <Badge variant="outline">Pendente</Badge>}
                         {r.status === 'overdue' && <Badge variant="destructive">Vencido</Badge>}
-                        {r.status === 'partial' && <Badge className="bg-warning/15 text-warning">Parcial</Badge>}
+                        {r.status === 'partial' && <Badge className="bg-warning/15 text-warning-text">Parcial</Badge>}
                       </TableCell>
                     </TableRow>
                   ))}

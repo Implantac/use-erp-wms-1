@@ -33,7 +33,7 @@ interface KPICardProps {
 const colorMap: Record<string, { border: string; iconBg: string; iconText: string; glow: string }> = {
   primary: { border: 'border-l-primary', iconBg: 'bg-gradient-to-br from-primary/15 to-primary/5', iconText: 'text-primary', glow: 'group-hover:shadow-glow' },
   success: { border: 'border-l-success', iconBg: 'bg-gradient-to-br from-success/15 to-success/5', iconText: 'text-success', glow: '' },
-  warning: { border: 'border-l-warning', iconBg: 'bg-gradient-to-br from-warning/15 to-warning/5', iconText: 'text-warning', glow: '' },
+  warning: { border: 'border-l-warning', iconBg: 'bg-gradient-to-br from-warning/15 to-warning/5', iconText: 'text-warning-text', glow: '' },
   danger: { border: 'border-l-destructive', iconBg: 'bg-gradient-to-br from-destructive/15 to-destructive/5', iconText: 'text-destructive', glow: '' },
   info: { border: 'border-l-info', iconBg: 'bg-gradient-to-br from-info/15 to-info/5', iconText: 'text-info', glow: '' },
   accent: { border: 'border-l-primary', iconBg: 'bg-gradient-to-br from-accent to-accent/50', iconText: 'text-primary', glow: '' },

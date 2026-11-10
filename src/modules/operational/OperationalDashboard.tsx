@@ -92,18 +92,18 @@ export default function OperationalDashboard() {
     { label: 'Pedidos Ativos', value: allOrders.length, icon: FileText, color: 'text-primary' },
     { label: 'Ordens Produção', value: productionOrders.length, icon: Factory, color: 'text-info' },
     { label: 'Bloqueados', value: blockedOrders, icon: AlertTriangle, color: 'text-destructive' },
-    { label: 'Aguard. Separação', value: awaitingSeparation, icon: Package, color: 'text-warning' },
-    { label: 'Aguard. Produção', value: awaitingProduction, icon: Factory, color: 'text-warning' },
+    { label: 'Aguard. Separação', value: awaitingSeparation, icon: Package, color: 'text-warning-text' },
+    { label: 'Aguard. Produção', value: awaitingProduction, icon: Factory, color: 'text-warning-text' },
     { label: 'Conferência Pend.', value: pendingConference, icon: ClipboardCheck, color: 'text-accent-foreground' },
-    { label: 'Aguard. Faturamento', value: awaitingBilling, icon: DollarSign, color: 'text-warning' },
+    { label: 'Aguard. Faturamento', value: awaitingBilling, icon: DollarSign, color: 'text-warning-text' },
     { label: 'Em Trânsito', value: inTransit, icon: Truck, color: 'text-info' },
   ];
 
   const advancedKpis = [
     { label: 'Pedidos Atrasados', value: delayedOrders.length, icon: Clock, color: delayedOrders.length > 0 ? 'text-destructive' : 'text-success' },
-    { label: 'OTIF', value: `${otifRate.toFixed(0)}%`, icon: Target, color: otifRate >= 90 ? 'text-success' : otifRate >= 70 ? 'text-warning' : 'text-destructive' },
+    { label: 'OTIF', value: `${otifRate.toFixed(0)}%`, icon: Target, color: otifRate >= 90 ? 'text-success' : otifRate >= 70 ? 'text-warning-text' : 'text-destructive' },
     { label: 'Lead Time Médio', value: `${avgLeadTime.toFixed(0)}h`, icon: Timer, color: 'text-muted-foreground' },
-    { label: 'Efic. Produção', value: `${prodEfficiency.toFixed(0)}%`, icon: TrendingUp, color: prodEfficiency >= 80 ? 'text-success' : 'text-warning' },
+    { label: 'Efic. Produção', value: `${prodEfficiency.toFixed(0)}%`, icon: TrendingUp, color: prodEfficiency >= 80 ? 'text-success' : 'text-warning-text' },
   ];
 
   return (
