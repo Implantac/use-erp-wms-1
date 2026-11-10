@@ -25,6 +25,7 @@
     "regression": "node scripts/regression-suite.mjs",
     "setup": "node scripts/setup.mjs",
     "e2e:isolated": "playwright test --config=e2e/playwright.isolated.config.ts",
+    "e2e:public": "playwright test --config=e2e/playwright.public.config.ts",
     "e2e:isolated:teardown": "node scripts/e2e-isolated-server.mjs --teardown"
   },
   "dependencies": {

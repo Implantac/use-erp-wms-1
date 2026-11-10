@@ -25,14 +25,15 @@ export default function SystemManual() {
   const { isDone, count, reset } = useManualProgress();
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
+    // QA-UX: o Ctrl+K pertence à CommandPalette (capture phase + stopPropagation).
+    // Antes este listener nunca disparava e o placeholder "(Ctrl+K)" era uma
+    // promessa quebrada. Reivindicamos o evento cancelável que a paleta dispara.
+    const handleCtrlK = (e: Event) => {
+      e.preventDefault();
+      searchRef.current?.focus();
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('app:ctrlk', handleCtrlK);
+    return () => window.removeEventListener('app:ctrlk', handleCtrlK);
   }, []);
 
   const filtered = useMemo(() => {

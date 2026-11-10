@@ -9,7 +9,15 @@ import { PolicyProvider } from "@/core/orchestration/policyEngine";
 import { Loader2 } from 'lucide-react';
 import { ConfirmDialogProvider } from '@/shared/components/ConfirmDialog';
 import { useLowMarginAlertsRealtime } from '@/hooks/commercial/useLowMarginAlertsRealtime';
-import { WorkflowSwitcher } from '@/modules/core/components/WorkflowSwitcher';
+// QA-UX (10/11/2026): o WorkflowSwitcher legado foi DESMONTADO da árvore.
+// Ele era um segundo launchpad global, montado antes das rotas, que:
+//   - aparecia na tela de LOGIN e era o primeiro foco do TAB;
+//   - usava rótulo em inglês e atalho de Mac (⌘K) para usuários de Windows;
+//   - apontava para 4 URLs que retornam 404 (ver legacyAliasMap em routes/);
+//   - competia com a CommandPalette do MainLayout pelo mesmo Ctrl+K.
+// A CommandPalette (src/core/layout/CommandPalette.tsx) é o único ponto de
+// busca: ações por tarefa, em PT-BR, busca de produtos/OPs/pedidos e filtro
+// por contexto/permissões. Os aliases legados continuam funcionando.
 
 import { withRenderMonitor } from '@/core/debug/RenderDepthMonitor';
 
@@ -103,7 +111,6 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <WorkflowSwitcher />
               <Suspense fallback={<GlobalLoader />}>
                 <AppRoutes />
               </Suspense>

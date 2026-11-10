@@ -73,6 +73,14 @@ const legacyAliasMap: Array<[string, string]> = [
   ['/saude/', '/dashboard'],
   ['/agro/', '/dashboard'],
   ['/construcao/', '/dashboard'],
+  // QA-UX (10/11/2026): URLs divulgadas pelo launchpad legado e presentes em
+  // favoritos/treinamentos do cliente. Todas retornavam 404. Redirecionam
+  // para a rota canônica equivalente, preservando a query string.
+  ['/comercial/pedidos/novo', '/comercial/pedidos'],
+  ['/fiscal/notas', '/fiscal/nfe'],
+  ['/financeiro/contas-receber', '/financeiro/receber'],
+  ['/compras/sugestoes', '/compras/dashboard'],
+  ['/admin/ai-config', '/executive/brain'],
 ];
 
 const LegacyAliasRedirect = () => {
@@ -156,6 +164,12 @@ const AppRoutes = memo(() => {
           <Route path="/wms/reposicao" element={<LegacyAliasRedirect />} />
           <Route path="/logistica/recebimento" element={<LegacyAliasRedirect />} />
           <Route path="/logistica/transferencias" element={<LegacyAliasRedirect />} />
+          {/* QA-UX: aliases que antes davam 404 (ver legacyAliasMap acima). */}
+          <Route path="/comercial/pedidos/novo" element={<LegacyAliasRedirect />} />
+          <Route path="/fiscal/notas" element={<LegacyAliasRedirect />} />
+          <Route path="/financeiro/contas-receber" element={<LegacyAliasRedirect />} />
+          <Route path="/compras/sugestoes" element={<LegacyAliasRedirect />} />
+          <Route path="/admin/ai-config" element={<LegacyAliasRedirect />} />
 
           {/* Inventory and purchasing aliases used by the sidebar */}
           <Route path="/estoque/produtos" element={<InventoryProductsPage />} />

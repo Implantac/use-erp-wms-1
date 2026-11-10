@@ -1,3 +1,13 @@
+/**
+ * LEGADO — DESMONTADO em 10/11/2026 (QA-UX), mantido apenas como registro.
+ *
+ * Este arquivo NÃO é mais importado por src/App.tsx. Não reintroduza o
+ * componente na árvore global: ele duplicava a CommandPalette do MainLayout,
+ * aparecia na tela de login, era o primeiro foco do TAB e 4 dos seus 9
+ * destinos retornavam 404. Para corrigir links antigos, use os aliases em
+ * src/routes/index.tsx (legacyAliasMap). Para busca/navegação, use a
+ * CommandPalette. Ver docs/AVALIACAO-UX-2026-11-10.md.
+ */
 import React, { useState, useEffect } from 'react';
 import { 
   CommandDialog, 

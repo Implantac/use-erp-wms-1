@@ -33,6 +33,19 @@ export default function BrainPage() {
 
   useEffect(() => { textareaRef.current?.focus(); }, []);
 
+  // QA-UX: Ctrl+K no Brain deve focar a busca de memória, como a interface
+  // indica. A CommandPalette é dona do atalho em capture phase e delega por
+  // evento cancelável; listeners locais de keydown nunca eram alcançados.
+  useEffect(() => {
+    const onCtrlK = (e: Event) => {
+      e.preventDefault();
+      setActiveTab('memory');
+      requestAnimationFrame(() => memorySearchRef.current?.focus());
+    };
+    window.addEventListener('app:ctrlk', onCtrlK);
+    return () => window.removeEventListener('app:ctrlk', onCtrlK);
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -42,12 +55,6 @@ export default function BrainPage() {
         e.preventDefault();
         setActiveTab('chat');
         requestAnimationFrame(() => textareaRef.current?.focus());
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setActiveTab('memory');
-        requestAnimationFrame(() => memorySearchRef.current?.focus());
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l' && messages.length > 0) {

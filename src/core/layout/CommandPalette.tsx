@@ -87,6 +87,14 @@ export function CommandPalette() {
       if (isK && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         e.stopPropagation();
+        // QA-UX: algumas páginas (Manual do Sistema, Brain) prometem Ctrl+K
+        // no placeholder da busca LOCAL. Como este listener roda em capture
+        // e chama stopPropagation, os listeners locais nunca disparavam —
+        // o atalho abria a paleta global e quebrava a promessa da interface.
+        // Agora a página pode reivindicar o atalho cancelando este evento.
+        const local = new CustomEvent('app:ctrlk', { cancelable: true });
+        window.dispatchEvent(local);
+        if (local.defaultPrevented) return;
         setOpen((o) => !o);
       }
     };
@@ -197,7 +205,7 @@ export function CommandPalette() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="O que você quer fazer? (busque também produtos, OPs e pedidos)" onValueChange={setQuery} />
+      <CommandInput placeholder="Buscar ou pesquisar: o que você quer fazer? (ações, produtos, OPs e pedidos)" onValueChange={setQuery} />
       <CommandList>
         <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
         <CommandGroup heading="O que você quer fazer?">
