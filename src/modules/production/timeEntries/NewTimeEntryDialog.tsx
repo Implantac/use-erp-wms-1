@@ -2,7 +2,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/base/select';
-import { Play } from 'lucide-react';
+import { Play, Keyboard } from 'lucide-react';
+import { FormField } from '@/shared/components/FormField';
+import { useEnterToNextField } from '@/hooks/useEnterToNextField';
 import type { NewEntryForm } from './constants';
 
 interface ActiveOrder {
@@ -22,20 +24,36 @@ interface Props {
   onSubmit: () => void;
 }
 
+/**
+ * QA-UX / S005: rótulos associados (FormField) + Enter avançando entre campos.
+ * Antes: 4 `<label>` soltos, nenhum `htmlFor`, nenhum `id`, nenhum `required`.
+ */
 export function NewTimeEntryDialog({ open, onOpenChange, activeOrders, form, setForm, onSubmit }: Props) {
+  const formRef = useEnterToNextField<HTMLDivElement>();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Novo Apontamento</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Operador *</label>
-            <Input value={form.operator} onChange={e => setForm({ ...form, operator: e.target.value })} placeholder="Nome do operador" />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Ordem de Produção *</label>
+        <DialogHeader>
+          <DialogTitle>Novo Apontamento</DialogTitle>
+          <p className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
+            <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+            TAB ou Enter avançam entre os campos · Shift+Enter volta
+          </p>
+        </DialogHeader>
+        <div ref={formRef} className="space-y-4">
+          <FormField label="Operador" required hint="Nome de quem está registrando o apontamento">
+            <Input
+              value={form.operator}
+              onChange={e => setForm({ ...form, operator: e.target.value })}
+              placeholder="Nome do operador"
+              autoComplete="name"
+            />
+          </FormField>
+
+          <FormField label="Ordem de Produção" required>
             <Select value={form.orderId} onValueChange={v => setForm({ ...form, orderId: v })}>
-              <SelectTrigger><SelectValue placeholder="Selecione uma OP" /></SelectTrigger>
+              <SelectTrigger aria-label="Selecione uma OP"><SelectValue placeholder="Selecione uma OP" /></SelectTrigger>
               <SelectContent>
                 {activeOrders.map(o => (
                   <SelectItem key={o.id} value={o.id}>
@@ -44,15 +62,23 @@ export function NewTimeEntryDialog({ open, onOpenChange, activeOrders, form, set
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium">Operação / Etapa *</label>
-            <Input value={form.operationName} onChange={e => setForm({ ...form, operationName: e.target.value })} placeholder="Ex: Corte, Costura, Estamparia" />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Centro de Trabalho</label>
-            <Input value={form.workCenter} onChange={e => setForm({ ...form, workCenter: e.target.value })} placeholder="Ex: Setor A" />
-          </div>
+          </FormField>
+
+          <FormField label="Operação / Etapa" required>
+            <Input
+              value={form.operationName}
+              onChange={e => setForm({ ...form, operationName: e.target.value })}
+              placeholder="Ex: Corte, Costura, Estamparia"
+            />
+          </FormField>
+
+          <FormField label="Centro de Trabalho">
+            <Input
+              value={form.workCenter}
+              onChange={e => setForm({ ...form, workCenter: e.target.value })}
+              placeholder="Ex: Setor A"
+            />
+          </FormField>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

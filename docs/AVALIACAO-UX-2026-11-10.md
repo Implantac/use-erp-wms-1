@@ -5,6 +5,8 @@
 **Veredito:** melhorias implementadas, validadas e **versionadas no GitHub** a pedido expresso do responsável (10/11/2026). **Ainda não aplicadas ao deploy do Lovable** — isso depende de um rebuild no painel. O parecer técnico anterior permanece **NO-GO**.
 
 > Este documento cobre **experiência de uso**. Ele não substitui, não altera e não revalida `docs/AVALIACAO-TECNICA-ERP-2026-11-05.md`. **CI verde não é evidência de aplicação utilizável.**
+>
+> **Rodada 2 (10/11/2026):** [AVALIACAO-UX-RODADA-2-2026-11-10.md](./AVALIACAO-UX-RODADA-2-2026-11-10.md) — S005 (teclado no lançamento), auditoria de 105 links do menu, dedupe de toasts e identidade PWA. Este relatório da rodada 1 fica preservado como histórico.
 
 ---
 

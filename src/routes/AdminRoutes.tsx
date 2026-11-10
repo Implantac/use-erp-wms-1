@@ -1,6 +1,7 @@
 import { lazy } from 'react';
 import { Route } from 'react-router-dom';
 import { AccessGuard } from '@/components/auth/AccessGuard';
+import { AccessDenied } from '@/shared/components/AccessDenied';
 
 const UsersPage = lazy(() => import("../modules/admin/Users"));
 const CompaniesPage = lazy(() => import("../modules/admin/Companies"));
@@ -27,12 +28,14 @@ const AuditLogsPage = lazy(() => import("../modules/admin/systemManual/AuditLogs
 
 
 
+// QA-UX: fallback explicito. Sem ele, o AccessGuard devolvia `null` para
+// quem passou no OperationalScopeGuard mas nao tem a role exigida.
 const adminOnly = (el: JSX.Element) => (
-  <AccessGuard roles={["admin", "manager"]}>{el}</AccessGuard>
+  <AccessGuard roles={["admin", "manager"]} fallback={<AccessDenied moduleName="esta área de configuração" />}>{el}</AccessGuard>
 );
 
 const superOnly = (el: JSX.Element) => (
-  <AccessGuard roles={["admin", "system_admin"]}>{el}</AccessGuard>
+  <AccessGuard roles={["admin", "system_admin"]} fallback={<AccessDenied moduleName="a administração do sistema" />}>{el}</AccessGuard>
 );
 
 export const AdminRoutes = [

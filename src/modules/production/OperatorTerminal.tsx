@@ -2,7 +2,9 @@ import { useState, useMemo, useEffect } from 'react';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/base/card';
 import { Input } from '@/ui/base/input';
-import { User } from 'lucide-react';
+import { FormField } from '@/shared/components/FormField';
+import { useEnterToNextField } from '@/hooks/useEnterToNextField';
+import { User, Keyboard } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useTimeEntries } from '@/hooks/system/useTimeEntries';
@@ -20,6 +22,8 @@ import { ProblemDialog } from './operator-terminal/ProblemDialog';
 import { ShiftSummaryCard } from './operator-terminal/ShiftSummaryCard';
 
 export default function OperatorTerminalPage() {
+  // QA-UX / S005: teclado no chão de fábrica — Enter avança entre campos.
+  const terminalRef = useEnterToNextField<HTMLDivElement>();
   const { company } = useActiveTenant();
   const { entries, loading, create, update } = useTimeEntries();
   const { orders } = useProductionOrders();
@@ -257,7 +261,7 @@ export default function OperatorTerminalPage() {
 
   return (
     <PageContainer loading={loading}>
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div ref={terminalRef} className="max-w-2xl mx-auto space-y-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -266,13 +270,20 @@ export default function OperatorTerminalPage() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground mb-2">Nome informado manualmente; não confirma identidade nem autorização. Durante um apontamento, o nome fica bloqueado nesta tela.</p>
-            <Input
-              placeholder="Seu nome..."
-              value={operatorName}
-              onChange={(e) => setOperatorName(e.target.value)}
-              disabled={!!currentEntry || reportingProblem}
-              className="text-lg h-14 text-center font-semibold"
-            />
+            <FormField label="Operador" required hint="TAB ou Enter avançam entre os campos · Shift+Enter volta">
+              <Input
+                placeholder="Seu nome..."
+                value={operatorName}
+                onChange={(e) => setOperatorName(e.target.value)}
+                disabled={!!currentEntry || reportingProblem}
+                autoComplete="name"
+                className="text-lg h-14 text-center font-semibold"
+              />
+            </FormField>
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+              <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+              Lançamento por teclado habilitado (S005)
+            </p>
           </CardContent>
         </Card>
 

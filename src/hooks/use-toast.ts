@@ -46,7 +46,7 @@ type Action =
       toastId?: ToasterToast["id"];
     };
 
-interface State {
+export interface State {
   toasts: ToasterToast[];
 }
 
@@ -70,11 +70,22 @@ const addToRemoveQueue = (toastId: string) => {
 
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
-    case "ADD_TOAST":
+    case "ADD_TOAST": {
+      // QA-UX (2a rodada): em tentativas repetidas o usuario via varios
+      // toasts VERMELHOS identicos empilhados, cobrindo o formulario.
+      // Remove o aviso anterior equivalente antes de exibir o novo.
+      const isSameNotice = (t: ToasterToast) =>
+        typeof t.title === "string" &&
+        typeof action.toast.title === "string" &&
+        t.title === action.toast.title &&
+        String(t.description ?? "") === String(action.toast.description ?? "") &&
+        t.variant === action.toast.variant;
+      const deduped = state.toasts.filter((t) => !isSameNotice(t));
       return {
         ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+        toasts: [action.toast, ...deduped].slice(0, TOAST_LIMIT),
       };
+    }
 
     case "UPDATE_TOAST":
       return {

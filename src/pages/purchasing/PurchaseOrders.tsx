@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
-import { Plus, Search, MoreHorizontal, Eye, Edit, Trash2, Send, CheckCircle, Package, FileText, Loader2, Clock } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Eye, Edit, Trash2, Send, CheckCircle, Package, FileText, Loader2, Clock, Keyboard } from 'lucide-react';
+import { FormField } from '@/shared/components/FormField';
+import { useEnterToNextField } from '@/hooks/useEnterToNextField';
 import { ExportButton } from '@/shared/components/ExportButton';
 import { Button } from '@/ui/base/button';
 import { Input } from '@/ui/base/input';
@@ -60,6 +62,8 @@ interface DraftItem {
 }
 
 export default function PurchaseOrdersPage() {
+  // QA-UX / S005: ENTER avanca entre os campos do dialog de novo pedido.
+  const createFormRef = useEnterToNextField<HTMLDivElement>();
   const { orders, ordersLoading: loading, suppliers, createOrder, creatingOrder } = usePurchasing();
   const { data: products } = useProducts() as { data: DbProduct[] | undefined };
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -287,34 +291,35 @@ export default function PurchaseOrdersPage() {
           <DialogHeader>
             <DialogTitle>Novo Pedido de Compra</DialogTitle>
             <DialogDescription>Selecione o fornecedor e os itens que deseja comprar.</DialogDescription>
+            <p className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
+              <Keyboard className="h-3.5 w-3.5" aria-hidden="true" />
+              TAB ou Enter avançam entre os campos · Shift+Enter volta
+            </p>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div ref={createFormRef} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Fornecedor</Label>
+              <FormField label="Fornecedor" required>
                 <Select value={newSupplierId} onValueChange={setNewSupplierId}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger aria-label="Selecione o fornecedor"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {suppliers.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Prioridade</Label>
+              </FormField>
+              <FormField label="Prioridade">
                 <Select value={newPriority} onValueChange={setNewPriority}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Prioridade"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(priorityConfig).map(([key, value]) => (
                       <SelectItem key={key} value={key}>{value.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Entrega prevista</Label>
+              </FormField>
+              <FormField label="Entrega prevista">
                 <Input type="date" value={newExpected} onChange={(e) => setNewExpected(e.target.value)} />
-              </div>
+              </FormField>
             </div>
 
             <Separator />
@@ -322,8 +327,7 @@ export default function PurchaseOrdersPage() {
             <div className="space-y-3">
               {draftItems.map((item, index) => (
                 <div key={index} className="grid gap-2 md:grid-cols-[2fr_1fr_1fr_auto] md:items-end">
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase text-muted-foreground">Produto</Label>
+                  <FormField label="Produto" className="space-y-1">
                     <Select
                       value={item.productId}
                       onValueChange={(value) => setDraftItems((prev) => prev.map((it, i) => {
@@ -332,26 +336,24 @@ export default function PurchaseOrdersPage() {
                         return { ...it, productId: value, unitPrice: it.unitPrice || Number(product?.cost_price || 0) };
                       }))}
                     >
-                      <SelectTrigger><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
+                      <SelectTrigger aria-label="Selecione o produto"><SelectValue placeholder="Selecione o produto" /></SelectTrigger>
                       <SelectContent>
                         {(products || []).map((p) => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase text-muted-foreground">Quantidade</Label>
+                  </FormField>
+                  <FormField label="Quantidade" className="space-y-1">
                     <Input
                       type="number" min={1} value={item.quantity}
                       onChange={(e) => setDraftItems((prev) => prev.map((it, i) => i === index ? { ...it, quantity: Number(e.target.value) } : it))}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase text-muted-foreground">Preço unit.</Label>
+                  </FormField>
+                  <FormField label="Preço unit." className="space-y-1">
                     <Input
                       type="number" min={0} step="0.01" value={item.unitPrice}
                       onChange={(e) => setDraftItems((prev) => prev.map((it, i) => i === index ? { ...it, unitPrice: Number(e.target.value) } : it))}
                     />
-                  </div>
+                  </FormField>
                   <Button
                     variant="ghost" size="icon" aria-label="Remover item"
                     disabled={draftItems.length === 1}
