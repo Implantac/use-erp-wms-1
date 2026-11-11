@@ -5,6 +5,8 @@
 > **Ferramenta:** `locator.ariaSnapshot()` — árvore de acessibilidade do **Chromium**, não escuta de leitor de tela.
 > **Status:** **apenas local**, sem commit/push. `HEAD` = `origin/main` = `6af2036`. **Sem rebuild/deploy, sem dados reais, sem aceite presumido.**
 > **Série de arquivos:** mantém o sufixo `2026-11-10` por coerência com as rodadas 1–12.
+>
+> **Atualização (publicação de 11/11/2026):** publicada no commit **`1488b3e`** (`6af2036..1488b3e`, 9 arquivos, +390/−12) a pedido expresso `"ok atualize o projeto no github, use o token …"`. CI **`43090793821` ✅ 3/3** (Typecheck, Build, lint/unit/RLS, Harness). Playwright **`43090793850`**: smoke público ✅, E2E isolado ✅, jornadas autenticadas ❌ apenas no step 4 `Validate isolated E2E configuration` (18 segredos; mesma falha já registrada). **O texto abaixo preserva o estado local do momento da execução**; a publicação não implica rebuild no Lovable nem altera o **NO-GO**.
 
 ---
 
@@ -98,14 +100,16 @@ fiscal (2 rotas)  -> combobox "Filtrar por status da NF-e"
 
 ---
 
-## 5. CI da publicação de r11+r12 (fecha limitação da r12)
+## 5. CI das publicações
 
 | Run | Resultado |
 |---|---|
-| **`43082340701` — CI** sobre `6af2036` | ✅ **3/3**: `Typecheck, lint, unitários e guardas RLS`, `Harness de banco (replay + negócio)`, `Build de produção` |
+| **`43082340701` — CI** sobre `6af2036` (r11+r12) | ✅ **3/3**: `Typecheck, lint, unitários e guardas RLS`, `Harness de banco (replay + negócio)`, `Build de produção` |
 | **`43082340738` — Playwright** sobre `6af2036` | smoke público ✅, E2E isolado ✅, jornadas autenticadas ❌ **apenas** no step 4 `Validate isolated E2E configuration` (18 segredos; mesma falha r5/r6/r7–r10, **não é regressão**) |
+| **`43090793821` — CI** sobre `1488b3e` (r13) | ✅ **3/3**: mesmos três jobs |
+| **`43090793850` — Playwright** sobre `1488b3e` | smoke público ✅, E2E isolado ✅, jornadas autenticadas ❌ **apenas** no step 4 `Validate isolated E2E configuration` (18 segredos) |
 
-Isso **fecha a limitação declarada no §5/r12**: r11/r12 agora têm typecheck e build de produção validados no CI. **Não há CI sobre a r13** (ela é local).
+O CI de `6af2036` **fecha a limitação declarada no §5/r12**: r11/r12 passaram a ter typecheck e build de produção validados. O CI de `1488b3e` cobre **também a r13**. **CI verde não é evidência de aplicação utilizável** — nenhuma dessas rodadas chegou ao deploy.
 
 ---
 
@@ -133,14 +137,14 @@ Isso **fecha a limitação declarada no §5/r12**: r11/r12 agora têm typecheck 
 - Removidos: `.env.e2e.generated`, locks, `tests/harness/data*`, `e2e/test-results`, `playwright-report-isolated`, backups temporários.
 - Servidores `api-isolada-publicacao-r13-*` e `erp-frontend-publicacao-r13-*` **parados**; portas 4179/54321 livres.
 - O PAT usado na publicação de `6af2036` (turno anterior) foi **somente** via `GIT_ASKPASS` em `/tmp`, com script/logs apagados; **não** está em `.git/config`, workspace ou histórico. **Deve ser revogado**, junto com os PATs de r6 e 11/11 que já estavam pendentes. O PAT reenviado para esta publicação segue o mesmo tratamento.
-- `git status --porcelain`: **9 arquivos locais** (7 modificados + 2 não versionados): `package.json`, 3 filtros, índice, relatórios r11/r12 atualizados, `scripts/ux-aria-routes-audit.mjs`, este relatório. **Nenhum commit, nenhum push.**
-- `HEAD` = `origin/main` = **`6af2036`**.
+- `git status --porcelain`: **9 arquivos locais** (7 modificados + 2 não versionados): `package.json`, 3 filtros, índice, relatórios r11/r12 atualizados, `scripts/ux-aria-routes-audit.mjs`, este relatório. **Nenhum commit, nenhum push.** *(Estado no momento da execução; publicado em `1488b3e` conforme nota no topo.)*
+- `HEAD` = `origin/main` = **`6af2036`** *(antes da publicação; hoje `1488b3e`)*.
 
 ---
 
 ## 8. Próximos passos
 
-1. **Publicar r13** — exige **novo pedido pontual** (`"Atualize o github"`); a autorização desta mensagem foi consumida por `6af2036`.
+1. **Publicar r13** — **feito** em `1488b3e` após `"ok atualize o projeto no github, use o token …"`. Não há autorização permanente: novos commits exigem novo pedido.
 2. **Rebuild no Lovable pelo usuário** — única ação que leva r7–r13 ao deploy; até lá o sistema acessível continua sem cadastro de cliente (UX9-01) e com a confirmação de exclusão antiga (UX10-01).
 3. **Leitor de tela real (NVDA/VoiceOver)** e ampliação da cobertura para as rotas/diálogos fora destas 12.
 4. **Harness para JOINs 400**, mutações no gate de regressão, dívidas congeladas (22 alvos < 24 px, zoom 200%, viewport 320 px).
@@ -171,4 +175,4 @@ A r12 provou nomes corretos nos **5 diálogos**; a r13 perguntou **e o resto do 
 
 Mais uma vez, o trabalho começou por **desconfiar do instrumento**: 17 "sem nome" eram 12 falsos positivos de prefixo de papel, e 0 diálogo aberto era falha do seletor. Só depois de corrigir o audit é que o achado real apareceu.
 
-**`6af2036` publicado e com CI verde 3/3; r13 apenas local.** O parecer técnico segue **NO-GO**, o rebuild no Lovable continua sendo do usuário e a revogação dos PATs segue pendente. **CI verde não é evidência de aplicação utilizável.**
+**`1488b3e` publicado e com CI verde 3/3; r11–r13 estão no GitHub.** O parecer técnico segue **NO-GO**, o rebuild no Lovable continua sendo do usuário e a revogação dos PATs segue pendente. **CI verde não é evidência de aplicação utilizável.**

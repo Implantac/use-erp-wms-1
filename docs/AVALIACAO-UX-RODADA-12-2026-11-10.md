@@ -5,7 +5,7 @@
 > **Status:** **apenas local**. Sem commit/push. `origin/main` segue em `a0b66e8` (r7–r10 publicadas). **Sem rebuild/deploy** — rebuild no Lovable, smoke autenticado em produção e revogação dos PATs continuam sendo ações do usuário, não autorizadas por `"ok prossiga"`.
 > **Série de arquivos:** mantém o sufixo `2026-11-10` por coerência com as rodadas 1–11.
 >
-> **Atualização (publicação de 11/11/2026):** publicada junto com a r11 no commit **`6af2036`** (`a0b66e8..6af2036`), a pedido expresso `"ok atualize o github e continue"`. CI **`43082340701` ✅ 3/3** (Typecheck, Build, lint/unit/RLS, Harness) — **fecha a limitação de typecheck/build declarada no §5**. Playwright **`43082340738`**: smoke público ✅, E2E isolado ✅, jornadas autenticadas ❌ apenas no step 4 `Validate isolated E2E configuration` (18 segredos). **O texto abaixo preserva o estado local do momento da execução**; a publicação não implica rebuild no Lovable nem altera o **NO-GO**. A r13, feita depois, segue apenas local.
+> **Atualização (publicação de 11/11/2026):** publicada junto com a r11 no commit **`6af2036`** (`a0b66e8..6af2036`), a pedido expresso `"ok atualize o github e continue"`. CI **`43082340701` ✅ 3/3** (Typecheck, Build, lint/unit/RLS, Harness) — **fecha a limitação de typecheck/build declarada no §5**. Playwright **`43082340738`**: smoke público ✅, E2E isolado ✅, jornadas autenticadas ❌ apenas no step 4 `Validate isolated E2E configuration` (18 segredos). **O texto abaixo preserva o estado local do momento da execução**; a publicação não implica rebuild no Lovable nem altera o **NO-GO**. A r13, feita depois, foi publicada em `1488b3e` com CI `43090793821` ✅ 3/3.
 
 ---
 
@@ -133,7 +133,7 @@ O `alert` (r7) e o `status` (r8) aparecem na árvore global — ou seja, os pape
 | `git diff --check` | **0** |
 | `tsc` dirigido aos 5 arquivos alterados | **exit 0** |
 
-**Limitações locais (declaradas, não ocultadas):** `npm run typecheck` completo foi morto por **SIGKILL/OOM** do `tsgo` neste sandbox (não é erro de tipo); o `tsc` dirigido aos arquivos alterados passou. **Não há CI nem build de produção sobre r11/r12** — o CI `43061672688 ✅` cobre apenas r7–r10. Typecheck/build completos dependerão de publicação autorizada ou de ambiente com mais memória. **Nenhum leitor de tela real** foi executado.
+**Limitações locais (declaradas, não ocultadas):** `npm run typecheck` completo foi morto por **SIGKILL/OOM** do `tsgo` neste sandbox (não é erro de tipo); o `tsc` dirigido aos arquivos alterados passou. **Não havia CI nem build de produção sobre r11/r12 no momento desta execução** — o CI `43061672688 ✅` cobria apenas r7–r10; a limitação foi fechada por `43082340701 ✅` após a publicação (ver nota no topo). **Nenhum leitor de tela real** foi executado.
 
 ---
 
