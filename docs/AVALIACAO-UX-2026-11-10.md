@@ -16,7 +16,9 @@
 > **Rodada 9 (10/11/2026):** [AVALIACAO-UX-RODADA-9-2026-11-10.md](./AVALIACAO-UX-RODADA-9-2026-11-10.md) — **caminho feliz real** e achado **CRÍTICO**: cadastro de cliente quebrado (`document_type` minúsculo vs. `CHECK ('CPF','CNPJ')`), invisível a 465 testes, 24 E2E e CI verde. Corrigido com A/B `400 → 201`. **Apenas local**, sem commit/push.
 > **Rodada 10 (10/11/2026):** [AVALIACAO-UX-RODADA-10-2026-11-10.md](./AVALIACAO-UX-RODADA-10-2026-11-10.md) — **ciclo completo** `POST 201 → PATCH 200 → DELETE 200`; correção da confirmação destrutiva que fechava antes do resultado e do vazamento de rota interna. Inclui a **14ª saturação** e a reconstrução fiel do lote. Extensão `DELETE` no **servidor isolado** (SQL real sob RLS), não em produção. **Apenas local**, sem commit/push.
 >
-> **Estado atual (após a rodada 10):** r1–r6 **confirmadas no deploy publicado** (402 chunks conferidos); **r7, r8, r9 e r10 apenas locais** (26 arquivos no worktree), aguardando uma autorização para publicar e novo rebuild no Lovable. **O deploy atual não permite cadastrar cliente** e fecha a confirmação de exclusão antes do resultado. O parecer técnico segue **NO-GO**. **CI verde não é evidência de aplicação utilizável.**
+> **Estado atual (publicação de 11/11/2026):** r1–r6 **confirmadas no deploy publicado** (402 chunks conferidos). **r7, r8, r9 e r10 publicadas no GitHub** em `3ea59aa` (26 arquivos, +2005/−19; `f49857f..3ea59aa`). CI `43061672688` ✅ **3/3** (Typecheck, Build, lint/unit/RLS, Harness); Playwright `43061672621` com **E2E isolado ✅** e smoke público ainda em execução no momento da conferência.
+>
+> **Ainda não implantadas:** r7–r10 exigem **rebuild no Lovable pelo usuário**. Até lá, o deploy acessível continua sem cadastro de cliente (UX9-01) e com a confirmação de exclusão fechando antes do resultado (UX10-01). O parecer técnico segue **NO-GO**. **CI verde não é evidência de aplicação utilizável.**
 >
 > Este relatório da rodada 1 fica preservado como histórico.
 

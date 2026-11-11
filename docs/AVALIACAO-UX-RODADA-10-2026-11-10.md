@@ -1,7 +1,9 @@
 # Avaliação UX — Rodada 10 (10/11/2026)
 
 > **Origem:** `"ok prossiga"` após a r9. Frente indicada na resposta anterior: **completar o ciclo do cliente — editar e excluir pela UI**, lacuna declarada no §6 do relatório r9. Não houve autorização de publicação; `"ok prossiga"` foi tratado como continuação de desenvolvimento, não como push.
-> **Status:** **apenas local**. r7, r8, r9 e r10 seguem sem commit/push — **26 arquivos** no worktree (12 modificados + 14 novos). `origin/main` = `f49857f`. Sem rebuild/deploy.
+> **Status ao fim da rodada:** **apenas local**. r7, r8, r9 e r10 seguiam sem commit/push — **26 arquivos** no worktree (12 modificados + 14 novos). `origin/main` = `f49857f`. Sem rebuild/deploy.
+>
+> **Atualização pós-publicação (11/11/2026):** por autorização pontual `"Atualize o github"`, as quatro rodadas foram publicadas em **`3ea59aa`** (`f49857f..3ea59aa`). O §7 e o §10 abaixo registram a situação **antes** dessa publicação. CI `43061672688` ✅ 3/3; Playwright `43061672621` com E2E isolado ✅ e smoke público em execução na conferência. **O rebuild no Lovable permanece com o usuário** — o deploy publicado ainda não contém r7–r10. A publicação exigiu antes a recuperação da **15ª saturação** do workspace (`.git`, deps e 6 arquivos do lote), reconstruídos e revalidados: 17/17 testes nos arquivos afetados, `lint:ci` 0/0, SEC-02 2685/0, gate 0, `diff --check` 0.
 > **Resultado:** ciclo **`POST 201 → PATCH 200 → DELETE 200`** provado com SQL real sob RLS. Corrigido um defeito de UX em confirmação destrutiva. Estendida a **infraestrutura de teste** (não o produto) para suportar `DELETE`.
 
 ---
