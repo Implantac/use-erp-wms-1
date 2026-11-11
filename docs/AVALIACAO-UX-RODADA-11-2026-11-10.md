@@ -3,6 +3,8 @@
 > **Origem:** `"ok prossiga"` após a publicação de r7–r10. Frente escolhida no §8 do relatório r10: **UX9-04 / UX10-03** — o campo CEP herdava `aria-label="00000-000"` do *placeholder* em vez do rótulo visível **"CEP \*"**, e o `ux:task` (r6) considera qualquer `aria-label` como "nomeado".
 > **Status:** **apenas local**. Sem commit/push — **7 arquivos** no worktree. `origin/main` segue em `a0b66e8` (r7–r10 publicadas). **Sem rebuild/deploy** — o rebuild no Lovable e a revogação do PAT continuam sendo ações do usuário e **não** foram autorizados por `"ok prossiga"`.
 > **Série de arquivos:** mantém o sufixo `2026-11-10` por coerência com as rodadas 1–10, embora esta rodada tenha sido executada em 11/11.
+>
+> **Atualização (publicação de 11/11/2026):** publicada junto com a r12 no commit **`6af2036`** (`a0b66e8..6af2036`), a pedido expresso `"ok atualize o github e continue"`. CI **`43082340701` ✅ 3/3** (Typecheck, Build, lint/unit/RLS, Harness) — primeira validação de tipos e build sobre r11/r12. Playwright **`43082340738`**: smoke público ✅, E2E isolado ✅, jornadas autenticadas ❌ apenas no step 4 `Validate isolated E2E configuration` (18 segredos; mesma falha já registrada). **O texto abaixo preserva o estado local do momento da execução**; a publicação não implica rebuild no Lovable nem altera o **NO-GO**.
 
 ---
 
@@ -122,7 +124,7 @@ O `ux:journey` passou na bateria em sequência desta vez (na r10 houve 1 flutua�
 
 ## 8. Próximos passos
 
-1. **Publicar r11** — exige autorização pontual (`"Atualize o github"`), seguida de **rebuild no Lovable pelo usuário** para que r7–r11 cheguem ao usuário final.
+1. **Publicar r11** — **feito** em `6af2036` (junto com a r12) após `"ok atualize o github e continue"`; falta **rebuild no Lovable pelo usuário** para que r7–r12 cheguem ao usuário final.
 2. **Cobrir mutações no gate de regressão** — lacuna que deixou UX9-01 passar por 465 testes e 24 E2E. `ux:happy` e `ux:lifecycle` existem; decidir se entram no CI sem enfraquecer o gate.
 3. **Leitor de tela real** (NVDA/VoiceOver) para validar o contrato de nomes e a hierarquia `role=alert`/`role=status` das r7/r8.
 4. **Ampliar o caminho feliz** para Compras/WMS/Vendas quando o harness suportar JOINs (infraestrutura de teste).
@@ -154,4 +156,4 @@ Duas correções isoladamente corretas — r4 (nome pelo placeholder) e r6 (não
 
 A r11 marca a **origem** do nome e faz o rótulo visível prevalecer, preservando nomes explícitos, `FormField` e o fallback da r4. A/B no mesmo ambiente: **8 → 0 divergentes**, `semNome=0` nos dois lados, com 6 testes de regressão (incluindo a guarda contra herdar rótulo de campo vizinho) e 11/11 audits verdes.
 
-**7 arquivos locais, nada publicado.** O parecer técnico segue **NO-GO**. E o ponto que não muda: **CI verde não é evidência de aplicação utilizável** — o GitHub tem r7–r10, r11 está apenas local, e o sistema que o usuário acessa ainda não permite cadastrar cliente. O rebuild no Lovable é a única ação que fecha essa distância, e é do usuário.
+**7 arquivos locais, nada publicado** *(naquele momento; hoje em `6af2036`)*. O parecer técnico segue **NO-GO**. E o ponto que não muda: **CI verde não é evidência de aplicação utilizável** — o GitHub tem r7–r12, mas o sistema que o usuário acessa ainda não permite cadastrar cliente. O rebuild no Lovable é a única ação que fecha essa distância, e é do usuário.

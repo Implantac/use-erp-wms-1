@@ -20,7 +20,8 @@ export function ReceivingFilters({ searchTerm, onSearchChange, statusFilter, onS
             <Input placeholder="Buscar por número ou fornecedor..." value={searchTerm} onChange={(e) => onSearchChange(e.target.value)} className="pl-9" />
           </div>
           <Select value={statusFilter} onValueChange={onStatusChange}>
-            <SelectTrigger className="w-full md:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            {/* QA-UX r13: filtro sem <label> visivel — nome explicito na arvore. */}
+            <SelectTrigger aria-label="Filtrar por status do recebimento" className="w-full md:w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="pending">Pendente</SelectItem>

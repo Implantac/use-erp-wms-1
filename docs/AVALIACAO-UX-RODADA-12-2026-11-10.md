@@ -4,6 +4,8 @@
 > **Ferramenta:** `locator.ariaSnapshot()` (Playwright/CDP Accessibility Tree). **Isto NÃO é uma escuta com NVDA/VoiceOver** — é a árvore de acessibilidade do Chromium que esses leitores consomem. A limitação de leitor de tela real **permanece**.
 > **Status:** **apenas local**. Sem commit/push. `origin/main` segue em `a0b66e8` (r7–r10 publicadas). **Sem rebuild/deploy** — rebuild no Lovable, smoke autenticado em produção e revogação dos PATs continuam sendo ações do usuário, não autorizadas por `"ok prossiga"`.
 > **Série de arquivos:** mantém o sufixo `2026-11-10` por coerência com as rodadas 1–11.
+>
+> **Atualização (publicação de 11/11/2026):** publicada junto com a r11 no commit **`6af2036`** (`a0b66e8..6af2036`), a pedido expresso `"ok atualize o github e continue"`. CI **`43082340701` ✅ 3/3** (Typecheck, Build, lint/unit/RLS, Harness) — **fecha a limitação de typecheck/build declarada no §5**. Playwright **`43082340738`**: smoke público ✅, E2E isolado ✅, jornadas autenticadas ❌ apenas no step 4 `Validate isolated E2E configuration` (18 segredos). **O texto abaixo preserva o estado local do momento da execução**; a publicação não implica rebuild no Lovable nem altera o **NO-GO**. A r13, feita depois, segue apenas local.
 
 ---
 
@@ -139,7 +141,7 @@ O `alert` (r7) e o `status` (r8) aparecem na árvore global — ou seja, os pape
 
 Removidos após as medições: `.env.e2e.generated`, `package-lock.json`, `tests/harness/package-lock.json`, `tests/harness/data*`, `e2e/test-results`, `playwright-report-isolated`, `/tmp/ux13-ab` e os 5 JSON da medição viesada. Servidores `api-isolada-rodada-12-*` e `erp-frontend-rodada-12-*` **parados**; portas 4179/54321 livres.
 
-`git status --porcelain` = **12 arquivos**: 7 modificados + 5 não versionados (r11: relatório, `ux-names-audit.mjs`, `labelledRef.test.ts`; r12: relatório, `ux-aria-audit.mjs`). **Nenhum commit, nenhum push.** `HEAD` = `origin/main` = `a0b66e8`.
+`git status --porcelain` = **12 arquivos**: 7 modificados + 5 não versionados (r11: relatório, `ux-names-audit.mjs`, `labelledRef.test.ts`; r12: relatório, `ux-aria-audit.mjs`). **Nenhum commit, nenhum push.** `HEAD` = `origin/main` = `a0b66e8`. *(Estado no momento da execução; publicado em `6af2036` conforme nota no topo.)*
 
 ---
 
@@ -175,4 +177,4 @@ A r11 provou, via DOM, que os nomes estavam corretos. A r12 foi além e pergunto
 
 O processo também exigiu corrigir **dois vieses do próprio instrumento de medição** antes de aceitar qualquer número. Isso é o ponto central da rodada: medir atributos DOM, medir a árvore de acessibilidade e escutar um leitor de tela real são três níveis de evidência diferentes — e **nenhum deles substitui o deploy utilizável**.
 
-**12 arquivos locais, nada publicado.** O parecer técnico segue **NO-GO**; o deploy que o usuário acessa ainda não permite cadastrar cliente e não tem as correções de r7–r12. **CI verde não é evidência de aplicação utilizável.**
+**12 arquivos locais, nada publicado** *(naquele momento; hoje estão em `6af2036`)*. O parecer técnico segue **NO-GO**; o deploy que o usuário acessa ainda não permite cadastrar cliente e não tem as correções de r7–r12. **CI verde não é evidência de aplicação utilizável.**

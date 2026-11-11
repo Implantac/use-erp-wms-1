@@ -25,7 +25,8 @@ export function NFeFilters({
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            {/* QA-UX r13: filtro sem <label> visivel — nome explicito na arvore. */}
+            <SelectTrigger aria-label="Filtrar por status da NF-e" className="w-full sm:w-[180px]">
               <Filter className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>

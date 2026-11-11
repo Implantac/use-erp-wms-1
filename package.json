@@ -38,6 +38,7 @@
     "ux:lifecycle": "node scripts/ux-lifecycle-audit.mjs",
     "ux:names": "node scripts/ux-names-audit.mjs",
     "ux:aria": "node scripts/ux-aria-audit.mjs",
+    "ux:aria:routes": "node scripts/ux-aria-routes-audit.mjs",
     "ux:audit": "node scripts/ux-audit.mjs",
     "ux:journey": "node scripts/ux-journey.mjs",
     "e2e:isolated:teardown": "node scripts/e2e-isolated-server.mjs --teardown"
