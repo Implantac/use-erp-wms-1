@@ -1,10 +1,14 @@
 # Avaliação UX — Rodada 14 (11/11/2026)
 
-> **Origem:** `"ok tudo publicado pelo lovable, continue com as melhorias"`. A frase **confirma o rebuild feito pelo usuário** e autoriza **continuar o desenvolvimento local**. Não autoriza rebuild/deploy pelo assistente, smoke autenticado em produção, dados reais nem aceite presumido.
-> **Status:** **apenas local**, sem commit/push. `HEAD` = `origin/main` = `611a2fc`. **A r14 ainda não está no deploy** — o bundle conferido contém r7–r13.
+> **Origem:** `"ok tudo publicado pelo lovable, continue com as melhorias"` (desenvolvimento) e `"Atualize o github usando o token …"` (publicação **pontual** da r14). Não autoriza rebuild/deploy pelo assistente, smoke autenticado em produção, dados reais, aceite presumido nem push permanente.
+> **Status:** **publicada no GitHub** em **`dc7bf42`** (`611a2fc..dc7bf42`, 10 arquivos, +372/−17), a pedido expresso. **A r14 ainda não está no deploy** — o bundle conferido contém r7–r13 e exige **novo rebuild no Lovable pelo usuário**.
 > **Frente escolhida:** depois de r12/r13 provarem que **todo controle tem nome**, faltava provar que o nome está **no idioma do usuário**. r14 mede e corrige nomes de UI em inglês na árvore de acessibilidade.
 > **Ferramenta:** `locator.ariaSnapshot()` (Chromium), **não** é escuta com NVDA/VoiceOver.
 > **Série de arquivos:** mantém o sufixo `2026-11-10` por coerência com as rodadas 1–13.
+
+## 0. 19ª saturação (antes da publicação)
+
+Ao receber o pedido de publicação, o workspace tinha **1728 arquivos**, `.git` **ausente**, deps/Chromium **0**. Sobreviveram apenas 4 arquivos da r14 (`package.json`, índice, relatório e `scripts/ux-i18n-audit.mjs`); os 6 componentes base tinham desaparecido. Backups em `/home/user/ux-r15-backup`, clone raso público de `611a2fc` em `/tmp/ux16-reclone`, `cp -a .git` + `git reset --hard 611a2fc` + `git clean -fd` e restauração dos 4 sobreviventes. **Diferente da 18ª saturação**, nenhum `tar` foi usado: nenhuma modificação foi sobrescrita na extração. As 6 traduções foram reaplicadas sobre o baseline publicado, e deps/harness/Chromium reinstalados antes de medir. Toda a bateria de validação foi repetida **após** a reconstrução (§6).
 
 ---
 
@@ -99,32 +103,41 @@ O primeiro `--assert` do estado B reprovou com `1 string`: **o meu próprio come
 | `node --test scripts/e2e-isolated-lib.test.mjs` | **11/11** |
 | `tsc` dirigido aos 9 arquivos TS de `src/ui/base` alterados | **exit 0** |
 | `e2e:public` / `e2e:isolated` | **8/8** e **24/24** ✅ |
-| SEC-02 | **2693 arquivos / 0 referências** ✅ |
+| SEC-02 | **2694 arquivos / 0 referências** ✅ (repetido após a reconstrução) |
 | Gate `validate-e2e-no-skip.mjs` | **0** / `--strict` **exit 2** pelas 7 dívidas conhecidas (esperado) |
 | Segredos do workflow | **18**, `workflowDiff=0`; token real/versionado = **0** |
 | `git diff --check` | **0** |
 
-**Limitações declaradas:** `npm run typecheck` completo morre por **SIGKILL/OOM** do `tsgo` no sandbox (não é erro de tipo); `tsc` dirigido passou. O guard estático cobre **6 arquivos**, não todo o `src/`. **Nenhum leitor de tela real.** **Sem CI/build sobre r14** (ela é local). A conferência do deploy foi **read-only**, sem autenticação nem dados reais.
+### CI sobre `dc7bf42` (GitHub Actions, leitura pública sem token)
+
+| Run | Resultado |
+|---|---|
+| **CI `43103025246`** | ✅ **3/3 jobs**: Typecheck explícito + lint + unitários + guardas RLS + SEC-02; Harness de banco; **Build de produção** |
+| **Playwright `43103025271`** | Smoke público ✅ · E2E isolado QA-01–QA-05 ✅ · jornadas autenticadas ❌ **apenas no step 4 `Validate isolated E2E configuration`** (18 segredos não configurados); steps 5–8 `skipped`. Mesma falha já registrada nas r5/r6/r7–r13, **não é regressão** |
+
+Jobs de CI conferidos passo a passo: `Typecheck explícito e não vazio`, `Sem projeto, JWT ou token fixo no código (SEC-02)`, `Guardas RLS falham fechado` e `Build` todos ✅. Isso fecha a limitação **"sem CI/build sobre r14"**.
+
+**Limitações declaradas:** `npm run typecheck` completo morre por **SIGKILL/OOM** do `tsgo` no sandbox (não é erro de tipo); `tsc` dirigido passou e o **CI executou o typecheck explícito com sucesso**. O guard estático cobre **6 arquivos**, não todo o `src/`. **Nenhum leitor de tela real.** A conferência do deploy foi **read-only**, sem autenticação nem dados reais. **CI verde não é evidência de aplicação utilizável.**
 
 ---
 
 ## 7. Higiene e estado
 
-- Servidores `api-isolada-rodada-14-*` / `erp-frontend-rodada-14-*` **parados**; portas 4179/54321 livres.
-- Removidos `.env.e2e.generated`, locks, `tests/harness/data*`, `e2e/test-results`, `playwright-report-isolated`, `/tmp/ux15-ab`; `supabase/functions/mcp/index.ts` restaurado.
-- `git status --porcelain` = **10 arquivos locais** (8 modificados + 2 não versionados): 6 componentes base, `package.json`, índice, `scripts/ux-i18n-audit.mjs` e este relatório. **Nenhum commit, nenhum push.**
-- `HEAD` = `origin/main` = **`611a2fc`**.
-- **PATs:** os de r6, 11/11 e o reenviado em 11/11 seguem **pendentes de revogação**.
+- Servidores `api-isolada-rodada-14-*` / `erp-frontend-rodada-14-*` e os de publicação **parados**; portas 4179/54321 livres.
+- Removidos `.env.e2e.generated`, locks, `tests/harness/data*`, `e2e/test-results`, `playwright-report-isolated`, `/tmp/ux15-ab`, `/tmp/ux16-*` e `/home/user/ux-r15-backup`; `supabase/functions/mcp/index.ts` restaurado.
+- Publicação: **`dc7bf42`** (`611a2fc..dc7bf42`, 10 arquivos, +372/−17) + commit documental de alinhamento. `git ls-remote origin main` = mesmo hash do `HEAD`; worktree limpo.
+- **Token da publicação:** usado **somente** via `/tmp/ux16-token` + `/tmp/ux16-askpass.sh` nos 2 pushes. Valor **não registrado**; arquivos e logs removidos. `gitConfigToken=0`, `tokenVersionado=0`, `tokenNoStage=0`, zero token em `.git/config`, workspace ou histórico. A autorização foi **pontual e consumida**.
+- **PATs:** os de r6, 11/11, o reenviado em 11/11 e **o desta publicação** seguem **pendentes de revogação** — o último apareceu na conversa.
 
 ---
 
 ## 8. Próximos passos
 
-1. **Publicar r14** — exige novo pedido pontual (`"Atualize o github"`); a autorização anterior foi consumida por `611a2fc`.
-2. **Novo rebuild no Lovable pelo usuário** para que `Fechar`/`Paginação`/`Anterior` cheguem ao deploy. Até lá, o bundle publicado continua com `Close` nos diálogos.
+1. **Novo rebuild no Lovable pelo usuário** para que `Fechar`/`Paginação`/`Anterior` cheguem ao deploy. A r14 já está no GitHub (`dc7bf42`), mas o bundle conferido contém apenas r7–r13 e continua com `Close` nos diálogos.
+2. **Revogar os 4 PATs** e rotacionar `anon`/JWT/`Usehub.xlsx` — ação do usuário, não automatizada.
 3. **Leitor de tela real (NVDA/VoiceOver)** para validar pronúncia, ordem de leitura e anúncios dinâmicos.
 4. **Harness para JOINs 400**, mutações no gate de regressão, dívidas congeladas (22 alvos < 24 px, zoom 200%, viewport 320 px).
-5. **Governança do NO-GO:** revogar os 3 PATs, `anon`/JWT/`Usehub.xlsx`, 18 segredos via secret manager, grant/RLS formal, fiscal/SEFAZ, PSP, restore, piloto e aceite formal.
+5. **Governança do NO-GO:** 18 segredos via secret manager, grant/RLS formal, smoke autenticado em produção, fiscal/SEFAZ, PSP, restore, piloto e aceite formal.
 
 ---
 
@@ -148,6 +161,6 @@ npm run ux:i18n -- --label=depois --assert --out=/home/user/ux-evidence
 
 A r12/r13 responderam **"todo controle tem nome?"**. A r14 perguntou **"e o nome está em português?"**. A resposta foi não: o fechar dos diálogos era anunciado como `Close`, e 6 componentes base guardavam 12 strings de UI em inglês vindas do shadcn. Traduzidos sem tocar em API, comportamento ou gate: **5 + 12 → 0 + 0**, com 16/16 audits, 473 testes e E2E completos verdes.
 
-O deploy do Lovable foi **conferido por leitura pública**: 404 assets e os 15 marcadores de r7–r13 estão no bundle. Isso fecha a dúvida sobre o rebuild, **não** fecha o NO-GO: não houve smoke autenticado, dados reais ou aceite. E a r14, por ser nova, **ainda não está nesse bundle** — depende de publicação e de mais um rebuild pelo usuário.
+O deploy do Lovable foi **conferido por leitura pública**: 404 assets e os 15 marcadores de r7–r13 estão no bundle. Isso fecha a dúvida sobre o rebuild, **não** fecha o NO-GO: não houve smoke autenticado, dados reais ou aceite. A r14 foi **publicada no GitHub** (`dc7bf42`) com CI 3/3 ✅ e Playwright com a única falha conhecida dos 18 segredos — mas **ainda não está no bundle**: depende de mais um rebuild pelo usuário.
 
 **CI verde não é evidência de aplicação utilizável.**
