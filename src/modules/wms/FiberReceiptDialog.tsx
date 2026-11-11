@@ -235,14 +235,22 @@ export function FiberReceiptDialog({
                 </SelectContent>
               </Select>
               {!form.supplier_id && (
-                <Input
-                  className="mt-2"
-                  placeholder="Nome do fornecedor"
-                  data-field="supplier_name"
-                  aria-invalid={invalidField === "supplier_name" || undefined}
-                  value={form.supplier_name}
-                  onChange={(event) => patch({ supplier_name: event.target.value })}
-                />
+                <div className="mt-2 space-y-1">
+                  {/* QA-UX r12: o `<Label>Fornecedor *</Label>` acima nomeia o
+                      select; este campo manual precisa do seu PROPRIO rotulo
+                      visivel. So o placeholder nao e nome acessivel. */}
+                  <Label htmlFor="fiber-receipt-supplier-name">
+                    Nome do fornecedor (informar manualmente) *
+                  </Label>
+                  <Input
+                    id="fiber-receipt-supplier-name"
+                    placeholder="Nome do fornecedor"
+                    data-field="supplier_name"
+                    aria-invalid={invalidField === "supplier_name" || undefined}
+                    value={form.supplier_name}
+                    onChange={(event) => patch({ supplier_name: event.target.value })}
+                  />
+                </div>
               )}
             </div>
             <div>

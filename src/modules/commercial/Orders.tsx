@@ -22,7 +22,7 @@ import { filterFields, statusFlow } from './orders/constants';
 import { OrdersTable } from './orders/OrdersTable';
 import { SalesKanbanBoard } from './orders/SalesKanbanBoard';
 import { OrderWizard } from './orders/components/OrderWizard';
-import { Dialog, DialogContent } from '@/ui/base/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/ui/base/dialog';
 import { ViewOrderDialog } from './orders/ViewOrderDialog';
 import { DeleteOrderDialog } from './orders/DeleteOrderDialog';
 import { CancelOrderDialog } from './orders/CancelOrderDialog';
@@ -240,6 +240,9 @@ export default function OrdersPage() {
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto p-0 border-none bg-transparent shadow-none">
+          {/* QA-UX r12: o wizard tem titulo visual proprio, mas Radix exige
+              DialogTitle para nomear o dialogo na arvore de acessibilidade. */}
+          <DialogTitle className="sr-only">Novo Pedido de Venda</DialogTitle>
           <div className="bg-background rounded-2xl border border-border shadow-2xl p-6">
             <OrderWizard 
               onSuccess={() => {
