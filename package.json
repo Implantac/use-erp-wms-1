@@ -39,6 +39,7 @@
     "ux:names": "node scripts/ux-names-audit.mjs",
     "ux:aria": "node scripts/ux-aria-audit.mjs",
     "ux:aria:routes": "node scripts/ux-aria-routes-audit.mjs",
+    "ux:i18n": "node scripts/ux-i18n-audit.mjs",
     "ux:audit": "node scripts/ux-audit.mjs",
     "ux:journey": "node scripts/ux-journey.mjs",
     "e2e:isolated:teardown": "node scripts/e2e-isolated-server.mjs --teardown"
