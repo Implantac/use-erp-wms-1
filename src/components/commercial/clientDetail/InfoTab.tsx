@@ -6,7 +6,7 @@ export function InfoTab({ client }: { client: DbClient }) {
     <TabsContent value="info" className="space-y-4 mt-4">
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div><span className="text-muted-foreground block text-xs">Código</span><p className="font-mono">{client.code}</p></div>
-        <div><span className="text-muted-foreground block text-xs">{client.document_type === 'cnpj' ? 'CNPJ' : 'CPF'}</span><p>{client.document}</p></div>
+        <div><span className="text-muted-foreground block text-xs">{String(client.document_type || '').toUpperCase() === 'CNPJ' ? 'CNPJ' : 'CPF'}</span><p>{client.document}</p></div>
         <div><span className="text-muted-foreground block text-xs">E-mail</span><p>{client.email}</p></div>
         <div><span className="text-muted-foreground block text-xs">Telefone</span><p>{client.phone}{client.cellphone ? ` / ${client.cellphone}` : ''}</p></div>
         {client.state_registration && <div><span className="text-muted-foreground block text-xs">IE</span><p>{client.state_registration}</p></div>}

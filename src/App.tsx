@@ -9,6 +9,8 @@ import { PolicyProvider } from "@/core/orchestration/policyEngine";
 import { Loader2 } from 'lucide-react';
 import { ConfirmDialogProvider } from '@/shared/components/ConfirmDialog';
 import { useLowMarginAlertsRealtime } from '@/hooks/commercial/useLowMarginAlertsRealtime';
+import { BackendErrorBanner } from '@/shared/components/BackendErrorBanner';
+import { BackendLoadingNotice } from '@/shared/components/BackendLoadingNotice';
 // QA-UX (10/11/2026): o WorkflowSwitcher legado foi DESMONTADO da árvore.
 // Ele era um segundo launchpad global, montado antes das rotas, que:
 //   - aparecia na tela de LOGIN e era o primeiro foco do TAB;
@@ -103,6 +105,9 @@ function GlobalLoader() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    {/* QA-UX r7/r8: nenhuma falha nem retentativa chega ao usuario em silencio. */}
+    <BackendErrorBanner />
+    <BackendLoadingNotice />
     <TooltipProvider>
       <EnterpriseProvider>
         <PolicyProvider>

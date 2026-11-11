@@ -199,3 +199,25 @@ export function buildUpdateQuery(table, body, searchParams) {
     values,
   };
 }
+
+/**
+ * QA-10 — DELETE via REST. Extensao da INFRAESTRUTURA DE TESTE: o servidor
+ * isolado so implementava GET/POST/PATCH e respondia 405 para DELETE, o que
+ * impedia medir o ciclo de vida completa. Nao e mock de resposta: gera SQL
+ * real executado sob `SET LOCAL ROLE authenticated` (RLS de DELETE,
+ * triggers e FK continuam valendo), exatamente como INSERT/UPDATE.
+ *
+ * Fail-closed: sem filtro eq./in./is. nao ha DELETE, para que um teste
+ * nunca apague a massa inteira do ambiente isolado por acidente.
+ */
+export function buildDeleteQuery(table, searchParams) {
+  const values = [];
+  const where = translateFilters(searchParams, values);
+  if (!where.length) {
+    throw new Error('DELETE exige ao menos um filtro eq./in./is. (fail-closed)');
+  }
+  return {
+    sql: `DELETE FROM public.${quoteIdent(table)} WHERE ${where.join(' AND ')} RETURNING *`,
+    values,
+  };
+}

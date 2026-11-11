@@ -19,15 +19,34 @@ export const defaultForm = {
 
 export type ClientForm = typeof defaultForm;
 
+/**
+ * QA-UX (rodada 9): o banco exige
+ * `CHECK (document_type IN ('CPF','CNPJ'))` (migration 20260702024835),
+ * mas o formulario sempre trabalhou com `'cpf'`/`'cnpj'` em minusculas.
+ * O `INSERT` de cliente falhava com 23514 e o toast sanitizado mostrava
+ * apenas "Ocorreu um erro inesperado" — criacao de cliente QUEBRADA sem
+ * nenhum teste detectar (o E2E isolado nunca criava cliente pela UI).
+ *
+ * Contrato a partir daqui: form state = minusculas; banco = MAIUSCULAS.
+ * A conversao acontece somente nestas duas funcoes, na entrada e na saida.
+ */
+export function toDbDocumentType(value: string | null | undefined): 'CPF' | 'CNPJ' {
+  return String(value || '').toUpperCase() === 'CPF' ? 'CPF' : 'CNPJ';
+}
+
+export function toFormDocumentType(value: string | null | undefined): string {
+  return String(value || 'cnpj').toLowerCase();
+}
+
 export function clientToForm(client: DbClient): ClientForm {
   const c = client as DbClient & Partial<{
     person_type: 'PF' | 'PJ'; rg: string; birth_date: string; gender: string;
     cnae_primary: string; cnae_description: string; receita_status: string; receita_status_date: string;
   }>;
   return {
-    person_type: c.person_type || (c.document_type === 'cpf' ? 'PF' : 'PJ'),
+    person_type: c.person_type || (toFormDocumentType(c.document_type) === 'cpf' ? 'PF' : 'PJ'),
     name: c.name, trade_name: c.trade_name || '', document: c.document,
-    document_type: c.document_type, email: c.email, phone: c.phone,
+    document_type: toFormDocumentType(c.document_type), email: c.email, phone: c.phone,
     cellphone: c.cellphone || '',
     address_street: c.address_street, address_number: c.address_number,
     address_complement: c.address_complement || '', address_neighborhood: c.address_neighborhood,
@@ -50,10 +69,11 @@ export function clientToForm(client: DbClient): ClientForm {
 export function validateClientForm(f: ClientForm): Record<string, string> {
   const e: Record<string, string> = {};
   const isPJ = f.person_type === 'PJ';
+  const docType = toFormDocumentType(f.document_type);
   if (!f.name.trim()) e.name = 'Nome obrigatório';
   if (!f.document.trim()) e.document = 'Documento obrigatório';
-  else if (f.document_type === 'cnpj' && !validateCNPJ(f.document)) e.document = 'CNPJ inválido';
-  else if (f.document_type === 'cpf' && !validateCPF(f.document)) e.document = 'CPF inválido';
+  else if (docType === 'cnpj' && !validateCNPJ(f.document)) e.document = 'CNPJ inválido';
+  else if (docType === 'cpf' && !validateCPF(f.document)) e.document = 'CPF inválido';
   if (isPJ) {
     if (!f.email.trim()) e.email = 'E-mail obrigatório';
     else if (!validateEmail(f.email)) e.email = 'E-mail inválido';
@@ -74,7 +94,7 @@ export function buildClientPayload(f: ClientForm): ClientPayload {
   return {
     person_type: f.person_type,
     name: f.name, trade_name: isPJ ? (f.trade_name || null) : null, document: f.document,
-    document_type: f.document_type, email: f.email || '', phone: f.phone || '',
+    document_type: toDbDocumentType(f.document_type), email: f.email || '', phone: f.phone || '',
     cellphone: f.cellphone || null,
     address_street: f.address_street, address_number: f.address_number,
     address_complement: f.address_complement || null, address_neighborhood: f.address_neighborhood,

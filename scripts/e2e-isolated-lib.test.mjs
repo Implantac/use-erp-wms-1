@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   assertLoopback, buildRpcCall, buildTableQuery, parseEnvFile,
   quoteIdent, signJwt, verifyJwt, buildInsertQuery, buildUpdateQuery,
+  buildDeleteQuery,
 } from './e2e-isolated-lib.mjs';
 
 const SECRET = 'unit-test-secret';
@@ -129,4 +130,14 @@ test('UPDATE via REST: fail-closed sem filtro e WHERE parametrizado', () => {
   assert.throws(() => buildUpdateQuery('orders', {}, params), /ao menos uma coluna/);
   assert.throws(() => buildUpdateQuery('orders', { 'x; DROP TABLE y': 1 }, params), /identificador invalido/);
   assert.throws(() => buildUpdateQuery('orders', { status: 'x' }, new URLSearchParams({ id: 'sem-operador' })), /filtro PostgREST nao suportado/);
+});
+
+test('DELETE via REST (QA-10): SQL real com filtro parametrizado e fail-closed', () => {
+  const params = new URLSearchParams({ id: 'eq.e3000000-0000-4000-8000-000000000050' });
+  const built = buildDeleteQuery('clients', params);
+  assert.match(built.sql, /DELETE FROM public\."clients" WHERE "id" = \$1 RETURNING \*/);
+  assert.deepEqual(built.values, ['e3000000-0000-4000-8000-000000000050']);
+  assert.throws(() => buildDeleteQuery('clients', new URLSearchParams()), /fail-closed/);
+  assert.throws(() => buildDeleteQuery('clients', new URLSearchParams({ id: 'sem-operador' })), /filtro PostgREST nao suportado/);
+  assert.throws(() => buildDeleteQuery('clients; DROP TABLE clients', params), /identificador invalido/);
 });

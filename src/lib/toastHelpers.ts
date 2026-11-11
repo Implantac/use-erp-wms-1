@@ -28,6 +28,13 @@ function sanitizeErrorMessage(raw: string, fallback: string): string {
     /^new row violates/i,
     /search_path/i,
     /function .* does not exist/i,
+    // QA-UX (rodada 10): mensagens de infraestrutura/roteamento tambem nao
+    // devem chegar ao usuario. Observado quando um DELETE falhou no
+    // ambiente isolado: "metodo/rota nao suportados: DELETE /rest/v1/...".
+    /metodo\/rota nao suportados/i,
+    /rota nao suportada/i,
+    /method not allowed/i,
+    /\b(GET|POST|PATCH|DELETE|PUT)\s+\/rest\/v1\//i,
   ];
 
   if (leakyPatterns.some((re) => re.test(msg))) {
@@ -40,8 +47,20 @@ function sanitizeErrorMessage(raw: string, fallback: string): string {
   return msg;
 }
 
-/** Toast de erro genérico. Aceita Error, string ou objeto com `message`. */
-export function toastError(error: unknown, fallback = 'Ocorreu um erro inesperado', title = 'Erro') {
+/**
+ * Toast de erro genérico. Aceita Error, string ou objeto com `message`.
+ *
+ * QA-UX (rodada 9): o fallback anterior, "Ocorreu um erro inesperado",
+ * nao dizia ao usuario O QUE FAZER e ainda escondia um defeito real — o
+ * INSERT de cliente falhava por `CHECK (document_type IN ('CPF','CNPJ'))`
+ * e o usuario recebia apenas essa frase. O fallback agora e acionavel:
+ * orienta a revisar os dados e tentar de novo, sem vazar detalhes de SQL.
+ */
+export function toastError(
+  error: unknown,
+  fallback = 'Não foi possível concluir a operação. Verifique os dados e tente novamente.',
+  title = 'Erro',
+) {
   const raw =
     error instanceof Error
       ? error.message

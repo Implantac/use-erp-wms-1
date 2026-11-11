@@ -45,10 +45,20 @@ export default function ClientsPage() {
     setIsFormOpen(true);
   };
 
+  /**
+   * QA-UX (rodada 10, UX10-01): o `AlertDialogAction` do Radix fecha o
+   * dialogo por padrao ANTES de a mutacao responder. Se o DELETE falha
+   * (RLS, FK, rede, backend indisponivel), o usuario perdia a confirmacao
+   * e o contexto, restando apenas um toast. Agora o fechamento ocorre
+   * SOMENTE no `onSuccess`; em falha o dialogo permanece aberto para que
+   * a pessoa possa cancelar ou tentar de novo sem reabrir a acao.
+   */
   const handleDelete = () => {
-    if (selectedClient) {
-      deleteClient.mutate(selectedClient.id, { onSuccess: () => { setIsDeleteOpen(false); setSelectedClient(null); } });
-    }
+    if (!selectedClient) return;
+    deleteClient.mutate(selectedClient.id, {
+      onSuccess: () => { setIsDeleteOpen(false); setSelectedClient(null); },
+      onError: () => { setIsDeleteOpen(true); },
+    });
   };
 
   const renderActions = (client: DbClient) => (
@@ -119,7 +129,11 @@ export default function ClientsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground" disabled={deleteClient.isPending}>
+            <AlertDialogAction
+              onClick={(event) => { event.preventDefault(); handleDelete(); }}
+              className="bg-destructive text-destructive-foreground"
+              disabled={deleteClient.isPending}
+            >
               {deleteClient.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Excluir
             </AlertDialogAction>

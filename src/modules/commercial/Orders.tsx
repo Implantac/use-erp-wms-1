@@ -29,7 +29,7 @@ import { CancelOrderDialog } from './orders/CancelOrderDialog';
 import { ToggleGroup, ToggleGroupItem } from '@/ui/base/toggle-group';
 
 export default function OrdersPage() {
-  const { data: orders = [], isLoading } = useOrders();
+  const { data: orders = [], isLoading, failureCount } = useOrders();
   const { data: clients = [] } = useClients();
   const createOrder = useCreateOrder();
   const updateStatus = useUpdateOrderStatus();
@@ -169,7 +169,7 @@ export default function OrdersPage() {
   const totalValue = filteredOrders.filter((o) => o.status !== 'cancelled').reduce((acc, o) => acc + o.total, 0);
 
   if (isLoading) {
-    return <PageLoading message="Carregando pedidos..." />;
+    return <PageLoading message="Carregando pedidos..." retrying={failureCount > 0} />;
   }
 
   return (

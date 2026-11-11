@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import {
   assertLoopback, buildRpcCall, buildTableQuery, buildInsertQuery,
-  buildUpdateQuery, signJwt, verifyJwt,
+  buildUpdateQuery, buildDeleteQuery, signJwt, verifyJwt,
 } from './e2e-isolated-lib.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -599,6 +599,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (table && req.method === 'PATCH') {
       const built = buildUpdateQuery(table[1], await readJson(req), url.searchParams);
+      const result = await withRls(claims, built.sql, built.values);
+      return sendRows(req, res, 200, result.rows);
+    }
+    // QA-10: DELETE real sob RLS (nao e mock). Fail-closed na lib exige filtro.
+    if (table && req.method === 'DELETE') {
+      const built = buildDeleteQuery(table[1], url.searchParams);
       const result = await withRls(claims, built.sql, built.values);
       return sendRows(req, res, 200, result.rows);
     }

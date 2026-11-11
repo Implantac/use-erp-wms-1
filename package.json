@@ -32,6 +32,10 @@
     "ux:labels": "node scripts/ux-labels-audit.mjs",
     "ux:responsive": "node scripts/ux-responsive-audit.mjs",
     "ux:task": "node scripts/ux-task-audit.mjs",
+    "ux:resilience": "node scripts/ux-resilience-audit.mjs",
+    "ux:loading": "node scripts/ux-loading-audit.mjs",
+    "ux:happy": "node scripts/ux-happy-path-audit.mjs",
+    "ux:lifecycle": "node scripts/ux-lifecycle-audit.mjs",
     "ux:audit": "node scripts/ux-audit.mjs",
     "ux:journey": "node scripts/ux-journey.mjs",
     "e2e:isolated:teardown": "node scripts/e2e-isolated-server.mjs --teardown"
