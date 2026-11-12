@@ -307,7 +307,13 @@ export default function PurchaseOrdersPage() {
 
           <div ref={createFormRef} className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <FormField label="Fornecedor" required>
+              {/* QA-UX r15: antes o erro so ia para o toast; agora o campo
+                  tambem anuncia o motivo da falha (FormField gera id + role=alert). */}
+              <FormField
+                label="Fornecedor"
+                required
+                error={createInvalidField === 'fornecedor' ? 'Selecione um fornecedor.' : undefined}
+              >
                 <Select value={newSupplierId} onValueChange={(v) => { setNewSupplierId(v); setCreateInvalidField(null); }}>
                   <SelectTrigger
                     data-field="fornecedor"

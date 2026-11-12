@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
-import { labelledRef } from "./labelledRef";
+import { fieldRef } from "./errorRef";
 
 /**
  * QA-UX (rodada 4): quando o input nao tem nome explicito NEM `id`
@@ -38,7 +38,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
           className,
         )}
-        ref={labelledRef(forwardedRef)}
+        ref={fieldRef(forwardedRef)}
         {...props}
       />
     );

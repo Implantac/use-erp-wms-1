@@ -3,7 +3,8 @@ import { PageContainer } from '@/shared/components/PageContainer';
 import { PageHeader } from '@/shared/components/PageHeader';
 import { ExportButton } from '@/shared/components/ExportButton';
 import { Button } from '@/ui/base/button';
-import { UserPlus, Loader2 } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
+import { PageLoading } from '@/shared/components/PageLoading';
 import { SystemUser, UserFilter } from '@/types/administration';
 import { useUsers } from '@/hooks/system/useUsers';
 import { UsersStats } from './users/UsersStats';
@@ -13,7 +14,7 @@ import { UserDialog } from './users/UserDialog';
 import { SectorAccessCard } from './users/SectorAccessCard';
 
 const UsersPage = () => {
-  const { users, isLoading } = useUsers();
+  const { users, isLoading, isFetching, isRetrying, error, refetch } = useUsers();
   const [filter, setFilter] = useState<UserFilter>({ role: 'all', status: 'all' });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
@@ -41,12 +42,37 @@ const UsersPage = () => {
     setIsDialogOpen(true);
   };
 
+  // QA-UX r16: nao montar os filhos quando a consulta falha. UsersTable,
+  // SectorAccessCard e UserDialog tambem observam useUsers; monta-los no
+  // estado de erro reiniciava a query (retryOnMount) e o spinner sem fim.
+  // A falha nao e uma lista vazia nem autoriza criar/exportar usuarios.
+  if (error) {
+    return (
+      <PageContainer>
+        <PageHeader title="Gestão de Usuários" description="Gerencie usuários e permissões do sistema" />
+        <section
+          role="alert"
+          aria-labelledby="users-load-error-title"
+          data-ux-users-error="true"
+          className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4"
+        >
+          <h2 id="users-load-error-title" className="font-semibold">Não foi possível carregar os usuários.</h2>
+          <p className="text-sm text-muted-foreground">
+            A lista não está disponível. Tente novamente; se o problema continuar, contate o administrador.
+          </p>
+          <Button variant="outline" disabled={isFetching} aria-busy={isFetching} onClick={() => { void refetch(); }}>
+            {isFetching ? 'Tentando novamente…' : 'Tentar novamente'}
+          </Button>
+        </section>
+      </PageContainer>
+    );
+  }
+
   if (isLoading) {
     return (
       <PageContainer>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <PageHeader title="Gestão de Usuários" description="Gerencie usuários e permissões do sistema" />
+        <PageLoading message="Carregando usuários…" retrying={isRetrying} />
       </PageContainer>
     );
   }

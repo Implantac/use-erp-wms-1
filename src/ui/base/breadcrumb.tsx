@@ -41,7 +41,9 @@ const BreadcrumbLink = React.forwardRef<
 >(({ asChild, className, ...props }, ref) => {
   const Comp = asChild ? Slot : "a";
 
-  return <Comp ref={ref} className={cn("transition-colors hover:text-foreground", className)} {...props} />;
+  // QA-UX r16: os links mediam 20px de altura e o icone de inicio 14x14.
+  // Um piso de 24px em ambos os eixos amplia o alvo sem mudar o rotulo.
+  return <Comp ref={ref} className={cn("inline-flex min-h-6 min-w-6 items-center transition-colors hover:text-foreground", className)} {...props} />;
 });
 BreadcrumbLink.displayName = "BreadcrumbLink";
 

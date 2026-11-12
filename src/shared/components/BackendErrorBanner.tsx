@@ -63,14 +63,19 @@ export function BackendErrorBanner() {
     <div
       role="alert"
       data-ux-backend-error="true"
-      className="fixed left-1/2 top-3 z-[100] flex w-[min(calc(100vw-2rem),640px)] -translate-x-1/2 items-start gap-3 rounded-lg border border-destructive/40 bg-background p-3 text-sm shadow-lg"
+      className="fixed left-1/2 top-3 z-[100] flex w-[min(calc(100vw-2rem),640px)] -translate-x-1/2 flex-col gap-3 rounded-lg border border-destructive/40 bg-background p-3 text-sm shadow-lg sm:flex-row sm:items-start"
     >
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
-      <p className="flex-1 leading-snug text-foreground">{MESSAGE}</p>
+      {/* QA-UX r16: em 320px, icone + texto + botao na mesma linha
+          comprimiam o texto e o banner chegava a 873px de altura. */}
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+        <p className="min-w-0 flex-1 leading-snug text-foreground">{MESSAGE}</p>
+      </div>
       <Button
         type="button"
         size="sm"
         variant="outline"
+        className="self-start sm:shrink-0"
         onClick={handleRetry}
         disabled={retrying}
         aria-busy={retrying}

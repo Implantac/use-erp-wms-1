@@ -20,7 +20,11 @@ export function SupplyInboxLinkCard() {
           <strong>Solicitações das lojas</strong> — a análise de origens (Fábrica × CD × outra Loja),
           a decisão e a execução das transferências ficam numa tela só: a Central de Abastecimento.
         </p>
-        <Button asChild size="sm"><Link to="/operacional/abastecimento">Abrir Central de Abastecimento</Link></Button>
+        {/* QA-UX r16: em 320px o rotulo longo empurrava o botao para fora da
+            viewport. Ocupar a linha inteira no mobile evita o corte. */}
+        <Button asChild size="sm" className="w-full justify-center text-center sm:w-auto">
+          <Link to="/operacional/abastecimento">Abrir Central de Abastecimento</Link>
+        </Button>
       </CardContent>
     </Card>
   );

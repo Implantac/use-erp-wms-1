@@ -2,7 +2,9 @@
 /**
  * QA-UX (rodada 5) — auditoria de RESPONSIVIDADE e ALVOS DE TOQUE.
  *
- * Mede com Chromium real, em 3 viewports e rotas autenticadas no isolado:
+ * Mede com Chromium real, em 5 viewports e 12 rotas no isolado (r16).
+ * 720x450 e reflow equivalente a metade de 1440x900: NAO e zoom nativo.
+ * O gate exige cobertura completa e zero defeitos em TODOS os viewports:
  *  - overflow horizontal do documento;
  *  - CABECALHOS DE TABELA QUEBRADOS EM SILABAS (o defeito clinico mais
  *    visivel em 375px: "Parâm/etro", "Categ/oria", "Val/or");
@@ -17,6 +19,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { RESPONSIVE_ROUTES as ROUTES, RESPONSIVE_VIEWPORTS as VIEWPORTS, responsiveProblems, responsivePageState } from './ux-responsive-lib.mjs';
 
 const arg = (n, d) => process.argv.find((a) => a.startsWith(`--${n}=`))?.split('=')[1] ?? d;
 const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4179';
@@ -26,6 +29,7 @@ const OUT = arg('out', '/home/user/ux-evidence');
 /** A/B controlado: injeta uma estrategia de correcao sem alterar o codigo. */
 const PRESET = arg('preset', '');
 const ONLY = arg('viewports', '');
+const ASSERT = process.argv.includes('--assert');
 const PRESET_CSS = {
   'th-nowrap': 'table th { white-space: nowrap !important; }',
   'table-minw': 'table { min-width: 720px !important; }',
@@ -36,16 +40,13 @@ const PRESET_CSS = {
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 fs.mkdirSync(OUT, { recursive: true });
 
-const ROUTES = [
-  '/dashboard', '/comercial/pedidos', '/comercial/clientes', '/producao/ordens',
-  '/producao/apontamento', '/compras/pedidos', '/wms/recebimento', '/wms/dashboard',
-  '/financeiro/receber', '/admin/parametros', '/admin/usuarios', '/fiscal/nfe',
-];
-const VIEWPORTS = [
-  { name: 'mobile', width: 375, height: 812, isMobile: true, hasTouch: true },
-  { name: 'tablet', width: 768, height: 1024, isMobile: false, hasTouch: false },
-  { name: 'desktop', width: 1440, height: 900, isMobile: false, hasTouch: false },
-];
+// --viewports e --preset sao recursos de diagnostico. --assert continua
+// exigindo todos os cinco viewports; CSS injetado nao pode produzir verde.
+if (ONLY && ONLY.split(',').some((name) => !VIEWPORTS.some((v) => v.name === name))) {
+  throw new Error(`Viewport desconhecido: ${ONLY}`);
+}
+if (PRESET && !Object.hasOwn(PRESET_CSS, PRESET)) throw new Error(`Preset desconhecido: ${PRESET}`);
+if (ASSERT && PRESET) throw new Error('--assert nao aceita --preset: valide o CSS real do produto.');
 
 const GENERATED = path.join(ROOT, '.env.e2e.generated');
 if (!fs.existsSync(GENERATED)) throw new Error('Ambiente isolado ausente (.env.e2e.generated)');
@@ -53,7 +54,11 @@ const env = Object.fromEntries(fs.readFileSync(GENERATED, 'utf8').split('\n')
   .filter((l) => l && !l.startsWith('#') && l.includes('='))
   .map((l) => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1)]; }));
 
-const REPORT = { label: LABEL, at: new Date().toISOString(), viewports: [] };
+const REPORT = {
+  label: LABEL, at: new Date().toISOString(), preset: PRESET,
+  method: { kind: 'CSS viewport reflow', nativeBrowserZoom: false },
+  viewports: [],
+};
 const browser = await chromium.launch({ headless: true });
 
 for (const vp of VIEWPORTS.filter((v) => !ONLY || ONLY.split(',').includes(v.name))) {
@@ -78,8 +83,9 @@ for (const vp of VIEWPORTS.filter((v) => !ONLY || ONLY.split(',').includes(v.nam
   await page.waitForFunction(() => !location.pathname.startsWith('/login'), { timeout: 25000 });
   await page.waitForTimeout(1500);
 
-  const vpResult = { viewport: vp.name, width: vp.width, routes: [] };
+  const vpResult = { viewport: vp.name, width: vp.width, height: vp.height, routes: [] };
   for (const route of ROUTES) {
+    let navigationError = null;
     try {
       await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded', timeout: 15000 });
       await page.waitForFunction(() => {
@@ -91,7 +97,7 @@ for (const vp of VIEWPORTS.filter((v) => !ONLY || ONLY.split(',').includes(v.nam
         await page.addStyleTag({ content: PRESET_CSS[PRESET] });
         await page.waitForTimeout(120);
       }
-    } catch { /* mede o que renderizou */ }
+    } catch (error) { navigationError = String(error?.message || error); }
 
     const m = await page.evaluate(() => {
       const de = document.documentElement;
@@ -190,12 +196,24 @@ for (const vp of VIEWPORTS.filter((v) => !ONLY || ONLY.split(',').includes(v.nam
         .filter((el) => el.getBoundingClientRect().right > innerWidth + 2)
         .map((el) => (el.textContent || '').trim().slice(0, 36));
 
+      const main = document.querySelector('#main-content');
+      const mainTextLength = (main?.innerText || '').trim().length;
+      const localError = main?.querySelector('[data-ux-users-error]');
+      const localErrorAlert = !!localError && visible(localError) && localError.getAttribute('role') === 'alert';
+      const animatedIndicators = Array.from(main?.querySelectorAll('.animate-spin') || []).filter(visible).length;
+      const markedPageLoaders = Array.from(main?.querySelectorAll('[data-ux-loading="true"]') || []).filter(visible).length;
       return {
+        currentPath: location.pathname, effectiveWidth: innerWidth, mainTextLength,
+        mainHeading: (main?.querySelector('h1,h2,[role="heading"]')?.textContent || '').trim(),
+        localErrorAlert, animatedIndicators, markedPageLoaders,
+        mainBusy: main?.getAttribute('aria-busy') === 'true',
+        mainRendered: !!main && visible(main) && mainTextLength >= 50,
+        controlCount: interactive.filter((e) => !inClosedDrawer(e) && !skipLink(e)).length,
         docOverflow: Math.max(0, de.scrollWidth - de.clientWidth),
         offscreen, tiny, under44, tables, clippedColspan,
       };
     });
-    vpResult.routes.push({ route, ...m });
+    vpResult.routes.push({ route, navigationError, ...m, pageState: responsivePageState(m) });
   }
   REPORT.viewports.push(vpResult);
   await context.close();
@@ -208,7 +226,7 @@ fs.writeFileSync(path.join(OUT, `${LABEL}-responsive.json`), JSON.stringify(REPO
     const sum = (k) => v.routes.reduce((s, r) => s + r[k].length, 0);
     const wrapped = v.routes.reduce((s, r) => s + r.tables.reduce((a, t) => a + t.wrappedThs, 0), 0);
     const tables = v.routes.reduce((s, r) => s + r.tables.length, 0);
-    console.log(`[responsive] ${v.viewport.padEnd(8)} ${v.width}px | overflowDoc=${v.routes.reduce((s,r)=>s+r.docOverflow,0)} | foraDaViewport=${sum('offscreen')} | alvos<24=${sum('tiny')} | alvos<44=${v.routes.reduce((s,r)=>s+r.under44,0)} | tabelas=${tables} thQuebrados=${wrapped} vaziosCortados=${sum('clippedColspan')}`);
+    console.log(`[responsive] ${v.viewport.padEnd(8)} ${v.width}px | rotas=${v.routes.length}/${ROUTES.length} | estadosErro=${v.routes.filter((r) => r.pageState === 'backend-error').length} | overflowDoc=${v.routes.reduce((s,r)=>s+r.docOverflow,0)} | foraDaViewport=${sum('offscreen')} | alvos<24=${sum('tiny')} | alvos<44=${v.routes.reduce((s,r)=>s+r.under44,0)} | tabelas=${tables} thQuebrados=${wrapped} vaziosCortados=${sum('clippedColspan')}`);
   }
 for (const v of REPORT.viewports.filter((x) => x.viewport !== 'desktop')) {
   for (const r of v.routes) {
@@ -218,27 +236,11 @@ for (const v of REPORT.viewports.filter((x) => x.viewport !== 'desktop')) {
   }
 }
 
-if (process.argv.includes('--assert')) {
-  const mobile = REPORT.viewports.find((v) => v.viewport === 'mobile');
-  if (!mobile) { console.error('UX RESPONSIVE ASSERT requer o viewport mobile.'); process.exit(2); }
-  const wrapped = mobile.routes.reduce((s, r) => s + r.tables.reduce((a, t) => a + t.wrappedThs, 0), 0);
-  const offscreen = mobile.routes.reduce((s, r) => s + r.offscreen.length, 0);
-  const overflow = mobile.routes.reduce((s, r) => s + r.docOverflow, 0);
-  // Alvos pequenos: divida congelada (icones de breadcrumb, toggles de grafico).
-  const BASELINE_TINY = 22;
-  const tiny = mobile.routes.reduce((s, r) => s + r.tiny.length, 0);
-  const unfocusable = mobile.routes.reduce((s, r) => s + r.tables.filter((t) => t.wrapHasScroll && !(t.wrapFocusable && t.wrapRegion)).length, 0);
-  const problems = [];
-  if (wrapped) problems.push(`${wrapped} cabecalhos de tabela quebrados em silabas`);
-  if (offscreen > 2) problems.push(`${offscreen} controles fora da viewport (baseline 2)`);
-  if (overflow) problems.push(`${overflow}px de overflow horizontal do documento`);
-  if (unfocusable) problems.push(`${unfocusable} regioes rolaveis nao focaveis por teclado`);
-  const clipped = mobile.routes.reduce((s, r) => s + r.clippedColspan.length, 0);
-  if (clipped) problems.push(`${clipped} estados vazios cortados pela tabela rolavel`);
-  if (tiny > BASELINE_TINY) problems.push(`alvos <24px cresceram: ${tiny} > ${BASELINE_TINY}`);
+if (ASSERT) {
+  const problems = responsiveProblems(REPORT);
   if (problems.length) {
     console.error('UX RESPONSIVE ASSERT FALHOU:\n  - ' + problems.join('\n  - '));
     process.exit(1);
   }
-  console.log(`UX RESPONSIVE ASSERT OK: 0 th quebrados, 0 controles cortados, 0 overflow; alvos <24 congelados em ${tiny}/${BASELINE_TINY}.`);
+  console.log('UX RESPONSIVE ASSERT OK: 5 viewports x 12 rotas; 0 alvos <24px, 0 controles fora, 0 overflow, 0 cabecalhos/estados vazios cortados; regioes rolaveis focaveis.');
 }

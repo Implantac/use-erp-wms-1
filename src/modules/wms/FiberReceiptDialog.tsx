@@ -199,9 +199,20 @@ export function FiberReceiptDialog({
             <div>
               <Label>Produto de fibra/pluma *</Label>
               <Select value={form.product_id} onValueChange={(value) => patch({ product_id: value })}>
-                <SelectTrigger data-field="product_id" aria-invalid={invalidField === "product_id" || undefined}>
+                <SelectTrigger
+                  data-field="product_id"
+                  aria-invalid={invalidField === "product_id" || undefined}
+                  aria-describedby={invalidField === "product_id" ? "fiber-receipt-product-error" : undefined}
+                >
                   <SelectValue placeholder={productsLoading ? "Carregando produtos…" : "Selecione o produto"} />
                 </SelectTrigger>
+                {/* QA-UX r15: o toast continua, mas o erro tambem fica junto
+                    ao campo, com papel vivo e ligacao programatica. */}
+                {invalidField === "product_id" && (
+                  <p id="fiber-receipt-product-error" role="alert" className="text-xs text-destructive">
+                    Selecione o produto de fibra/pluma recebido.
+                  </p>
+                )}
                 <SelectContent>
                   {productOptions.map((product) => (
                     <SelectItem key={product.id} value={product.id}>

@@ -77,6 +77,17 @@ describe('BackendErrorBanner', () => {
     expect(alert.textContent).not.toMatch(/PGRST|violates|RLS|JWT|400/i);
   });
 
+  it('empilha texto e acao no mobile sem mudar o alerta nem o retry', () => {
+    setup([broken()]);
+    render(<BackendErrorBanner />);
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveClass('flex-col', 'sm:flex-row');
+    expect(alert.querySelector('p')).toHaveClass('min-w-0');
+    expect(screen.getByRole('button', { name: /Tentar novamente/i })).toHaveClass('self-start', 'sm:shrink-0');
+    // JSDOM nao mede geometria. A altura e o clique real em 320px sao
+    // verificados pelo Chromium no audit ux:users:error.
+  });
+
   it('refaz somente as queries com erro e desaparece apos consolidar', async () => {
     setup([broken()]);
     fake.client?.refetchQueries.mockImplementation(async () => {

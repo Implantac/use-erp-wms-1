@@ -338,7 +338,9 @@ export function FiscalProviderCard() {
           <Button size="sm" variant="ghost" disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))}>
             <ChevronLeft className="h-4 w-4" /> Voltar
           </Button>
-          <div className="flex items-center gap-2">
+          {/* QA-UX r16: o grupo media 305px dentro de 246px em 320px.
+              Permitir encolher e quebrar a linha mantem "Proximo" acessivel. */}
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
             <Button size="sm" disabled={!companyId || save.isPending} onClick={() => save.mutate()}>
               Salvar configuração
             </Button>

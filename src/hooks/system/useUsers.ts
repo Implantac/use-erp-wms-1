@@ -73,7 +73,10 @@ export function useUsers() {
   return {
     users: usersQuery.data || [],
     isLoading: usersQuery.isLoading,
+    isFetching: usersQuery.isFetching,
+    isRetrying: usersQuery.isFetching && usersQuery.failureCount > 0,
     error: usersQuery.error,
+    refetch: usersQuery.refetch,
     
     // Mutations
     inviteUser: inviteUserMutation.mutateAsync,
