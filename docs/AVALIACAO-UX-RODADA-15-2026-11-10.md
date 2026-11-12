@@ -1,11 +1,11 @@
 # Avaliação UX — Rodada 15 (11/11/2026)
 
 > **Origem:** `"prossiga"` após a publicação da r14. Conforme o padrão das rodadas anteriores, autoriza **desenvolvimento local e leitura read-only**; **não** autoriza commit/push, rebuild/deploy pelo assistente, smoke autenticado em produção, dados reais nem aceite presumido.
-> **Status:** **apenas local**, **sem commit/push**. `HEAD` = `origin/main` = **`d0b40b0`**. **r14 e r15 não estão no deploy** — o bundle conferido contém r7–r13.
+> **Status atual:** **publicada com r16 em `271e484`**, por pedido pontual posterior ao desenvolvimento local sobre `d0b40b0`. CI do código aprovado; detalhes na [seção de publicação da r16](./AVALIACAO-UX-RODADA-16.md#0-publicação-autorizada-no-github). Sem novo rebuild confirmado no Lovable; última conferência conhecida do bundle contém r7–r13.
 > **Frente escolhida:** r6 garantiu **foco** no primeiro campo inválido; r11–r14 garantiram **nome**, **árvore** e **idioma**. Faltava responder: **o erro está ligado ao campo?** (WCAG 1.3.1 / 3.3.1).
 > **Ferramenta:** DOM real no Chromium + `ariaSnapshot()`. **Não** é escuta com NVDA/VoiceOver.
 > **Série de arquivos:** mantém o sufixo `2026-11-10` por coerência com as rodadas 1–14.
-> **Continuação:** os números e os 11 arquivos deste relatório são o estado ao encerrar a r15. A [rodada 16](./AVALIACAO-UX-RODADA-16.md) recuperou e revalidou esse lote após nova perda parcial, ampliou as melhorias e preservou r15+r16 em ZIP local com manifesto. Ambas continuam sem commit/push; o estado combinado está no relatório da r16.
+> **Continuação:** os números e os 11 arquivos deste relatório são o estado ao encerrar a r15. A [rodada 16](./AVALIACAO-UX-RODADA-16.md) recuperou e revalidou esse lote após nova perda parcial, ampliou as melhorias e preservou r15+r16 em ZIP local com manifesto. Ambas foram posteriormente publicadas em `271e484`; o estado combinado, a revalidação e o CI estão no relatório da r16.
 
 ---
 
@@ -46,7 +46,7 @@ Ao iniciar, o workspace tinha **1728 arquivos**, `.git` **ausente**, deps/Chromi
 
 ---
 
-## 3. Correções (apenas locais)
+## 3. Correções (posteriormente publicadas com r16)
 
 ### 3.1 Mecanismo generalizado — `src/ui/base/errorRef.ts`
 Novo `fieldRef()` compõe `labelledRef` (r4/r6/r11) com `associateErrorFromDom()`. Quando `aria-invalid="true"`:
@@ -108,7 +108,7 @@ ANTES: - textbox "CNPJ *" [invalid]:      DEPOIS: - textbox "CNPJ *" [invalid] [
 - O audit cobre **5 jornadas** e apenas a **aba ativa** de cada diálogo; `errorRef` foi desenhado para valer em todas, mas a medição é amostral.
 - `npm run typecheck` completo morre por **SIGKILL/OOM** do `tsgo` no sandbox (não é erro de tipo); `tsc` dirigido aos 8 arquivos alterados passou.
 - `validate-e2e-no-skip.mjs --strict` segue **exit 2** pelas 7 dívidas conhecidas; o gate normal é 0. Nada foi enfraquecido.
-- **Sem CI/build sobre r15** (ela é local). **Sem rebuild no Lovable**: o deploy continua com r7–r13.
+- No encerramento local da r15 não havia CI/build desse lote. Na publicação conjunta com r16 em `271e484`, **CI 43228461138 e build foram aprovados**; o Playwright autenticado continua bloqueado pelo gate dos 18 segredos. **Sem rebuild novo confirmado no Lovable**: última conferência conhecida do bundle é r7–r13.
 
 ---
 
@@ -132,18 +132,18 @@ ANTES: - textbox "CNPJ *" [invalid]:      DEPOIS: - textbox "CNPJ *" [invalid] [
 
 - Servidores `api-isolada-rodada-15-*` / `erp-frontend-rodada-15-*` **parados**; portas 4179/54321 livres.
 - Removidos `.env.e2e.generated`, locks, `tests/harness/data*`, `e2e/test-results`, `playwright-report-isolated`, `/tmp/ux17-ab`; `supabase/functions/mcp/index.ts` restaurado (tooling o regenera).
-- `git status --porcelain` = **11 arquivos locais** (7 modificados + 4 não versionados): 5 arquivos de produto, `package.json`, índice, `errorRef.ts`, `errorRef.test.ts`, `ux-errors-audit.mjs` e este relatório. **Nenhum commit, nenhum push.** `HEAD` = `origin/main` = **`d0b40b0`**.
-- **Nenhum token foi usado nesta rodada.** Os **4 PATs** (r6, 11/11, r13 reenviado e o da publicação r14) seguem **pendentes de revogação**.
+- **Registro histórico ao encerrar a r15:** 11 arquivos locais (7 modificados + 4 novos), sem commit/push sobre `d0b40b0`. A r16 recuperou e ampliou o lote, posteriormente publicado em **`271e484`**; o estado atual está no relatório da r16.
+- Nenhum token foi usado no desenvolvimento da r15. A publicação conjunta posterior usou o PAT fornecido no pedido específico. **Cinco PATs expostos**, somando este aos quatro anteriores, seguem pendentes de revogação; nenhum valor foi incluído nos arquivos versionados.
 
 ---
 
 ## 8. Próximos passos
 
-1. **Publicar r15** — exige pedido pontual (`"Atualize o github"` + token); a autorização anterior foi consumida por `d0b40b0`.
-2. **Novo rebuild no Lovable pelo usuário** para r14 e r15 chegarem ao deploy (hoje ele tem só r7–r13).
-3. **Revogar os 4 PATs** e rotacionar `anon`/JWT/`Usehub.xlsx` — ação do usuário.
+1. **Publicação concluída:** r15+r16 em `271e484`, após pedido pontual posterior. Isso não autoriza futuras publicações nem deploy.
+2. **Novo rebuild no Lovable pelo usuário** para aplicar r14–r16. Última conferência conhecida do bundle: r7–r13, sem nova leitura nesta publicação.
+3. **Revogar os 5 PATs expostos** e rotacionar `anon`/JWT/`Usehub.xlsx` — ação do usuário.
 4. **Leitor de tela real**, agora com erro associado para validar de fato o anúncio.
-5. **Harness para JOINs 400**, mutações no gate de regressão, dívidas congeladas (22 alvos < 24 px, zoom 200%, viewport 320 px).
+5. **Harness para JOINs 400**, mutações no gate de regressão e dívidas restantes. A r16 resolveu os alvos <24 px na amostra e os cortes em 320 px; zoom nativo de 200%, alvos de 44 px e catálogo completo continuam pendentes.
 6. **Governança do NO-GO:** 18 segredos via secret manager, grant/RLS formal, smoke autenticado em produção, fiscal/SEFAZ, PSP, restore, piloto e aceite formal.
 
 ---
@@ -170,4 +170,4 @@ A r14 respondeu **"o nome está em português?"**. A r15 perguntou **"e quando o
 
 Corrigido com um mecanismo de ref generalizado (respeita contratos explícitos, recusa ambiguidade, limpa a si próprio) e 2 mensagens inline, **sem tocar em validação, persistência ou gate**: `6/6/6/4/0 → 0/0/0/0/6`, com 17/17 audits, 481 testes e E2E 8/8 + 24/24 verdes.
 
-Tudo **apenas local**. O parecer segue **NO-GO**: o deploy tem r7–r13, não houve smoke autenticado, dados reais ou aceite. **CI verde e bundle presente não são evidência de aplicação utilizável.**
+O desenvolvimento descrito foi local e a publicação conjunta posterior foi feita em **`271e484`**. O parecer segue **NO-GO**: último bundle conferido contém r7–r13, sem novo rebuild confirmado, smoke autenticado, dados reais ou aceite. **CI verde e bundle presente não são evidência de aplicação utilizável.**

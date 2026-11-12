@@ -1,8 +1,8 @@
 # Avaliação UX — Rodada 16
 
-**Status: desenvolvimento local concluído; sem commit, push ou deploy.**
+**Status: r15+r16 publicadas no GitHub em `271e484`, por autorização expressa. Sem rebuild/deploy no Lovable.**
 
-A continuação `"ok prossiga"` manteve o escopo local/isolado. A base permanece **`d0b40b0`** (`HEAD` e `origin/main` local); a r15 foi recuperada e revalidada antes desta rodada. Não houve leitura nova do Google Drive, uso de PAT, acesso a dados reais, smoke autenticado em produção ou aceite.
+A continuação `"ok prossiga"` manteve inicialmente o escopo local/isolado, sobre a base **`d0b40b0`**. A r15 foi recuperada e revalidada antes desta rodada. **Posteriormente, um pedido pontual autorizou a publicação de r15+r16**; o estado publicado e o CI estão na seção 0. Não houve nova leitura do Google Drive, acesso a dados reais, smoke autenticado em produção ou aceite.
 
 ## Resultado em uma página
 
@@ -14,6 +14,43 @@ A continuação `"ok prossiga"` manteve o escopo local/isolado. A base permanece
 - **490 testes unitários**, **37 testes Node**, E2E **8/8 + 24/24**; os **18 audits UX** têm resultado final aprovado, com uma repetição serial de `ux:links` documentada abaixo.
 
 **Não é declaração de conformidade integral WCAG, de zoom nativo validado, de leitor de tela real nem de funcionamento do cadastro de usuários no backend. Produção continua NO-GO.**
+
+---
+
+## 0. Publicação autorizada no GitHub
+
+Após o encerramento local, o responsável solicitou expressamente a atualização do GitHub. **r15 e r16 foram publicadas em `271e484`**, sobre `d0b40b0`: **25 arquivos, +1447/−57**. O push foi conferido por `git ls-remote` público, sem credencial. Esta autorização cobre este lote e seu alinhamento documental, não futuras publicações nem deploy.
+
+**Nenhuma reconstrução nova foi necessária na publicação:** os 25 arquivos conferiam com o manifesto SHA-256 do backup. Não houve alteração adicional de código de produto ou de limite dos gates.
+
+### Revalidação antes do push
+
+| Verificação repetida | Resultado |
+|---|---|
+| Unitários completos, um worker | **104 arquivos / 490 testes**, exit 0 |
+| Harness + gate responsivo Node | **37/37**, exit 0 |
+| Lint | **0 erros / 0 warnings** (1236 achados históricos ignorados) |
+| Typecheck dirigido | **16 arquivos TS + setup**, exit 0 |
+| E2E público / isolado | **8/8 + 24/24**, exit 0 |
+| `ux:errors`, `ux:responsive`, `ux:users:error`, `ux:i18n` | **4/4 aprovados no resultado final**, incluindo repetição responsiva descrita abaixo |
+| SEC-02 | **2704 arquivos / 0 referências fixas** |
+| Gate E2E normal / estrito | **0 / 2**, mesmas sete dívidas conhecidas |
+| Diff whitespace / workflows / token no stage | **0 / 0 / 0** |
+
+Na primeira coleta responsiva, `/wms/dashboard` ainda não havia renderizado sua tabela em 320 px: **6/7 tabelas**. O gate recusou a cobertura. O JSON incompleto foi preservado; a repetição serial do **mesmo script e mesmos parâmetros**, sem mudar código, timeout ou limite, mediu **7/7 tabelas em todos os cinco viewports** e passou. Não se apresenta essa passagem como livre de flutuação de renderização; estabilizar a espera do audit continua sendo melhoria possível.
+
+As evidências dessa revalidação estão em `/home/user/ux-evidence/r15-r16-publication-validation.json` e `publicacao-r15-r16-*`. Os 18 audits da seção 6 pertencem à bateria de desenvolvimento; nesta publicação foram repetidos os quatro gates acima, não uma nova bateria de 18.
+
+### CI remoto sobre o código publicado
+
+| Workflow | Resultado verificado |
+|---|---|
+| [CI — 43228461138](https://github.com/Implantac/use-erp-wms-1/actions/runs/43228461138) | **Sucesso, 3/3 jobs:** typecheck/lint/unit/RLS, replay+negócio do harness e build de produção |
+| [Playwright — 43228461202](https://github.com/Implantac/use-erp-wms-1/actions/runs/43228461202) | **Smoke público e E2E isolado aprovados**; jornadas autenticadas falharam **somente no passo 4 `Validate isolated E2E configuration`**, pelo gate dos 18 segredos não configurados |
+
+A falha de configuração não foi contornada e os testes autenticados não foram declarados executados. Nenhum workflow foi alterado. O CI acima corresponde a `271e484`; a atualização documental posterior não muda o código e sua conferência final fica registrada separadamente.
+
+**Sem rebuild/deploy no Lovable, sem dados reais e sem aceite.** Última conferência conhecida do bundle: r7–r13; r14–r16 continuam sem confirmação de novo rebuild. O quinto PAT exposto, fornecido para esta publicação, soma-se aos quatro anteriores pendentes de revogação. A autenticação usou somente askpass temporário fora do repositório, sem credencial na URL, no stage ou nos commits; a remoção dos temporários é conferida ao encerrar o último push.
 
 ---
 
@@ -179,7 +216,7 @@ JSDOM testa contratos, não dimensões reais. A geometria e o clique vêm do Chr
 
 O JSON da bateria preserva **17/18 na primeira passagem**, o recheck e o resultado efetivo 18/18. Não foi fabricada uma passagem única sem falhas.
 
-**Não houve CI, build de produção ou typecheck global novo sobre r15/r16.** O typecheck executado foi o dirigido acima; os históricos de OOM do checker global continuam sendo limitação, não prova de ausência de erros no projeto inteiro.
+**No encerramento do desenvolvimento local**, ainda não havia CI/build novo sobre r15/r16. **Na publicação, o CI remoto e o build passaram**, conforme seção 0. O typecheck local executado foi o dirigido acima; os históricos de OOM do checker global no sandbox não são prova de ausência de erros no projeto inteiro.
 
 ---
 
@@ -219,18 +256,18 @@ Não executar unitários pesados simultaneamente ao audit de 105 rotas neste san
 
 ## 8. Estado local e preservação
 
-- **25 arquivos locais**, somando r15 e r16 (15 modificados + 10 novos, incluindo documentação). Nenhum commit, push ou alteração em workflows.
+- O lote de **25 arquivos** (15 modificados + 10 novos, incluindo documentação) foi **publicado em `271e484`**. O ajuste documental posterior atualiza estes relatórios e o índice; nenhum workflow foi alterado.
 - Servidores parados; portas de frontend/API livres; removidos ambiente gerado, locks, dados temporários E2E, relatórios de execução e probe descartável. O arquivo MCP regenerado pelo tooling foi restaurado.
-- Backup final: `/home/user/ux-evidence/rodadas-15-16-fontes-locais.zip`, com fontes completas dos 25 arquivos, patch dos versionados, base Git, manifesto SHA-256 e instruções de restauração. Não contém `.git`, dependências, dados de banco, `.env`, tokens ou credenciais.
-- **Nenhum PAT foi usado nesta rodada.** Os quatro PATs expostos anteriormente continuam pendentes de revogação pelo responsável; não devem ser reenviados ou reutilizados.
+- Backup histórico anterior à publicação: `/home/user/ux-evidence/rodadas-15-16-fontes-locais.zip`, com fontes completas dos 25 arquivos, patch, base Git e manifesto SHA-256. O ZIP não foi reescrito: seus textos documentais retratam o estado local anterior. O GitHub agora preserva as fontes e o alinhamento documental posterior. O ZIP não contém `.git`, dependências, banco, `.env`, tokens ou credenciais.
+- Nenhum PAT foi usado no desenvolvimento. A publicação posterior usou o token fornecido para este pedido específico, sem versioná-lo. **Cinco PATs expostos** — os quatro anteriores e o desta publicação — precisam de revogação pelo responsável; não devem ser reenviados ou reutilizados.
 
 ## 9. Limites e próximos passos
 
-1. **Publicação não autorizada por “prossiga”.** r15/r16 seguem locais. Publicação futura exige autorização pontual e autenticação segura; não enviar PAT exposto na conversa. Rebuild/deploy no Lovable continua a cargo do usuário.
+1. **Publicação concluída por pedido pontual posterior a “prossiga”.** r15/r16 estão no GitHub. Esta autorização não é permanente; mudanças/publicações futuras exigem novo pedido específico. Rebuild/deploy no Lovable continua a cargo do usuário.
 2. Última conferência conhecida do bundle: r7–r13. Não houve nova leitura do deploy nesta rodada; r14 continua sem confirmação de novo rebuild.
 3. Zoom **nativo** de 200%, ampliação apenas de texto e leitor de tela real continuam pendentes. Não se deve concluir conformidade integral a partir de reflow/DOM.
 4. A amostra deixou de ter alvos <24 px, mas ainda há alvos abaixo de 44 px: **114/115/141/504/522 ocorrências** nos cinco viewports em B. Não foram auditadas todas as exceções por espaçamento da WCAG 2.5.8 nem todo o catálogo de rotas, diálogos e estados.
 5. Gestão de Usuários foi validada em **falha**, não em listagem, convite, alteração de perfil ou exclusão. Edge Functions e JOINs no harness precisam de frente própria; não foram inventados dados nem alteradas permissões/RLS para obter verde.
-6. Permanecem os bloqueios de governança e segurança: revogar os quatro PATs, rotação de credenciais expostas, 18 segredos via secret manager, grant/RLS formal, smoke autenticado autorizado, fiscal/SEFAZ, PSP, restore, piloto e aceite formal.
+6. Permanecem os bloqueios de governança e segurança: revogar os cinco PATs expostos, rotação de credenciais expostas, 18 segredos via secret manager, grant/RLS formal, smoke autenticado autorizado, fiscal/SEFAZ, PSP, restore, piloto e aceite formal.
 
-**Conclusão:** duas dívidas geométricas amostradas foram eliminadas, e a ampliação da cobertura revelou e corrigiu uma recuperação de erro que não era utilizável em mobile. O lote está preservado e validado localmente. **NO-GO permanece: CI verde e bundle presente não são evidência de aplicação utilizável.**
+**Conclusão:** duas dívidas geométricas amostradas foram eliminadas, e a ampliação da cobertura revelou e corrigiu uma recuperação de erro que não era utilizável em mobile. O lote está preservado no GitHub, revalidado localmente e com CI remoto do código aprovado. **NO-GO permanece: CI verde e bundle presente não são evidência de aplicação utilizável.**
