@@ -24,7 +24,7 @@ import { PageHeader } from '@/shared/components/PageHeader';
 import { PageLoading } from '@/shared/components/PageLoading';
 import { KPICard } from '@/shared/components/KPICard';
 import { useInventory } from '@/hooks/inventory/useInventoryQuery';
-import type { DbProduct } from '@/hooks/inventory/useProducts';
+import type { ProductWithCategory } from '@/services/inventory/inventoryService';
 import type { ProductType, ProductStatus, ProductFilters } from '@/types/inventory';
 import { EmptyState } from '@/shared/components/EmptyState';
 import { ProductFormDialog } from '@/components/inventory/ProductFormDialog';
@@ -35,7 +35,7 @@ export default function ProductsPage() {
   const [filters, setFilters] = useState<ProductFilters>({
     search: new URLSearchParams(window.location.search).get('q') || '', type: 'all', category: 'all', status: 'all',
   });
-  const [selectedProduct, setSelectedProduct] = useState<DbProduct | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductWithCategory | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -66,7 +66,7 @@ export default function ProductsPage() {
     return <Badge variant="outline" className={config?.color}>{config?.label || type}</Badge>;
   };
 
-  const handleOpenForm = (product?: DbProduct) => {
+  const handleOpenForm = (product?: ProductWithCategory) => {
     setSelectedProduct(product || null);
     setIsFormOpen(true);
   };
@@ -256,7 +256,9 @@ export default function ProductsPage() {
                   <div className="col-span-2"><Label className="text-muted-foreground">Nome</Label><p className="font-medium">{selectedProduct.name}</p></div>
                   <div className="col-span-2"><Label className="text-muted-foreground">Descrição</Label><p className="font-medium">{selectedProduct.description || '-'}</p></div>
                   <div><Label className="text-muted-foreground">Tipo</Label><div className="mt-1">{getTypeBadge(selectedProduct.type)}</div></div>
-                  <div><Label className="text-muted-foreground">Categoria</Label><p className="font-medium">{selectedProduct.category_name}</p></div>
+                  {/* QA-17: este caminho usa inventoryService/categoryName,
+                      o mesmo valor mostrado na listagem, nao category_name. */}
+                  <div><Label className="text-muted-foreground">Categoria</Label><p className="font-medium">{selectedProduct.categoryName || '—'}</p></div>
                   <div><Label className="text-muted-foreground">Custo</Label><p className="font-medium">{formatBRL(selectedProduct.cost_price)}</p></div>
                   <div><Label className="text-muted-foreground">Preço de Venda</Label><p className="font-medium">{formatBRL(selectedProduct.sale_price)}</p></div>
                   <div><Label className="text-muted-foreground">Status</Label><div className="mt-1">{getStatusBadge(selectedProduct.status)}</div></div>

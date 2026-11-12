@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "incremental": false,
+    "strict": true,
+    "types": [
+      "node",
+      "vite/client",
+      "vitest/globals",
+      "@testing-library/jest-dom"
+    ]
+  },
+  "files": [
+    "src/shared/components/BackendLoadingNotice.tsx",
+    "src/shared/components/BackendLoadingNotice.test.tsx",
+    "src/shared/components/LoadingFeedback.test.tsx",
+    "src/shared/components/BackendErrorBanner.tsx",
+    "src/shared/components/BackendErrorBanner.test.tsx",
+    "src/shared/components/BackendErrorBanner.retry.test.tsx",
+    "tests/ux/retry-recovery.tsx",
+    "src/shared/components/PageLoading.tsx",
+    "src/test/setup.ts"
+  ],
+  "include": []
+}

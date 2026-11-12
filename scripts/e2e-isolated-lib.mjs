@@ -1,6 +1,7 @@
 // QA-01 — funcoes puras do ambiente E2E isolado. Sem efeitos colaterais:
 // podem ser testadas sem Postgres nem navegador (scripts/e2e-isolated-lib.test.mjs).
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { buildEmbeddedProjection, parseSelectTree } from './e2e-isolated-embeds.mjs';
 
 const OPS = {
   eq: '=', neq: '<>', gt: '>', gte: '>=', lt: '<', lte: '<=',
@@ -64,7 +65,7 @@ export function assertLoopback(url) {
  * Traduz o subconjunto de PostgREST usado pela suíte (`select`, filtros
  * `eq/neq/gt/.../in/is`, `order`, `limit`) para SQL parametrizado.
  */
-function translateFilters(searchParams, values) {
+function translateFilters(searchParams, values, qualifier) {
   const where = [];
   const ignored = new Set(['select', 'order', 'limit', 'offset', 'apikey']);
 
@@ -73,7 +74,7 @@ function translateFilters(searchParams, values) {
     const match = /^(eq|neq|gt|gte|lt|lte|like|ilike|in|is)\.(.+)$/s.exec(raw);
     if (!match) throw new Error(`filtro PostgREST nao suportado: ${key}=${raw}`);
     const [, op, rawValue] = match;
-    const column = quoteIdent(key);
+    const column = (qualifier ? `${quoteIdent(qualifier)}.` : '') + quoteIdent(key);
     if (op === 'is') {
       if (!['null', 'true', 'false'].includes(rawValue)) {
         throw new Error(`valor invalido para is.: ${rawValue}`);
@@ -94,25 +95,41 @@ function translateFilters(searchParams, values) {
   return where;
 }
 
-export function buildTableQuery(table, searchParams, single = false) {
-  const select = searchParams.get('select') || '*';
-  const columns = select === '*'
-    ? '*'
-    : select.split(',').map((c) => quoteIdent(c.trim())).join(', ');
+export function buildTableQuery(table, searchParams, single = false, relationships) {
+  const select = searchParams.get('select') ?? '*';
+  const fields = parseSelectTree(select);
+  // QA-17: o caminho plano permanece simples; embeds/aliases exigem
+  // catalogo real de FKs. Nao inferimos relacao por nome de coluna.
+  const needsCatalog = fields.some((f) => f.kind === 'embed' || (f.kind === 'column' && f.name !== f.alias));
+  const embedded = needsCatalog ? buildEmbeddedProjection(table, select, relationships) : null;
+  if (!embedded && fields.length > 1 && fields.some((f) => f.kind === 'wildcard')) {
+    throw new Error('projecao sobrepoe coluna do wildcard');
+  }
+  const columns = embedded?.columns ?? fields.map((f) => f.kind === 'wildcard' ? '*' : quoteIdent(f.name)).join(', ');
   const values = [];
-  const where = translateFilters(searchParams, values);
+  const where = translateFilters(searchParams, values, embedded?.alias);
 
   let sql = `SELECT ${columns} FROM public.${quoteIdent(table)}`;
+  if (embedded) sql += ` AS ${quoteIdent(embedded.alias)}`;
   if (where.length) sql += ` WHERE ${where.join(' AND ')}`;
   const order = searchParams.get('order');
   if (order) {
-    const [col, direction] = order.split('.');
-    sql += ` ORDER BY ${quoteIdent(col)} ${/^desc$/i.test(direction || '') ? 'DESC' : 'ASC'}`;
+    const orders = order.split(',').map((part) => {
+      const match = /^([a-z_][a-z0-9_]*)(?:\.(asc|desc))?(?:\.(nullsfirst|nullslast))?$/i.exec(part);
+      if (!match) throw new Error('order PostgREST nao suportado');
+      // ORDER refere-se a coluna do PAI, nao a um alias JSON de saida.
+      return (embedded ? `${quoteIdent(embedded.alias)}.` : '')
+        + `${quoteIdent(match[1])} ${(match[2] || 'asc').toUpperCase()}`
+        + (match[3] ? ` NULLS ${match[3].toLowerCase() === 'nullsfirst' ? 'FIRST' : 'LAST'}` : '');
+    });
+    sql += ` ORDER BY ${orders.join(', ')}`;
   }
-  const limit = Number(searchParams.get('limit'));
-  if (Number.isInteger(limit) && limit > 0) {
-    values.push(limit);
-    sql += ` LIMIT $${values.length}`;
+  for (const [parameter, clause] of [['limit', 'LIMIT'], ['offset', 'OFFSET']]) {
+    const raw = searchParams.get(parameter);
+    if (raw === null) continue;
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) throw new Error(`${parameter} invalido`);
+    values.push(Number(raw));
+    sql += ` ${clause} $${values.length}`;
   }
   return { sql, values, single };
 }

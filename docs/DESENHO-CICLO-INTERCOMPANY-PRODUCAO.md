@@ -1,6 +1,7 @@
 # Desenho de contrato — ciclo intercompany por produção (LOJ-05 / LOJ-06)
 
-- **Status:** proposta técnica para revisão. **NÃO implementada**, nenhuma migration aplicada.
+- **Status original:** proposta técnica para revisão; o ciclo completo **continua não implementado**.
+- **Continuidade após P0-BASE-01:** [LOJ-05A](INCREMENTO-LOJ-05A.md) implementa localmente apenas OP concluída → pedido pendente/reserva, com bloqueio fiscal e contenção da assinatura insegura de recebimento. A migration foi exercitada **somente em banco descartável**, nunca em ambiente real. As seções abaixo preservam a proposta e seus achados de origem, não substituem o registro do incremento.
 - **Data:** 05/11/2026.
 - **Baseline:** `main` em `5982a06422efdfac0d655f5e88d8b244ea496b74` (código de intercompany idêntico a `8a5dbb35`).
 - **Plano-mestre:** [PLANO-MESTRE-LOJAS-PCP-TEXTIL.md](PLANO-MESTRE-LOJAS-PCP-TEXTIL.md), seções 4.1, 7 e 8.1.

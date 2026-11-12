@@ -1,175 +1,232 @@
 #!/usr/bin/env node
-/**
- * QA-UX (rodada 8 / UX7-03) — CARREGAMENTO E RETENTATIVA VISIVEIS.
- *
- * A rodada 7 mediu que `pedidos-venda` fica em "Carregando pedidos..."
- * enquanto o React Query refaz a consulta (1 retry com backoff), sem
- * indicar ao usuario que esta tentando de novo. O `BackendErrorBanner`
- * so aparece DEPOIS que o erro consolida — ha uma janela silenciosa.
- *
- * Para medir essa janela de forma DETERMINISTICA (sem depender do tempo
- * aleatorio do harness), este audit induz UMA falha 503 com 700ms de
- * atraso na primeira consulta de lista de cada rota. As demais chamadas
- * seguem para a API isolada normalmente. Nao mockamos o backend inteiro:
- * apenas forçamos a retentativa que o produto ja faz.
- *
- * Amostra o DOM a cada 150ms por 6s e mede:
- *  - se aparece aviso de retentativa durante o carregamento;
- *  - a LATENCIA desse aviso a partir do inicio do retry (2a chamada), nao
- *    a partir do inicio da pagina — o primeiro carregamento e legitimo e
- *    nao pode ser cobrado como "silencio" (correcao de viés da r8);
- *  - se o carregamento termina e se vaza erro tecnico.
- *
- * Uso:
- *   node scripts/ux-loading-audit.mjs --label=antes --out=/home/user/ux-evidence
- *   node scripts/ux-loading-audit.mjs --label=depois --assert
- *   node scripts/ux-loading-audit.mjs --label=ab --no-notice   # A/B no mesmo build
+/** QA-UX r18 — feedback ANTES de esgotar os retries internos do SDK.
+ * 4 rotas x (503 persistente, 503 unico, leitura lenta) + leitura em 320px.
+ * So injeta falha 503 ou ATRASA um GET que segue para SQL/RLS real.
+ * Nenhum sucesso/lista e fabricado; nao altera Retry-After nem politica SDK.
+ * Um recorder passivo de DOM mede inicio/fim do aviso e seu contrato ARIA.
+ * --no-notice e somente controle negativo; nunca pode aprovar --assert.
  */
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { assertLoopback, parseEnvFile } from './e2e-isolated-lib.mjs';
+import { LOADING_CASES, LOADING_LIMITS, loadingProblems, loadingCaseMetrics, waitUntilAtLeast } from './ux-loading-lib.mjs';
 
-const arg = (n, d) => process.argv.find((a) => a.startsWith(`--${n}=`))?.split('=')[1] ?? d;
+const arg = (name, fallback) => process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? fallback;
 const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:4179';
 const API = 'http://127.0.0.1:54321';
 const LABEL = arg('label', 'loading');
 const OUT = arg('out', '/home/user/ux-evidence');
-const WAIT = Number(arg('wait', '6000'));
 const NO_NOTICE = process.argv.includes('--no-notice');
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+assertLoopback(BASE); assertLoopback(API);
+if (!/^[a-z0-9_-]+$/i.test(LABEL)) throw new Error('label invalido');
+const env = parseEnvFile(fs.readFileSync(path.join(ROOT, '.env.e2e.generated'), 'utf8'));
+if (env.E2E_ISOLATED_MARKER !== 'QA-01-ISOLATED-E2E' || env.VITE_SUPABASE_URL !== API) throw new Error('Auditoria exige ambiente descartavel marcado e local.');
+const fixtures = JSON.parse(env.E2E_RELATED_FIXTURES || 'null');
+if (fixtures?.version !== 'QA17') throw new Error('Fixtures nao vazias QA17 ausentes.');
 fs.mkdirSync(OUT, { recursive: true });
+const report = {
+  label: LABEL, at: new Date().toISOString(), scope: 'local-isolated-synthetic',
+  method: 'somente falha 503 ou atraso; sucesso/dados sempre da API real',
+  businessSuccessMocked: false, noNotice: NO_NOTICE, limits: LOADING_LIMITS,
+  sdkVersion: createRequire(import.meta.url)('@supabase/postgrest-js/package.json').version,
+  cases: [], errors: [],
+};
 
-const ROUTES = [
-  { id: 'pedidos-venda', route: '/comercial/pedidos', pattern: '**/rest/v1/orders?*' },
-  { id: 'pedidos-compra', route: '/compras/pedidos', pattern: '**/rest/v1/purchase_orders?*' },
-  { id: 'recebimento', route: '/wms/recebimento', pattern: '**/rest/v1/products?*' },
-];
+async function configure(context) {
+  await context.route('**/*', (route) => {
+    const u = new URL(route.request().url());
+    return [BASE, API].includes(u.origin) ? route.continue() : route.abort();
+  });
+  await context.route('**/config.js', (route) => route.fulfill({
+    status: 200, contentType: 'application/javascript',
+    body: `window.__USE_ERP_CONFIG__={SUPABASE_URL:${JSON.stringify(API)},SUPABASE_PUBLISHABLE_KEY:"e2e-isolated-anon-key"};`,
+  }));
+}
 
-const GENERATED = path.join(ROOT, '.env.e2e.generated');
-if (!fs.existsSync(GENERATED)) throw new Error('Ambiente isolado ausente (.env.e2e.generated)');
-const env = Object.fromEntries(fs.readFileSync(GENERATED, 'utf8').split('\n')
-  .filter((l) => l && !l.startsWith('#') && l.includes('='))
-  .map((l) => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1)]; }));
-
-const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'pt-BR' });
-await context.route('**/*', (route) => {
-  const u = new URL(route.request().url());
-  return (u.origin === BASE || u.origin === API) ? route.continue() : route.abort();
-});
-await context.route('**/config.js', (route) => route.fulfill({
-  status: 200, contentType: 'application/javascript',
-  body: `window.__USE_ERP_CONFIG__ = { SUPABASE_URL: ${JSON.stringify(API)}, SUPABASE_PUBLISHABLE_KEY: "e2e-isolated-anon-key" };`,
-}));
-const page = await context.newPage();
-await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
-await page.waitForSelector('#email', { timeout: 25000 });
-await page.locator('#email').fill(env.E2E_ADMIN_EMAIL);
-await page.locator('#password').fill(env.E2E_ADMIN_PASSWORD);
-await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-await page.waitForFunction(() => !location.pathname.startsWith('/login'), { timeout: 25000 });
-await page.waitForTimeout(1500);
-
-const report = { label: LABEL, at: new Date().toISOString(), noNotice: NO_NOTICE, routes: [] };
-for (const t of ROUTES) {
-  const r = { id: t.id, route: t.route };
-  let injected = 0;
-  // A 2a chamada e o inicio da RETENTATIVA. O tempo anterior a ela e o
-  // primeiro carregamento legitimo — nao pode ser cobrado como "silencio".
-  let retryStartedAt = null;
-  const handler = async (route) => {
-    injected += 1;
-    if (injected === 2 && retryStartedAt === null) retryStartedAt = Date.now();
-    if (injected === 1) {
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"temporary failure"}' });
-    } else {
-      await route.continue();
+// Executado antes do JS da pagina; so observa DOM, sem criar aviso/estado.
+function installRecorder({ noNotice }) {
+  const start = () => {
+    if (noNotice) {
+      const style = document.createElement('style');
+      style.textContent = '[data-ux-retry-notice],[data-ux-retry-message]{display:none!important}';
+      document.head.appendChild(style);
     }
-  };
-  try {
-    await page.route(t.pattern, handler);
-    await page.goto(`${BASE}${t.route}`, { waitUntil: 'domcontentloaded' });
-    if (NO_NOTICE) {
-      // A/B controlado: esconde SOMENTE os novos avisos, sem alterar o produto.
-      await page.addStyleTag({ content: '[data-ux-retry-notice],[data-ux-retry-message]{display:none!important}' });
-    }
-    const timeline = await page.evaluate(async (ms) => {
-      const samples = [];
-      const t0 = performance.now();
-      while (performance.now() - t0 < ms) {
-        const main = document.querySelector('#main-content');
-        const mainTxt = (main?.innerText || '').trim();
-        const bodyTxt = (document.body.innerText || '');
-        samples.push({
-          t: Math.round(performance.now() - t0),
-          wall: Date.now(),
-          loading: /carregando/i.test(mainTxt) || !!document.querySelector('[data-ux-loading]'),
-          notice: /tentando novamente|demorando para carregar|nova tentativa/i.test(bodyTxt),
-          length: mainTxt.length,
-        });
-        await new Promise((resolve) => setTimeout(resolve, 150));
-      }
+    const samples = [];
+    const visible = (node) => {
+      if (!node) return false;
+      const r = node.getBoundingClientRect(), css = getComputedStyle(node);
+      return r.width > 0 && r.height > 0 && css.display !== 'none' && css.visibility !== 'hidden' && css.opacity !== '0';
+    };
+    const snapshot = () => {
+      const main = document.querySelector('#main-content');
+      const node = document.querySelector('[data-ux-retry-notice]');
+      const shown = visible(node), rect = shown ? node.getBoundingClientRect() : null;
+      const banner = document.querySelector('[data-ux-backend-error]');
+      const retry = banner?.querySelector('button');
+      const hit = rect ? document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) : null;
       return {
-        samples,
-        feedbackTexts: [...new Set((document.body.innerText || '').split('\n').map((s) => s.trim())
-          .filter((s) => /tentando novamente|demorando para carregar|nova tentativa|não foi possível/i.test(s)))].slice(0, 6),
-        technicalLeak: /PGRST|Failed to fetch|HTTP 503|status 503|JWT ausente|temporary failure|Cannot read|SyntaxError/i.test(document.body.innerText || ''),
+        currentPath: location.pathname, notice: shown,
+        phase: shown ? node.getAttribute('data-ux-loading-phase') : null,
+        noticeText: shown ? (node.textContent || '').trim() : '',
+        role: shown ? node.getAttribute('role') : null,
+        ariaLive: shown ? node.getAttribute('aria-live') : null,
+        ariaAtomic: shown ? node.getAttribute('aria-atomic') : null,
+        noticeSpinner: shown ? !!node.querySelector('.animate-spin,[aria-busy="true"]') : false,
+        pointerPassthrough: shown ? getComputedStyle(node).pointerEvents === 'none' && !!hit && !node.contains(hit) : null,
+        withinViewport: rect ? rect.left >= 0 && rect.right <= innerWidth + 1 && rect.top >= 0 && rect.bottom <= innerHeight : null,
+        noticeRect: rect ? { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) } : null,
+        mainLoading: !!main && (main.getAttribute('aria-busy') === 'true' || Array.from(main.querySelectorAll('[data-ux-loading]')).some(visible)),
+        spinnerCount: Array.from(main?.querySelectorAll('.animate-spin,[aria-busy="true"]') || []).filter(visible).length,
+        contentLength: (main?.innerText || '').trim().length,
+        heading: (main?.querySelector('h1,h2,[role="heading"]')?.textContent || '').trim(),
+        errorBanner: visible(banner), retryEnabled: visible(banner) && visible(retry) && !retry.disabled,
+        technicalLeak: /QA18_INDUCED_READ_503|PGRST|Failed to fetch|HTTP 503|status 503|JWT ausente|Cannot read|SyntaxError|stack trace/i.test(document.body.innerText || ''),
       };
-    }, WAIT);
-    r.injectedRequests = injected;
-    r.retryStartedAt = retryStartedAt;
-    r.retryNoticeShown = timeline.samples.some((s) => s.notice);
-    const firstNotice = timeline.samples.find((s) => s.notice);
-    r.firstNoticeMs = firstNotice?.t ?? null;
-    // Latencia REAL do aviso: quanto tempo o usuario espera DEPOIS que a
-    // retentativa comeca. Incluir o primeiro carregamento seria falso positivo.
-    r.noticeLatencyMs = firstNotice && retryStartedAt !== null
-      ? Math.max(0, firstNotice.wall - retryStartedAt) : null;
-    let silentMs = 0;
-    for (let i = 1; i < timeline.samples.length; i++) {
-      const dt = timeline.samples[i].t - timeline.samples[i - 1].t;
-      if (timeline.samples[i].loading && !timeline.samples[i].notice) silentMs += dt;
+    };
+    let previous = '';
+    const record = (force = false) => {
+      const state = snapshot(), signature = JSON.stringify(state);
+      if (force || signature !== previous) samples.push({ wall: Date.now(), ...state });
+      previous = signature;
+    };
+    const observer = new MutationObserver(() => record());
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
+    const interval = setInterval(() => record(), 100);
+    record(true);
+    window.__qaLoadingFeedback = {
+      stop: () => { observer.disconnect(); clearInterval(interval); record(true); return { timeline: samples, final: samples.at(-1) }; },
+    };
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
+}
+
+let browser;
+try {
+  const health = await (await fetch(`${API}/auth/v1/health`)).json();
+  if (health.marker !== env.E2E_ISOLATED_MARKER || health.relatedReads?.version !== 'QA-17') throw new Error('API nao e o descartavel esperado.');
+  browser = await chromium.launch({ headless: true });
+  const login = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'pt-BR' });
+  await configure(login);
+  const loginPage = await login.newPage();
+  await loginPage.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
+  await loginPage.locator('#email').fill(env.E2E_ADMIN_EMAIL);
+  await loginPage.locator('#password').fill(env.E2E_ADMIN_PASSWORD);
+  await loginPage.getByRole('button', { name: 'Entrar', exact: true }).click();
+  await loginPage.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30000 });
+  // Sessao apenas em memoria. Fechar a home evita atribuir suas respostas
+  // tardias a Clientes; cada caso tem contexto/pagina novos, sem cache.
+  const storageState = await login.storageState();
+  await login.close();
+
+  for (const c of LOADING_CASES) {
+    const r = { ...c, attempts: [], responses: [], timeline: [], jsErrors: [], businessWrites: [] };
+    const context = await browser.newContext({
+      storageState, viewport: { width: c.width, height: c.height },
+      isMobile: c.viewport === 'mobile-320', hasTouch: c.viewport === 'mobile-320', locale: 'pt-BR',
+    });
+    const responseJobs = [], screenshotJobs = [], attemptsByRequest = new Map();
+    let succeeded = false;
+    try {
+      await configure(context);
+      await context.addInitScript(installRecorder, { noNotice: NO_NOTICE });
+      const page = await context.newPage();
+      page.on('pageerror', (e) => r.jsErrors.push(String(e.message).slice(0, 180)));
+      page.on('request', (req) => {
+        const u = new URL(req.url());
+        if (u.origin === API && /^\/rest\/v1\/(products|orders|order_items|purchase_orders|purchase_order_items|suppliers|clients)$/.test(u.pathname) && ['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method())) r.businessWrites.push({ method: req.method(), path: u.pathname });
+      });
+      page.on('response', (res) => {
+        const attempt = attemptsByRequest.get(res.request());
+        if (!attempt) return;
+        const job = (async () => {
+          const record = { n: attempt.n, status: res.status(), at: Date.now(), realApi: !attempt.injected503 };
+          if (res.status() === 200) {
+            const body = await res.json();
+            record.rows = Array.isArray(body) ? body.length : 0;
+            record.fixtureFound = Array.isArray(body) && body.some((row) => row.id === fixtures.tenants.A[c.fixtureKey]);
+            succeeded = true;
+          }
+          r.responses.push(record);
+        })().catch((e) => { r.error = `Falha ao medir resposta: ${String(e.message).slice(0, 160)}`; });
+        responseJobs.push(job);
+      });
+      await page.route(`${API}/rest/v1/${c.table}*`, async (route) => {
+        const req = route.request(), u = new URL(req.url());
+        if (req.method() !== 'GET' || u.pathname !== `/rest/v1/${c.table}`) return route.continue();
+        const n = r.attempts.length + 1;
+        const injected503 = c.scenario === 'persistent-503' || (c.scenario === 'transient-503' && n === 1);
+        const delayMs = c.scenario === 'slow-read' && n === 1 ? LOADING_LIMITS.slowReadDelayMs : c.scenario === 'transient-503' && n === 1 ? LOADING_LIMITS.transientFaultDelayMs : 0;
+        const attempt = { n, at: Date.now(), method: req.method(), path: u.pathname, sdkRetryCount: Number(req.headers()['x-retry-count'] || '0'), injected503, delayMs };
+        r.attempts.push(attempt); attemptsByRequest.set(req, attempt);
+        if (n === 1 && (c.viewport === 'mobile-320' || c.scenario === 'persistent-503' && c.id === 'pedidos-venda')) {
+          r.earlyScreenshot = `${LABEL}-${c.caseId.replaceAll('/', '-')}-at-2100ms.png`;
+          screenshotJobs.push((async () => {
+            await new Promise((resolve) => setTimeout(resolve, 2100));
+            await page.screenshot({ path: path.join(OUT, r.earlyScreenshot) });
+          })().catch((e) => { r.screenshotError = String(e.message).slice(0, 180); }));
+        }
+        attempt.releasedAt = delayMs ? await waitUntilAtLeast(attempt.at + delayMs) : Date.now();
+        if (injected503) return route.fulfill({
+          status: 503, contentType: 'application/json',
+          headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,apikey,x-client-info,content-type,x-retry-count,accept-profile', 'access-control-allow-methods': 'GET,OPTIONS' },
+          body: JSON.stringify({ message: 'QA18_INDUCED_READ_503' }),
+        });
+        return route.continue();
+      });
+      const started = Date.now();
+      await page.goto(`${BASE}${c.route}`, { waitUntil: 'domcontentloaded' });
+      const persistent = c.scenario === 'persistent-503';
+      await page.waitForFunction((expectError) => {
+        const visible = (e) => { if (!e) return false; const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0 && getComputedStyle(e).display !== 'none'; };
+        const main = document.querySelector('#main-content'), banner = document.querySelector('[data-ux-backend-error]');
+        if (!main || (main.innerText || '').trim().length < 50 || !main.querySelector('h1,h2,[role="heading"]')) return false;
+        if (Array.from(main.querySelectorAll('[data-ux-loading],.animate-spin,[aria-busy="true"]')).some(visible)) return false;
+        if (expectError) return visible(banner) && !!banner.querySelector('button:not(:disabled)');
+        return !visible(banner);
+      }, persistent, { timeout: LOADING_LIMITS.deadlineMs });
+      if (!persistent) {
+        // Espera pelo GET real mesmo quando o apoio nao bloqueia a tabela.
+        const deadline = started + LOADING_LIMITS.deadlineMs;
+        while (!succeeded && !r.error && Date.now() < deadline) await page.waitForTimeout(50);
+        if (!succeeded) throw new Error('GET real de sucesso nao terminou dentro do teto.');
+      }
+      await page.waitForFunction(() => {
+        const n = document.querySelector('[data-ux-retry-notice]');
+        return !n || getComputedStyle(n).display === 'none' || n.getBoundingClientRect().width === 0;
+      }, null, { timeout: Math.max(1, LOADING_LIMITS.deadlineMs - (Date.now() - started)) });
+      await page.waitForTimeout(300);
+      await Promise.all([...responseJobs, ...screenshotJobs]);
+      const measured = await page.evaluate(() => window.__qaLoadingFeedback.stop());
+      r.timeline = measured.timeline; r.final = measured.final;
+      r.observationMs = Date.now() - (r.attempts[0]?.at ?? started);
+      r.finished = true;
+      const metrics = loadingCaseMetrics(r);
+      r.metrics = { noticeAtRequestStart: metrics.noticeAtRequestStart, noticeAfterRequestMs: metrics.noticeAfterRequestMs, noticeAfterRetryMs: metrics.noticeAfterRetryMs, attemptCount: metrics.attemptCount };
+      r.responses.sort((a, b) => a.n - b.n);
+      // A captura final nao e uma prova do estado intermediario; esse estado
+      // esta na timeline/primeira observacao, sem CSS ou aviso injetado.
+      if (c.viewport === 'mobile-320' || persistent && c.id === 'pedidos-venda') await page.screenshot({ path: path.join(OUT, `${LABEL}-${c.caseId.replaceAll('/', '-')}-final.png`) });
+    } catch (e) {
+      r.error = r.error || String(e.message).slice(0, 300);
+      r.finished = false;
+    } finally {
+      await context.close();
+      report.cases.push(r);
+      console.log(`[loading] ${c.caseId} | tentativas=${r.attempts.length} aviso=${r.metrics?.noticeAfterRequestMs ?? '-'}ms aposRetry=${r.metrics?.noticeAfterRetryMs ?? '-'}ms final=${r.finished ?? false}${r.error ? ` ERRO=${r.error}` : ''}`);
     }
-    r.silentLoadingMs = silentMs;
-    r.loadingSamples = timeline.samples.filter((s) => s.loading).length;
-    r.finalLoading = timeline.samples.slice(-3).some((s) => s.loading);
-    r.feedbackTexts = timeline.feedbackTexts;
-    r.technicalLeak = timeline.technicalLeak;
-    r.timeline = timeline.samples.map((s) => ({ t: s.t, L: s.loading ? 1 : 0, N: s.notice ? 1 : 0 }));
-    await page.unroute(t.pattern, handler);
-  } catch (e) {
-    r.error = String(e.message).slice(0, 180);
-    await page.unroute(t.pattern, handler).catch(() => {});
   }
-  report.routes.push(r);
+} catch (e) {
+  report.errors.push(String(e.message).slice(0, 300));
+} finally {
+  if (browser) await browser.close();
+  report.problems = loadingProblems(report);
+  fs.writeFileSync(path.join(OUT, `${LABEL}-loading.json`), JSON.stringify(report, null, 2));
 }
-await browser.close();
-fs.writeFileSync(path.join(OUT, `${LABEL}-loading.json`), JSON.stringify(report, null, 2));
-
-const noNotice = report.routes.filter((r) => !r.retryNoticeShown);
-const lateNotice = report.routes.filter((r) => r.noticeLatencyMs === null || r.noticeLatencyMs > 800);
-const stuck = report.routes.filter((r) => r.finalLoading);
-const leak = report.routes.filter((r) => r.technicalLeak);
-const notInjected = report.routes.filter((r) => !r.injectedRequests);
-console.log(`[loading] ${report.routes.length} rotas | semAvisoDeRetry=${noNotice.length} (${noNotice.map(r=>r.id).join(',')}) | avisoAposRetry>800ms=${lateNotice.length} | presasCarregando=${stuck.length} | vazamentoTecnico=${leak.length}`);
-for (const r of report.routes) {
-  console.log(`  ${r.id.padEnd(16)} 503induzidas=${String(r.injectedRequests ?? '-').padEnd(2)} amostrasCarregando=${String(r.loadingSamples ?? '-').padEnd(3)} aviso=${String(r.retryNoticeShown ?? '-').padEnd(5)} 1oAviso=${String(r.firstNoticeMs ?? '-').padEnd(5)}ms latenciaAposRetry=${String(r.noticeLatencyMs ?? '-').padEnd(5)}ms silencio1oLoad=${String(r.silentLoadingMs ?? '-').padEnd(5)}ms finalCarregando=${String(r.finalLoading ?? '-').padEnd(5)}${r.error ? ' ERRO:' + r.error.slice(0,40) : ''}`);
-  if (r.feedbackTexts?.length) console.log(`      -> ${r.feedbackTexts.slice(0, 2).join(' | ').slice(0, 150)}`);
-}
-
-if (process.argv.includes('--assert')) {
-  const problems = [];
-  if (notInjected.length) problems.push(`cenario de retentativa nao induzido em: ${notInjected.map(r => r.id).join(', ')}`);
-  if (noNotice.length) problems.push(`carregamento sem aviso de retentativa em: ${noNotice.map(r => r.id).join(', ')}`);
-  if (lateNotice.length) problems.push(`aviso apareceu mais de 800ms APOS o inicio do retry em: ${lateNotice.map(r => `${r.id} (${r.noticeLatencyMs}ms)`).join(', ')}`);
-  const foreverLoading = report.routes.filter((r) => (r.silentLoadingMs || 0) > 4500);
-  if (foreverLoading.length) problems.push(`carregamento sem fim em: ${foreverLoading.map(r => r.id).join(', ')}`);
-  if (stuck.length) problems.push(`tela ainda carregando ao final em: ${stuck.map(r => r.id).join(', ')}`);
-  if (leak.length) problems.push(`erro tecnico vazando em: ${leak.map(r => r.id).join(', ')}`);
-  if (problems.length) {
-    console.error('UX LOADING ASSERT FALHOU:\n  - ' + problems.join('\n  - '));
-    process.exit(1);
-  }
-  console.log('UX LOADING ASSERT OK: toda retentativa e anunciada em menos de 800ms, sem carregamento sem fim e sem vazamento tecnico.');
-}
+console.log(`[loading] ${report.cases.length}/${LOADING_CASES.length} casos | falhas=${report.problems.length} | sucessoSimulado=false`);
+for (const p of report.problems) console.error(`  - ${p}`);
+if (process.argv.includes('--assert') && report.problems.length) process.exitCode = 1;

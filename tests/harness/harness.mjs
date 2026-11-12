@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { runIntercompanyReleaseTests } from './intercompany-release-tests.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = process.env.ERP_REPO || path.resolve(HERE, '..', '..');
@@ -1478,12 +1479,27 @@ try {
   catch (e) { code = errCode(e); }
   check('solicitação decidida não pode ser decidida de novo (55000)', code === '55000', `code=${code}`);
 
-  // Loja confirma o recebimento: estoque entra pelo ledger
+  // LOJ-06: o contrato antigo recebia 96 sem expedição. Esse verde era um
+  // bypass, não aceite: agora deve recusar e preservar solicitação/ledger.
   await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [user2]);
-  const rec1 = (await q(`SELECT public.receive_intercompany_delivery($1, 96) AS r`, [req1.id]))[0].r;
+  const storeBeforeNoDelivery = Number((await q(`SELECT COALESCE(SUM(quantity),0) AS q FROM public.stock_balances WHERE company_id = $1 AND product_id = $2`, [company2, prodQ]))[0].q);
+  const ledgerBeforeNoDelivery = Number((await q(`SELECT count(*) AS n FROM public.stock_movements`))[0].n);
+  code = '';
+  try { await q(`SELECT public.receive_intercompany_delivery($1, 96)`, [req1.id]); }
+  catch (e) { code = errCode(e); }
   const storeBal = (await q(`SELECT COALESCE(SUM(quantity),0) AS q FROM public.stock_balances WHERE company_id = $1 AND product_id = $2`, [company2, prodQ]))[0];
-  check('recebimento da loja lança o estoque pelo ledger (96 un)',
-    rec1.status === 'recebida' && Number(storeBal.q) === 96, JSON.stringify({ rec1, storeBal }));
+  const legacyReceiptState = (await q(`SELECT status, received_quantity FROM public.intercompany_replenishment_requests WHERE id = $1`, [req1.id]))[0];
+  check('LOJ-06: recebimento antigo sem expedição é bloqueado, sem entrada nem promoção do legado',
+    code === '55000' && Number(storeBal.q) === storeBeforeNoDelivery
+      && Number((await q(`SELECT count(*) AS n FROM public.stock_movements`))[0].n) === ledgerBeforeNoDelivery
+      && legacyReceiptState.status === 'aprovada' && legacyReceiptState.received_quantity === null,
+    JSON.stringify({ code, storeBal, legacyReceiptState }));
+
+  // Saldo de abertura EXCLUSIVO da massa descartável para o controle positivo
+  // de visão do grupo. Não representa entrega/recebimento intercompany.
+  await q(`INSERT INTO public.stock_movements (company_id, product_id, product_code, product_name, quantity, direction, type, canal_operacional, reference, notes, operator, source)
+    VALUES ($1, $2, 'CAMISA-001', 'Camisa social', 1, 'in', 'adjustment', 'VAREJO_PDV', 'LOJ-GROUP-OPENING-FIXTURE',
+      'Massa descartável para visão do grupo; não é recebimento intercompany', 'system', 'harness_fixture')`, [company2, prodQ]);
 
   // Visão do grupo: gestor da loja vê BIL + Química; a matriz não pede ao grupo
   const overview = await q(`SELECT DISTINCT company_id FROM public.group_stock_overview()`);
@@ -1693,6 +1709,16 @@ try {
   catch (e) { code = errCode(e); }
   check('empresa de fora NÃO enxerga o estoque do grupo (42501)', code === '42501', `code=${code}`);
   await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
+
+  await runIntercompanyReleaseTests({
+    client, Client, check, asUserTx,
+    rootCompanyId: company.id, rootAdminId: admin.id,
+    storeCompanyId: company2, storeAdminId: user2,
+    outsiderCompanyId: bootSolo[0].r.company_id, outsiderAdminId: user9,
+    sourceProductId: fioJ, destinationProductId: prodInter,
+    componentId: plumaJ, componentLotId: plumaLotJ,
+    legacyRequestId: req1.id, legacyOrderId: dec1.sales_order_id,
+  });
 
   console.log('== Filiais (mesmo CNPJ): transferência entre unidades reparada');
   await q(`SELECT set_config('session_replication_role', 'replica', false)`);
@@ -2326,10 +2352,12 @@ try {
   await switchAs(admin.id, 'admin', zipo.id).catch(() => {});
   const frow = (await q(`SELECT provider, environment FROM public.fiscal_provider_settings WHERE company_id = $1`, [zipo.id]))[0];
   check('configuração fiscal por empresa grava e lê (provedor/ambiente)', frow.provider === 'focus_nfe' && frow.environment === 'homologacao', JSON.stringify(frow));
-  await q(`SELECT public.receive_intercompany_delivery($1, 4)`, [decF.intercompany_request_id]);
-  check('7. Loja confirma o recebimento da Fábrica e o saldo entra pelo ledger (+4)',
-    (await balP(farm.id, zLojaBr.id, pBot.id)) === stBot0 + 4,
-    `saldo=${await balP(farm.id, zLojaBr.id, pBot.id)} esperado=${stBot0 + 4}`);
+  code = '';
+  try { await q(`SELECT public.receive_intercompany_delivery($1, 4)`, [decF.intercompany_request_id]); }
+  catch (e) { code = errCode(e); }
+  check('7. Sem expedição intercompany identificada, recebimento fica bloqueado e saldo não muda',
+    code === '55000' && (await balP(farm.id, zLojaBr.id, pBot.id)) === stBot0,
+    `code=${code} saldo=${await balP(farm.id, zLojaBr.id, pBot.id)} esperado=${stBot0}`);
   await q(`SELECT set_config('request.jwt.claim.sub', $1, false)`, [admin.id]);
 
   // SEC-02 / SEC-03 — gates permanentes de higiene de seguranca.

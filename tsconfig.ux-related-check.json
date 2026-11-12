@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "incremental": false,
+    "types": ["node", "vite/client", "vitest/globals", "@testing-library/jest-dom"]
+  },
+  "files": [
+    "src/pages/inventory/Products.tsx",
+    "src/pages/inventory/Products.test.tsx",
+    "src/test/setup.ts"
+  ],
+  "include": []
+}

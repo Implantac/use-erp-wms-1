@@ -4,7 +4,7 @@
 - **Baseline:** Git `8a5dbb35b328e890c377dffcdb595fc618d04c34`.
 - **Plano canônico:** [PLANO-MESTRE-LOJAS-PCP-TEXTIL.md](PLANO-MESTRE-LOJAS-PCP-TEXTIL.md).
 - **Estado de produção:** **NO-GO**.
-- **Mudanças de estado posteriores à revisão:** ver §6 (SEC-02/03, QA-01 e INC-01). As seções 1–5 e a baseline `8a5dbb35` permanecem como fotografia de 05/11/2026.
+- **Mudanças de estado posteriores à revisão:** ver §6 (SEC-02/03, QA-01, INC-01 e LOJ-05A local após recuperação). As seções 1–5 e a baseline `8a5dbb35` permanecem como fotografia da revisão original; não são o aceite do candidato recuperado.
 
 ---
 
@@ -239,6 +239,7 @@ Esta seção cumpre a regra da §5 **sem reclassificar os 101 candidatos e sem r
 | QA-07 | Auditoria **anti-falso-verde** do gate autenticado: 6 specs derivados do config, 15 testes, invariantes de não-vacuidade e 3 achados (asserção contra reticências, teste que passa com zero asserções, reporter sem piso de completude). Sem alteração de spec/config/workflow/gate; correções propostas, **não aplicadas** | `E2E-GATE-ANTI-SKIP.md`; `scripts/validate-e2e-no-skip.mjs` |
 | `4365895` | Evidência dos runs de CI levada para os documentos versionados | `E2E-Lojas.md` §0; plano-mestre §7.1 |
 | `0211229` | INC-01: publicação no Lovable sem `VITE_SUPABASE_*` resultou em `supabaseKey is required.`; correção é **operacional** (painel + rebuild), não versionar `.env` | `ENVIRONMENT.md` §0.1; `src/integrations/supabase/client.ts` |
+| LOJ-05A local após P0-BASE-01, **sem commit/publicação** | OP concluída → pedido pendente e reserva do lote produzido por ação gerencial; replay, rollback, RLS e concorrência; 505 migrations / 336 PASS. Fiscal/expedição bloqueados, recebimento antigo contido sem promoção de legado. LOJ-05 parcial e LOJ-06 pendente; nenhum banco real/tela nova homologados | [INCREMENTO-LOJ-05A.md](INCREMENTO-LOJ-05A.md); plano-mestre §7.2; evidências `recovery-evidence/20–25` fora do ZIP base |
 
 **Documentos novos fora dos 101 candidatos:** `ENVIRONMENT.md`. `E2E-Lojas.md` e o plano-mestre já existiam na revisão e foram atualizados; suas linhas no inventário (§2) seguem válidas como classificação. O parecer de due diligence, antes externo, foi **versionado em 09/11/2026** como `AVALIACAO-TECNICA-ERP-2026-11-05.md` (uma redação no DD-08 exigida pelo SEC-02); a cópia de trabalho permanece em `/home/user/`.
 

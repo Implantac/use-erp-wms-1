@@ -98,7 +98,8 @@ describe('BackendErrorBanner', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
     expect(fake.client?.refetchQueries).toHaveBeenCalledTimes(1);
     expect(fake.client?.refetchQueries).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ['clientes'], type: 'active' }),
+      { queryKey: ['clientes'], exact: true, type: 'active' },
+      { cancelRefetch: false },
     );
   });
 });

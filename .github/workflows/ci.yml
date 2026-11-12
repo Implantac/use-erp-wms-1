@@ -20,12 +20,18 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Typecheck explícito e não vazio
         run: bun run typecheck
+      - name: Typecheck focado de Produtos e spec isolado (QA-17; nao substitui app/node)
+        run: bun run typecheck:ux-related
+      - name: Typecheck focado do feedback e recuperacao (QA-18/19; nao substitui app/node)
+        run: bun run typecheck:ux-loading
       - name: Lint reportável
         run: bun run lint:ci
       - name: Sem projeto, JWT ou token fixo no código (SEC-02)
         run: node scripts/check-hardcoded-project-refs.mjs
-      - name: Contrato do transporte E2E isolado (QA-01)
-        run: node --test scripts/e2e-isolated-lib.test.mjs
+      - name: Contrato intercompany (LOJ-05A; fiscal permanece bloqueado)
+        run: node --test scripts/test-intercompany-production-release.mjs
+      - name: Contratos do isolado e gates UX (QA-01/17/18/19)
+        run: node --test scripts/e2e-isolated-lib.test.mjs scripts/e2e-isolated-embeds.test.mjs scripts/ux-responsive-lib.test.mjs scripts/ux-resilience-lib.test.mjs scripts/ux-loading-lib.test.mjs scripts/ux-retry-lib.test.mjs
       - name: Testes unitários
         run: bun x vitest run
       - name: Guardas RLS falham fechado
@@ -40,6 +46,7 @@ jobs:
     timeout-minutes: 30
     env:
       NODE_OPTIONS: --max-old-space-size=4096
+      MCP_FUNCTIONS_DIR: node_modules/.cache/recovery/supabase-functions
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2

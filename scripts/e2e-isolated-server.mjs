@@ -28,6 +28,8 @@ import {
   assertLoopback, buildRpcCall, buildTableQuery, buildInsertQuery,
   buildUpdateQuery, buildDeleteQuery, signJwt, verifyJwt,
 } from './e2e-isolated-lib.mjs';
+import { loadRelationshipCatalog, EMBED_LIMITS } from './e2e-isolated-embeds.mjs';
+import { seedRelatedReadFixtures } from './e2e-isolated-related-fixtures.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..');
@@ -158,6 +160,7 @@ async function runFile(label, file) {
 
 let migrationCount = 0;
 let discovered;
+let relationships;
 try {
   const scripts = path.join(REPO, 'docker/local/scripts');
   await runFile('stubs', path.join(HARNESS, 'stubs.sql'));
@@ -356,6 +359,12 @@ try {
     throw new Error('identidades isoladas nao criadas: ambiente incompleto');
   }
 
+  // QA-17: massa nao vazia e adversarial, exclusivamente no boot descartavel.
+  // Todas as leituras de validacao continuam autenticadas pela API sob RLS.
+  const relatedFixtures = await seedRelatedReadFixtures(pool, {
+    companyA: companyId, companyB: tenantBCompanyId,
+    branchA: hqBranchId, branchB: tenantBBranchId,
+  });
 
   const branches = (await pool.query(
     `SELECT id::text, is_headquarters FROM public.branches WHERE company_id = $1 ORDER BY created_at`,
@@ -375,6 +384,7 @@ try {
     tenantBCompanyId,
     tenantBBranchId,
     tenantBProductId,
+    relatedFixtures,
     storeBranchId: branches.find((b) => !b.is_headquarters)?.id ?? branches[0]?.id ?? null,
     cdBranchId: branches.find((b) => b.is_headquarters)?.id ?? branches[0]?.id ?? null,
     productId,
@@ -385,7 +395,11 @@ try {
   if (!companyId || !discovered.productId) {
     throw new Error('seeds deterministicos nao produziram empresa/produto; ambiente incompleto');
   }
+  // QA-17: le apenas metadados de tabelas/FKs apos o replay. As linhas
+  // relacionadas serao lidas dentro de withRls(), nunca pelo pool do boot.
+  relationships = await loadRelationshipCatalog(pool);
   console.log(`[e2e-isolated] replay completo: ${migrationCount} migrations + 3 seeds`);
+  console.log(`[e2e-isolated] relacoes public validadas: ${relationships.foreignKeys.length} FKs`);
 } catch (error) {
   console.error(`[e2e-isolated] ${error.message}`);
   await pool.end().catch(() => {});
@@ -414,6 +428,7 @@ fs.writeFileSync(ENV_FILE, [
   `E2E_TENANT_B_COMPANY_ID=${discovered.tenantBCompanyId}`,
   `E2E_TENANT_B_BRANCH_ID=${discovered.tenantBBranchId}`,
   `E2E_TENANT_B_PRODUCT_ID=${discovered.tenantBProductId}`,
+  `E2E_RELATED_FIXTURES=${JSON.stringify(discovered.relatedFixtures)}`,
   `E2E_COMPANY_ID=${discovered.companyId}`,
   `E2E_PRODUCT_ID=${discovered.productId}`,
   `E2E_STORE_BRANCH_ID=${discovered.storeBranchId ?? ''}`,
@@ -513,6 +528,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, {
       ok: true, isolated: true, loopback: true, marker: MARKER,
       migrations: migrationCount, pgPort: PGPORT,
+      relatedReads: { version: 'QA-17', maxDepth: EMBED_LIMITS.depth, foreignKeys: relationships.foreignKeys.length },
     });
   }
 
@@ -610,18 +626,14 @@ const server = http.createServer(async (req, res) => {
     }
     if (table && req.method === 'GET') {
       const single = /vnd\.pgrst\.object\+json/.test(req.headers.accept ?? '');
-      const { sql, values } = buildTableQuery(table[1], url.searchParams, single);
-      const result = await withRls(claims, sql, values);
-      if (single) {
-        if (result.rows.length !== 1) {
-          return send(res, 406, {
-            message: `JSON object requested, multiple (or no) rows returned`,
-            code: 'PGRST116', details: `rows=${result.rows.length}`,
-          });
-        }
-        return send(res, 200, result.rows[0]);
-      }
-      return send(res, 200, result.rows);
+      const { sql, values } = buildTableQuery(table[1], url.searchParams, single, relationships);
+      // QA-17: a raiz usa a mesma serializacao JSON do Postgres que os
+      // filhos. O driver pg entrega numeric como string em colunas comuns;
+      // mistura-lo com to_jsonb dos embeds fazia somas da UI concatenarem.
+      // O wrapper nao muda role, filtros, ordem, limit ou cardinalidade.
+      const result = await withRls(claims,
+        `SELECT row_to_json(e2e_result) AS body FROM (${sql}) AS e2e_result`, values);
+      return sendRows(req, res, 200, result.rows.map((row) => row.body));
     }
 
     return send(res, 405, { message: `metodo/rota nao suportados: ${req.method} ${pathname}` });

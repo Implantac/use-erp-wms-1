@@ -13,7 +13,8 @@ import { Button } from '@/ui/base/button';
  * Regras:
  * - so considera consultas com observadores ativos (ignora rotas abandonadas);
  * - texto generico em PT-BR, sem PGRST/400/JWT/SQL/stack;
- * - retry refaz SOMENTE as consultas que falharam;
+ * - retry refaz SOMENTE as consultas que falharam (chave exata, sem prefixos);
+ * - se uma recuperacao ja esta em voo, aguarda-a sem cancelar/reiniciar;
  * - desaparece assim que o cache volta ao normal.
  */
 const MESSAGE =
@@ -49,7 +50,10 @@ export function BackendErrorBanner() {
     try {
       await Promise.all(
         keys.map((queryKey) =>
-          client.refetchQueries({ queryKey, type: 'active' }),
+          client.refetchQueries(
+            { queryKey, exact: true, type: 'active' },
+            { cancelRefetch: false },
+          ),
         ),
       );
     } finally {
