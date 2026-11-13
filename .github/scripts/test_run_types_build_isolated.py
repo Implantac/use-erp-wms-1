@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location('isolated_gates', Path(__file__).with_name('run-types-build-isolated.py'))
@@ -32,6 +33,16 @@ class CollectorContracts(unittest.TestCase):
         for name in ('GITHUB_TOKEN', 'DATABASE_URL', 'VITE_SUPABASE_URL'):
             self.assertNotIn(name, env)
 
+    def assert_process_stopped(self, proc_stat):
+        # A reaped process can disappear before open() OR during read() of
+        # /proc/<pid>/stat. Both mean it cannot execute; a live process, an
+        # unreadable file, or malformed content must still fail this contract.
+        try:
+            stat = proc_stat.read_text()
+        except (FileNotFoundError, ProcessLookupError):
+            return
+        self.assertEqual(stat.rsplit(')', 1)[1].split()[0], 'Z')
+
     def test_timeout_stops_the_child_and_descendant_process_group(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -41,9 +52,35 @@ class CollectorContracts(unittest.TestCase):
             self.assertEqual(result['exit'], 124)
             self.assertTrue(result['timed_out'])
             self.assertTrue(pid.is_file())
-            proc = Path('/proc') / pid.read_text() / 'stat'
-            if proc.exists():
-                self.assertEqual(proc.read_text().rsplit(')', 1)[1].split()[0], 'Z')
+            self.assert_process_stopped(Path('/proc') / pid.read_text() / 'stat')
+
+    def test_cleanup_check_accepts_disappearance_at_open_or_read(self):
+        for error in (FileNotFoundError, ProcessLookupError):
+            with self.subTest(error=error.__name__):
+                proc_stat = mock.Mock(spec=Path)
+                proc_stat.read_text.side_effect = error('fixture: already reaped')
+                self.assert_process_stopped(proc_stat)
+                proc_stat.exists.assert_not_called()
+
+    def test_cleanup_check_accepts_only_nonexecuting_zombie_state(self):
+        proc_stat = mock.Mock(spec=Path)
+        proc_stat.read_text.return_value = '123 (fixture child) Z 1 123 123'
+        self.assert_process_stopped(proc_stat)
+        for state in ('R', 'S', 'D', 'T'):
+            with self.subTest(state=state):
+                proc_stat.read_text.return_value = '123 (fixture child) ' + state + ' 1 123 123'
+                with self.assertRaises(AssertionError):
+                    self.assert_process_stopped(proc_stat)
+
+    def test_cleanup_check_does_not_hide_permission_or_parse_failures(self):
+        proc_stat = mock.Mock(spec=Path)
+        proc_stat.read_text.side_effect = PermissionError('fixture: unreadable')
+        with self.assertRaises(PermissionError):
+            self.assert_process_stopped(proc_stat)
+        proc_stat.read_text.side_effect = None
+        proc_stat.read_text.return_value = 'malformed fixture'
+        with self.assertRaises(IndexError):
+            self.assert_process_stopped(proc_stat)
 
     def test_memory_policy_is_a_failed_gate_not_success(self):
         result = self.run_small('import time; x=bytearray(16*1024*1024); time.sleep(30)', max_rss_mib=1, timeout=5)
