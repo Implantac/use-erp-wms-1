@@ -1,0 +1,101 @@
+# Explicitly authorized validation only. No PR, database, browser or deploy.
+name: Types e build isolados
+
+on:
+  push:
+    branches: [validation/types-build-isolado-01d198de]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: types-build-isolado-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI: 'true'
+  PYTHONDONTWRITEBYTECODE: '1'
+  NODE_OPTIONS: --max-old-space-size=4096
+  GOMEMLIMIT: 5GiB
+  GOMAXPROCS: '2'
+  GOGC: '100'
+  MCP_FUNCTIONS_DIR: node_modules/.cache/types-build-ci/supabase-functions
+
+jobs:
+  types:
+    name: Tipagem global app e node
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Dependências congeladas
+        run: |
+          set -euo pipefail
+          test "$(bun --version)" = 1.4.2
+          bun install --frozen-lockfile
+      - name: Contratos do coletor, inclusive timeout e falhas
+        run: python3 -m unittest discover -s .github/scripts -p 'test_run_types_build_isolated.py' -v
+      - name: Gate original de tipagem sem sucesso vazio
+        run: python3 .github/scripts/run-types-build-isolated.py --gate types --output-dir "${{ runner.temp }}/types-build-evidence"
+      - name: Evidências da tipagem, inclusive falhas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-types-${{ github.sha }}
+          path: ${{ runner.temp }}/types-build-evidence/
+          if-no-files-found: error
+          retention-days: 7
+
+  # Independent on purpose: collect the real build result even if types fail.
+  # A failed types job still makes this workflow fail. No continue-on-error.
+  build:
+    name: Build completo sem deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Dependências congeladas
+        run: |
+          set -euo pipefail
+          test "$(bun --version)" = 1.4.2
+          bun install --frozen-lockfile
+      - name: Contratos do coletor, inclusive timeout e falhas
+        run: python3 -m unittest discover -s .github/scripts -p 'test_run_types_build_isolated.py' -v
+      - name: Gate original de build e integridade das fontes
+        run: python3 .github/scripts/run-types-build-isolated.py --gate build --output-dir "${{ runner.temp }}/types-build-evidence"
+      - name: Evidências do build, inclusive falhas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-build-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/types-build-evidence/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Bundle compilado de validação, não autorização de produção
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-dist-NO-GO-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7

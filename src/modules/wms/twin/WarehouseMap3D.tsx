@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState, useCallback, Suspense } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Grid, Html, PerspectiveCamera } from "@react-three/drei";
+// Import the public component modules, not Drei's entire re-export graph.
+// This keeps the same implementations and declarations without loading every
+// unrelated 3D helper into the app's typecheck and production build.
+import { OrbitControls } from "@react-three/drei/core/OrbitControls";
+import { Grid } from "@react-three/drei/core/Grid";
+import { Html } from "@react-three/drei/web/Html";
+import { PerspectiveCamera } from "@react-three/drei/core/PerspectiveCamera";
 import * as THREE from "three";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/base/card";

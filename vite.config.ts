@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
+import { directLucideImports } from "./scripts/vite-direct-lucide-imports";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -16,6 +17,7 @@ export default defineConfig(({ mode }) => ({
   // tracked Supabase sources. Normal development/build keeps the default.
   plugins: [
     react(),
+    directLucideImports(),
     mcpPlugin({ functionsDir: process.env.MCP_FUNCTIONS_DIR ?? "supabase/functions" }),
     mode === "development" && componentTagger(),
   ].filter(Boolean),
@@ -30,7 +32,8 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
-          'vendor-ui': ['lucide-react', 'recharts', 'date-fns'],
+          // Naming Lucide's barrel as a manual entry would undo the direct-import optimization.
+          'vendor-ui': ['recharts', 'date-fns'],
           'erp-core': ['./src/core/auth/EnterpriseContext.tsx', './src/core/layout/MainLayout.tsx'],
         }
       }
