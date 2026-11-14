@@ -12,6 +12,7 @@ import { CostTab } from './bi/CostTab';
 import { OEETab } from './bi/OEETab';
 import { TrendTab } from './bi/TrendTab';
 import { StrategicTab } from './bi/StrategicTab';
+import { ProductionTrackingTab } from './tracking/ProductionTrackingTab';
 
 export default function BIIndustrialPage() {
   const [period, setPeriod] = useState<'7' | '30' | '90'>('30');
@@ -40,6 +41,7 @@ export default function BIIndustrialPage() {
       <Tabs defaultValue="executive" className="space-y-4">
         <TabsList className="flex-wrap">
           <TabsTrigger value="executive">📈 Executivo</TabsTrigger>
+          <TabsTrigger value="tracking">Acompanhamento</TabsTrigger>
           <TabsTrigger value="pareto">🏆 Pareto não apurado</TabsTrigger>
           <TabsTrigger value="profit">💰 Preço × Custo Cadastrado</TabsTrigger>
           <TabsTrigger value="cost">🏭 Apontamentos por Setor</TabsTrigger>
@@ -48,6 +50,7 @@ export default function BIIndustrialPage() {
           <TabsTrigger value="strategic">🎯 Indicadores Estratégicos</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="tracking"><ProductionTrackingTab /></TabsContent>
         <TabsContent value="executive">
           <ExecutiveTab metrics={metrics} period={period} periodDays={periodDays} />
         </TabsContent>

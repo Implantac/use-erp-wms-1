@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toastError, toastSuccess } from '@/lib/toastHelpers';
+import { useEnterprise } from '@/core/auth/EnterpriseContext';
+import { isUuid, LEGACY_RECEIPT_MESSAGE } from '@/lib/store/intercompanyRelease';
 
 export interface GroupRequest {
   id: string;
@@ -17,10 +19,10 @@ export interface GroupRequest {
   decision: string | null;
   source_company_id: string | null;
   sales_order_id: string | null;
+  production_order_id: string | null;
   notes: string | null;
   created_at: string;
 }
-
 export interface GroupStockRow {
   company_id: string;
   company_name: string;
@@ -33,29 +35,45 @@ export interface GroupStockRow {
   reserved_quantity: number;
   min_stock: number;
 }
-
+interface GroupRequestReadQuery extends PromiseLike<{ data: GroupRequest[] | null; error: { message: string } | null }> {
+  select(columns: string): GroupRequestReadQuery;
+  eq(column: string, value: string): GroupRequestReadQuery;
+  or(expression: string): GroupRequestReadQuery;
+  order(column: string, options: { ascending: boolean }): GroupRequestReadQuery;
+  abortSignal(signal: AbortSignal): GroupRequestReadQuery;
+}
 const rpc = (fn: string, args: Record<string, unknown>) =>
   (supabase as unknown as {
     rpc: (f: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
   }).rpc(fn, args);
 
-/** Solicitações intercompany visíveis ao usuário (RLS: solicitante ou matriz). */
-export function useGroupRequests() {
+/** RLS still applies. Requester view is explicitly scoped; group view preserves the manager's group inbox. */
+export function useGroupRequests(view: 'group' | 'requester' = 'group') {
+  const { userId, currentCompany, currentBranch, activeChannel, isReady, isSwitching } = useEnterprise();
+  const ready = isReady && !isSwitching && isUuid(userId) && isUuid(currentCompany?.id)
+    && (!currentBranch || isUuid(currentBranch.id));
+  const token = ready ? JSON.stringify([userId, currentCompany!.id, currentBranch?.id ?? null, activeChannel]) : null;
   return useQuery({
-    queryKey: ['group-requests'],
-    queryFn: async () => {
-      const { data, error } = await (supabase as unknown as {
-        from: (t: string) => {
-          select: (c: string) => {
-            order: (c: string, o: { ascending: boolean }) => Promise<{ data: GroupRequest[] | null; error: { message: string } | null }>;
-          };
-        };
-      })
-        .from('intercompany_replenishment_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
+    queryKey: ['group-requests', view, token], enabled: ready, retry: false,
+    queryFn: async ({ signal }) => {
+      const companyId = currentCompany!.id;
+      let query = (supabase as unknown as { from(table: string): GroupRequestReadQuery })
+        .from('intercompany_replenishment_requests').select('*');
+      if (view === 'requester') {
+        query = query.eq('requesting_company_id', companyId);
+        if (currentBranch) query = query.eq('requesting_branch_id', currentBranch.id);
+      } else query = query.or(`group_root_company_id.eq.${companyId},requesting_company_id.eq.${companyId}`);
+      const { data, error } = await query.order('created_at', { ascending: false }).abortSignal(signal);
+      if (signal.aborted) throw new Error('Consulta cancelada.');
       if (error) throw new Error(error.message);
-      return (data ?? []) as GroupRequest[];
+      if (!Array.isArray(data)) throw new Error('Formato das solicitações não confirmado.');
+      for (const row of data) {
+        const inContext = view === 'requester'
+          ? row.requesting_company_id === companyId && (!currentBranch || row.requesting_branch_id === currentBranch.id)
+          : row.group_root_company_id === companyId || row.requesting_company_id === companyId;
+        if (!inContext) throw new Error('Solicitação retornada fora do contexto ativo.');
+      }
+      return data;
     },
     staleTime: 30_000,
   });
@@ -63,9 +81,10 @@ export function useGroupRequests() {
 
 /** Estoque do grupo (produto x empresa) — RPC com trava de gestor. */
 export function useGroupStock(enabled = true) {
+  const { userId, currentCompany, currentBranch, activeChannel, isReady, isSwitching } = useEnterprise();
   return useQuery({
-    queryKey: ['group-stock-overview'],
-    enabled,
+    queryKey: ['group-stock-overview', userId, currentCompany?.id, currentBranch?.id, activeChannel],
+    enabled: enabled && !!userId && !!currentCompany && isReady && !isSwitching,
     queryFn: async () => {
       const { data, error } = await rpc('group_stock_overview', {});
       if (error) throw new Error(error.message);
@@ -114,7 +133,7 @@ export function useDecideGroupRequest() {
     onSuccess: (r) => {
       toastSuccess(
         'Decisão registrada',
-        r?.sales_order_id ? 'Pedido intercompany criado para expedição.' : `Solicitação marcada como ${r?.status}.`,
+        r?.sales_order_id ? 'Pedido intercompany vinculado; liberação logística/fiscal não confirmada.' : `Solicitação marcada como ${r?.status}.`,
       );
       qc.invalidateQueries({ queryKey: ['group-requests'] });
       qc.invalidateQueries({ queryKey: ['group-stock-overview'] });
@@ -123,22 +142,13 @@ export function useDecideGroupRequest() {
   });
 }
 
+/** Compatibility export: the unsafe receipt signature is never called by this client. */
 export function useReceiveGroupDelivery() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { requestId: string; quantity?: number }) => {
-      const { data, error } = await rpc('receive_intercompany_delivery', {
-        p_request_id: input.requestId,
-        p_quantity: input.quantity ?? null,
-      });
-      if (error) throw new Error(error.message);
-      return data;
+      void input;
+      throw new Error(LEGACY_RECEIPT_MESSAGE);
     },
-    onSuccess: () => {
-      toastSuccess('Recebimento confirmado', 'O estoque entrou pelo ledger de movimentações.');
-      qc.invalidateQueries({ queryKey: ['group-requests'] });
-      qc.invalidateQueries({ queryKey: ['group-stock-overview'] });
-    },
-    onError: (e) => toastError(e, 'Não foi possível confirmar o recebimento.'),
+    onError: (e) => toastError(e, 'Recebimento por entrega ainda indisponível.'),
   });
 }

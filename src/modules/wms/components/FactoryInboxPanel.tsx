@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -17,6 +17,10 @@ import { rankSupplyCandidates } from '@/lib/store/supplyRecommendation';
 import { produceIntercompanyRequest } from '@/services/production/textilePcpService';
 import { useSupplyAccess } from '@/hooks/operational/store/useSupplyAccess';
 import { productionStatusConfig } from '@/config/production';
+import { useEnterprise } from '@/core/auth/EnterpriseContext';
+import { useIntercompanyProductionReleases } from '@/hooks/operational/store/useIntercompanyProductionReleases';
+import { IntercompanyReleaseSummary } from '@/components/production/IntercompanyReleaseSummary';
+import { formatReleaseQuantity, isUuid } from '@/lib/store/intercompanyRelease';
 
 const fmt = (n: number | string | null | undefined) => Number(n || 0).toLocaleString('pt-BR');
 
@@ -64,27 +68,41 @@ const kindLabel: Record<string, string> = {
  */
 export function FactoryInboxPanel() {
   const supplyAccess = useSupplyAccess();
+  const context = useEnterprise();
+  const contextToken = JSON.stringify([context.userId, context.currentCompany?.id, context.currentBranch?.id, context.activeChannel]);
+  const contextReady = context.isReady && !context.isSwitching && isUuid(context.userId) && isUuid(context.currentCompany?.id);
   const queryClient = useQueryClient();
   const decideInter = useDecideGroupRequest();
   const [openId, setOpenId] = useState<string | null>(null);
   const [producingId, setProducingId] = useState<string | null>(null);
 
   const inboxQuery = useQuery({
-    queryKey: ['factory-inbox'],
+    queryKey: ['factory-inbox', contextToken],
     queryFn: async () => {
       const { data, error } = await loose.rpc('factory_inbox');
       if (error) throw new Error(error.message);
-      return data ?? { supply: [], intercompany: [] };
+      if (!data || !Array.isArray(data.supply) || !Array.isArray(data.intercompany)
+        || (data.production !== undefined && !Array.isArray(data.production))
+        || (data.group_root_company_id !== undefined && !isUuid(data.group_root_company_id))) {
+        throw new Error('Contrato da caixa de entrada não confirmado; não é um resultado vazio.');
+      }
+      return data;
     },
     staleTime: 15_000,
-    enabled: supplyAccess.canManage,
+    enabled: supplyAccess.canManage && contextReady, retry: false,
   });
 
   const candidatesQuery = useQuery({
-    queryKey: ['factory-inbox-candidates', openId],
+    queryKey: ['factory-inbox-candidates', contextToken, openId],
     queryFn: () => getSupplyCandidates(openId!),
-    enabled: !!openId,
+    enabled: !!openId && supplyAccess.canManage && contextReady, retry: false,
   });
+
+  const inboxData = contextReady && supplyAccess.canManage && !inboxQuery.isError ? inboxQuery.data : undefined;
+  const releases = useIntercompanyProductionReleases(
+    (inboxData?.production ?? []).map(row => row.id), inboxData?.group_root_company_id ?? null,
+  );
+  useEffect(() => { setOpenId(null); setProducingId(null); }, [contextToken]);
 
   const decideSupply = useMutation({
     mutationFn: (args: { id: string; kind: 'LOJA' | 'CD' | 'FABRICA' | 'REJEITAR'; branchId?: string }) =>
@@ -120,9 +138,9 @@ export function FactoryInboxPanel() {
     }
   };
 
-  const supply = inboxQuery.data?.supply || [];
-  const inter = inboxQuery.data?.intercompany || [];
-  const productions = inboxQuery.data?.production || [];
+  const supply = inboxData?.supply || [];
+  const inter = inboxData?.intercompany || [];
+  const productions = inboxData?.production || [];
   const total = supply.length + inter.length;
 
   return (
@@ -141,16 +159,18 @@ export function FactoryInboxPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!contextReady && <p role="status" className="text-sm text-muted-foreground">Aguarde a resolução do contexto antes de consultar solicitações.</p>}
         {inboxQuery.isLoading && <p className="text-sm text-muted-foreground">Carregando solicitações das lojas…</p>}
         {inboxQuery.isError && (
-          <p className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-destructive">
             Não foi possível carregar: {inboxQuery.error instanceof Error ? inboxQuery.error.message : 'erro inesperado'}
           </p>
         )}
-        {!inboxQuery.isLoading && !inboxQuery.isError && total === 0 && (
+        {contextReady && !supplyAccess.isLoading && inboxQuery.isSuccess && !inboxQuery.isError && total === 0 && (
           <p className="text-sm text-muted-foreground">Nenhuma solicitação de Loja pendente no momento.</p>
         )}
 
+        {inboxData && inboxData.production === undefined && <p role="status" className="text-xs text-muted-foreground">O backend não confirmou a seção de OPs vinculadas. Acompanhamento indisponível nesta caixa; nenhum vínculo será inferido.</p>}
         {inter.length > 0 && (
           <div className="space-y-2">
             <p className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
@@ -166,7 +186,7 @@ export function FactoryInboxPanel() {
                   </p>
                 </div>
                 <Badge variant="outline">{r.product_code}</Badge>
-                <Badge>{fmt(r.quantity)} un</Badge>
+                <Badge>{formatReleaseQuantity(r.quantity)}</Badge>
                 <div className="flex gap-1">
                   <Button size="sm" disabled={decideInter.isPending}
                     onClick={() => decideInter.mutate({ requestId: r.id, decision: 'vender' })}>Vender</Button>
@@ -192,7 +212,7 @@ export function FactoryInboxPanel() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold">{r.product_name}</span>
                   <Badge variant="outline">{r.product_code}</Badge>
-                  <Badge>{fmt(r.quantity)} un</Badge>
+                  <Badge>{formatReleaseQuantity(r.quantity)}</Badge>
                   <span className="text-xs text-muted-foreground">
                     {r.company_name}{r.branch_name ? ` · ${r.branch_name}` : ''} ·{' '}
                     {new Date(r.created_at).toLocaleString('pt-BR')}
@@ -216,7 +236,8 @@ export function FactoryInboxPanel() {
                     {candidatesQuery.isLoading && (
                       <p className="text-xs text-muted-foreground">Consultando saldos do grupo (Loja × CD × Fábrica)…</p>
                     )}
-                    {rankSupplyCandidates(candidatesQuery.data || [], Number(r.quantity)).map((ranked) => {
+                    {candidatesQuery.isError && <p role="alert" className="text-xs text-destructive">Falha ao consultar origens; saldo não confirmado.</p>}
+                    {rankSupplyCandidates(candidatesQuery.isError ? [] : candidatesQuery.data || [], Number(r.quantity)).map((ranked) => {
                       const c: SupplyCandidate = ranked.candidate;
                       const saldo = Number(c.quantity || 0);
                       const Icon = c.source_kind === 'FABRICA' ? Factory : c.source_kind === 'CD' ? Truck : Store;
@@ -238,7 +259,7 @@ export function FactoryInboxPanel() {
                         </div>
                       );
                     })}
-                    {!candidatesQuery.isLoading && (candidatesQuery.data || []).length === 0 && (
+                    {!candidatesQuery.isLoading && !candidatesQuery.isError && (candidatesQuery.data || []).length === 0 && (
                       <p className="text-xs text-amber-600">
                         Nenhuma origem com saldo no grupo — produza na Fábrica ou rejeite.
                       </p>
@@ -256,9 +277,9 @@ export function FactoryInboxPanel() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Link2 className="h-4 w-4" /> OPs vinculadas às solicitações
+            <Link2 className="h-4 w-4" /> OPs vinculadas às solicitações (até 20 mais recentes)
           </CardTitle>
-          <CardDescription>Vínculo e status lidos diretamente da solicitação e da ordem de produção.</CardDescription>
+          <CardDescription>Vínculo e status persistidos. Esta janela limitada não representa o total de OPs do grupo.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {productions.map((r) => {
@@ -270,7 +291,7 @@ export function FactoryInboxPanel() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold">{r.product_name}</span>
                   <Badge variant="outline">{r.product_code}</Badge>
-                  <Badge>{fmt(r.quantity)} un</Badge>
+                  <Badge>Solicitado: {formatReleaseQuantity(r.quantity)}</Badge>
                   <Badge variant={hasOrder ? 'outline' : 'destructive'}>{statusLabel}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -288,6 +309,12 @@ export function FactoryInboxPanel() {
                     Registro legado sem OP vinculada. Exige conciliação; o sistema não criou outra OP automaticamente.
                   </p>
                 )}
+                <IntercompanyReleaseSummary requestId={r.id} productionOrderId={r.production_order_id}
+                  productionStatus={r.production_order_status} readState={releases.state}
+                  release={releases.records.find(record => record.request_id === r.id)}
+                  canManage={releases.canManage} scopeToken={releases.scopeToken}
+                  authorizationMessage={releases.authorizationError instanceof Error ? releases.authorizationError.message : null}
+                  onRefresh={async () => { await releases.refetch(); }} />
               </div>
             );
           })}
