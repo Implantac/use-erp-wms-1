@@ -12,6 +12,8 @@ export interface TrackingFilters {
 export interface TrackingScope { userId: string; companyId: string; branchId: string | null; channel: string }
 export interface TrackingSectorAccess { is_admin: boolean; enforced: boolean; access: Partial<Record<SectorKind, string>> }
 export const TRACKING_PAGE_SIZE = 50;
+export const TRACKING_STATUSES = ['draft', 'planned', 'waiting_material', 'in_progress', 'outsourced', 'paused', 'finishing', 'quality_check', 'completed', 'cancelled', 'canceled'] as const;
+export const TRACKING_PRIORITIES = ['urgent', 'high', 'medium', 'low'] as const;
 export const TRACKING_COLUMNS = 'id,company_id,branch_id,order_number,product_code,product_name,quantity,produced_quantity,rejected_quantity,unit,status,priority,sector,work_center,client_name,sales_order_id,start_date,due_date,completed_date,created_at,updated_at';
 export const SECTOR_KEYS = Object.keys(SECTOR_LABELS) as SectorKind[];
 export const CANONICAL_SECTOR_NOTE = 'Recorte setorial por código/nome canônico exato. Textos legados com outra classificação não estão incluídos; o filtro não é prova de RLS.';
@@ -35,6 +37,14 @@ export function trackingDateRange(filters: Pick<TrackingFilters, 'start' | 'end'
   end.setDate(end.getDate() + 1);
   return { from: start.toISOString(), before: end.toISOString() };
 }
+export function validateTrackingFilters(filters: TrackingFilters) {
+  const dates = trackingDateRange(filters);
+  if (filters.status !== 'all' && !TRACKING_STATUSES.some(value => value === filters.status)) throw new Error('Filtro de status inválido.');
+  if (filters.priority !== 'all' && !TRACKING_PRIORITIES.some(value => value === filters.priority)) throw new Error('Filtro de prioridade inválido.');
+  if (filters.sector !== 'all' && !SECTOR_KEYS.includes(filters.sector)) throw new Error('Filtro de setor inválido.');
+  if (typeof filters.search !== 'string' || filters.search.length > 120) throw new Error('Busca limitada a 120 caracteres.');
+  return dates;
+}
 export function trackingContextKey(scope: TrackingScope) {
   return JSON.stringify([scope.userId, scope.companyId, scope.branchId, scope.channel]);
 }
@@ -45,7 +55,7 @@ export function parseTrackingSectorAccess(value: unknown): TrackingSectorAccess 
     throw new Error('Contrato de acesso setorial inválido.');
   }
   for (const [key, level] of Object.entries(r.access)) {
-    if (!SECTOR_KEYS.includes(key as SectorKind) || !['viewer', 'operator', 'manager'].includes(String(level))) throw new Error('Permissão setorial desconhecida.');
+    if (!SECTOR_KEYS.includes(key as SectorKind) || (typeof level !== 'string' || !['viewer', 'operator', 'manager'].includes(level))) throw new Error('Permissão setorial desconhecida.');
   }
   return r as unknown as TrackingSectorAccess;
 }
@@ -72,7 +82,7 @@ export function trackingProgress(row: TrackingRow) {
   return { percent: null, label: above ? 'Acima do planejado — conferir' : 'Não apurado — conferir quantidades' };
 }
 export function displayTrackingNumber(value: unknown): string {
-  return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('pt-BR', { maximumFractionDigits: 8 }) : 'Não apurado';
+  return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('pt-BR', { maximumSignificantDigits: 21 }) : 'Não apurado';
 }
 export function trackingPageSummary(rows: readonly TrackingRow[], now = new Date()) {
   return { total: rows.length, inProgress: rows.filter(r => r.status === 'in_progress').length,

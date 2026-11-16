@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { requireUuid } from '@/lib/store/intercompanyRelease';
 import { allowedTrackingSectors, parseTrackingSectorAccess, sectorVocabulary, TRACKING_COLUMNS, TRACKING_PAGE_SIZE,
-  trackingContextKey, trackingDateRange, type TrackingFilters, type TrackingRow, type TrackingScope, type TrackingSectorAccess } from './productionTrackingModel';
+  trackingContextKey, validateTrackingFilters, type TrackingFilters, type TrackingRow, type TrackingScope, type TrackingSectorAccess } from './productionTrackingModel';
 
 interface ReadResponse { data: unknown; error: { message: string } | null; count?: number | null }
 export interface TrackingQuery extends PromiseLike<ReadResponse> {
@@ -63,7 +63,7 @@ export async function readProductionTrackingPage(scope: TrackingScope, filters: 
   const branchId = scope.branchId ?? filters.branchId;
   if (branchId !== null) requireUuid(branchId, 'Unidade');
   if (scope.branchId && filters.branchId && scope.branchId !== filters.branchId) throw new Error('Unidade fora do contexto ativo.');
-  const dates = trackingDateRange(filters);
+  const dates = validateTrackingFilters(filters);
   const allowed = allowedTrackingSectors(parseTrackingSectorAccess(access));
   if (allowed && allowed.length === 0) throw new Error('Nenhum setor autorizado para este acompanhamento.');
   if (filters.sector !== 'all' && allowed && !allowed.includes(filters.sector)) throw new Error('Setor não autorizado.');
@@ -75,9 +75,8 @@ export async function readProductionTrackingPage(scope: TrackingScope, filters: 
   for (const name of ['status', 'priority'] as const) if (filters[name] !== 'all') query = query.eq(name, filters[name]);
   const groups: string[] = [];
   const search = filters.search.trim();
-  if (search.length > 120) throw new Error('Busca limitada a 120 caracteres.');
   if (search) {
-    const pattern = quoteFilter('%' + search.replace(/[%_]/g, '\\$&') + '%');
+    const pattern = quoteFilter('%' + search.replace(/[\\%_]/g, '\\$&') + '%');
     groups.push(`or(${['order_number', 'product_code', 'product_name', 'client_name'].map(key => `${key}.ilike.${pattern}`).join(',')})`);
   }
   if (vocabulary) groups.push(`or(${vocabulary.map(value => `sector.eq.${quoteFilter(value)}`).join(',')})`);
@@ -92,7 +91,10 @@ export async function readProductionTrackingPage(scope: TrackingScope, filters: 
   if (!Array.isArray(data) || data.length > TRACKING_PAGE_SIZE) throw new Error('Página de OPs inválida ou incompleta.');
   const rows = data.map(r => readRow(r, scope, branchId, vocabulary));
   if (new Set(rows.map(r => r.id)).size !== rows.length) throw new Error('OP duplicada na mesma página.');
-  const total = typeof count === 'number' && Number.isSafeInteger(count) && count >= 0 ? count : null;
+  if (count !== undefined && count !== null && (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0)) {
+    throw new Error('Contagem de OPs inválida; totais e navegação não confirmados.');
+  }
+  const total = count ?? null;
   const offset = page * TRACKING_PAGE_SIZE;
   if (total !== null && ((total < offset + rows.length && rows.length > 0)
     || (rows.length < TRACKING_PAGE_SIZE && total > offset + rows.length))) {

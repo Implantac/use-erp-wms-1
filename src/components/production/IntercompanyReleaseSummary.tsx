@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useReadContextEpoch } from '@/hooks/operational/useReadContextEpoch';
 import { Button } from '@/ui/base/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/base/dialog';
 import {
@@ -18,28 +19,40 @@ export function IntercompanyReleaseSummary(props: Props) {
   const [pending, setPending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [readMessage, setReadMessage] = useState<{ error: boolean; text: string } | null>(null);
   const inFlight = useRef(false);
   const attempted = useRef(new Set<string>());
-  const signature = JSON.stringify([props.scopeToken, props.requestId]);
+  // Attempts stay remembered across returning to the same scope; view/read
+  // outcomes instead belong to a continuous context epoch and cannot reappear.
+  const attemptKey = JSON.stringify([props.scopeToken, props.requestId]);
+  const readEpoch = useReadContextEpoch(attemptKey);
+  const signature = JSON.stringify([attemptKey, readEpoch]);
   const currentRequest = useRef(signature); currentRequest.current = signature;
-  useEffect(() => { setOpen(false); setMessage(null); setPending(false); setRefreshing(false); }, [signature]);
+  const refreshInFlight = useRef<string | null>(null);
+  useEffect(() => { setOpen(false); setMessage(null); setReadMessage(null); setPending(false); setRefreshing(false); }, [signature]);
   const presentation = releasePresentation(props);
   const canReview = presentation.canReview && props.canManage === true && !!props.scopeToken;
   useEffect(() => { if (!canReview) setOpen(false); }, [canReview]);
   const release = props.release;
 
   async function refresh() {
-    if (!props.onRefresh || refreshing) return;
-    setRefreshing(true);
-    try { await props.onRefresh(); }
-    catch { if (currentRequest.current === signature) setMessage('Reconsulta não confirmada; ação permanece bloqueada.'); }
-    finally { if (currentRequest.current === signature) setRefreshing(false); }
+    if (!props.onRefresh || !props.scopeToken || refreshInFlight.current === signature) return;
+    refreshInFlight.current = signature; setRefreshing(true); setReadMessage(null);
+    try {
+      await props.onRefresh();
+      if (currentRequest.current === signature) setReadMessage({ error: false, text: 'Leitura do lastro atualizada; nenhuma disponibilização foi reenviada.' });
+    } catch {
+      if (currentRequest.current === signature) setReadMessage({ error: true, text: 'Reconsulta não confirmada; ação permanece bloqueada. Nenhuma disponibilização foi reenviada.' });
+    } finally {
+      if (refreshInFlight.current === signature) refreshInFlight.current = null;
+      if (currentRequest.current === signature) setRefreshing(false);
+    }
   }
   async function confirm() {
     // Deliberate source-level lock, NOT a fiscal flag or runtime/environment override.
-    if (!INTERCOMPANY_RELEASE_OPERATIONAL_ENABLED || !canReview || inFlight.current || attempted.current.has(signature)) return;
+    if (!INTERCOMPANY_RELEASE_OPERATIONAL_ENABLED || !canReview || inFlight.current || attempted.current.has(attemptKey)) return;
     const token = props.scopeToken;
-    inFlight.current = true; attempted.current.add(signature); setPending(true); setMessage(null);
+    inFlight.current = true; attempted.current.add(attemptKey); setPending(true); setMessage(null);
     try {
       const result = await finalizeIntercompanyProduction(props.requestId);
       if (currentRequest.current !== signature) return;
@@ -59,7 +72,7 @@ export function IntercompanyReleaseSummary(props: Props) {
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-primary/20 p-3 text-xs" aria-label="Disponibilização da produção">
+    <div className="space-y-2 rounded-md border border-primary/20 p-3 text-xs" aria-label="Disponibilização da produção" aria-busy={refreshing || pending}>
       <p role={['error', 'incompatible', 'inconsistent'].includes(presentation.kind) ? 'alert' : 'status'}>{presentation.label}</p>
       {release && presentation.kind === 'reserved' && (
         <dl className="grid gap-1 break-all sm:grid-cols-2">
@@ -70,10 +83,11 @@ export function IntercompanyReleaseSummary(props: Props) {
         </dl>
       )}
       {presentation.kind === 'awaiting' && <p className="text-muted-foreground">Nenhum lastro visível nesta leitura. RLS pode ocultar registros; isto não prova ausência global.</p>}
-      {canReview && <Button size="sm" variant="outline" onClick={() => setOpen(true)}>Ver disponibilização gerencial</Button>}
+      {canReview && <Button size="sm" variant="outline" disabled={refreshing || pending} onClick={() => setOpen(true)}>Ver disponibilização gerencial</Button>}
       {presentation.kind === 'awaiting' && !props.canManage && <p className="text-muted-foreground">Ação restrita a admin/manager com a indústria raiz ativa e papéis confirmados.</p>}
       {props.authorizationMessage && <p role="alert">{props.authorizationMessage}</p>}
-      {props.onRefresh && props.scopeToken && <Button size="sm" variant="ghost" disabled={refreshing || pending || props.readState === 'loading'} onClick={() => void refresh()}>Reconsultar lastro (sem reenviar)</Button>}
+      {props.onRefresh && props.scopeToken && <Button size="sm" variant="ghost" disabled={refreshing || pending || props.readState === 'loading'} onClick={() => void refresh()}>{refreshing ? 'Reconsultando lastro…' : 'Reconsultar lastro (sem reenviar)'}</Button>}
+      {readMessage && <p role={readMessage.error ? 'alert' : 'status'}>{readMessage.text}</p>}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -84,7 +98,7 @@ export function IntercompanyReleaseSummary(props: Props) {
           {message && <p role="status" className="text-sm">{message}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-            <Button disabled={!INTERCOMPANY_RELEASE_OPERATIONAL_ENABLED || !canReview || pending || attempted.current.has(signature)} onClick={() => void confirm()}>
+            <Button disabled={!INTERCOMPANY_RELEASE_OPERATIONAL_ENABLED || !canReview || pending || attempted.current.has(attemptKey)} onClick={() => void confirm()}>
               Criar pedido pendente e reserva
             </Button>
           </DialogFooter>

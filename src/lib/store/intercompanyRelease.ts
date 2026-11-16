@@ -119,7 +119,10 @@ export function releasePresentation(input: ReleasePresentationInput): { kind: st
     }
     return { kind: 'reserved', label: 'Pedido pendente · quantidade reservada · fiscal e expedição bloqueados', canReview: false };
   }
-  if (!input.productionOrderId) return { kind: 'inconsistent', label: 'OP não identificada; conciliação individual necessária.', canReview: false };
+  if (input.salesOrderId !== undefined && input.salesOrderId !== null) {
+    return { kind: 'inconsistent', label: 'Pedido vinculado sem lastro visível; reconsulte e concilie o registro. Ação bloqueada.', canReview: false };
+  }
+  if (!isUuid(input.requestId) || !isUuid(input.productionOrderId)) return { kind: 'inconsistent', label: 'OP não identificada; conciliação individual necessária.', canReview: false };
   if (input.productionStatus === 'completed') return { kind: 'awaiting', label: 'OP concluída — aguardando disponibilização gerencial', canReview: true };
   return { kind: 'production', label: 'Produção solicitada — sem disponibilização visível neste contexto', canReview: false };
 }
@@ -133,6 +136,6 @@ export function canReleaseInContext(input: {
 }
 
 export function formatReleaseQuantity(quantity: unknown, unit?: string | null): string {
-  const value = typeof quantity === 'number' && Number.isFinite(quantity) ? quantity.toLocaleString('pt-BR') : 'Não apurada';
+  const value = typeof quantity === 'number' && Number.isFinite(quantity) ? quantity.toLocaleString('pt-BR', { maximumSignificantDigits: 21 }) : 'Não apurada';
   return `${value} ${unit?.trim() || '(unidade não informada)'}`;
 }
