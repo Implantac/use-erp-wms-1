@@ -17,7 +17,7 @@ import {
   Percent, Globe, ScrollText, ArrowRightLeft,
   BellRing, RotateCw, AlertOctagon, GitBranch, Siren, Scissors, Inbox, Heart,
   Send, MessageSquare, Palette, BookOpenCheck, Crown, LayoutGrid, Split, FileBarChart, Navigation,
-  History, ListChecks,
+  History, ListChecks, Workflow, Handshake,
 } from 'lucide-react';
 
 export const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -37,5 +37,5 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   FileCheck2, FileDown, Percent, Globe, ScrollText, ArrowRightLeft,
   BellRing, RotateCw, AlertOctagon, GitBranch, Siren, Scissors, Inbox, Heart,
   Send, MessageSquare, Palette, BookOpenCheck, LayoutGrid, Split, FileBarChart, Navigation,
-  History, ListChecks,
+  History, ListChecks, Workflow, Handshake,
 };

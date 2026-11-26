@@ -23,7 +23,7 @@ import {
   Receipt, BarChart3, Box, FolderTree, ArrowLeftRight, Calculator,
   Building2, FileSearch, ClipboardCheck, PackageMinus, Timer, PackagePlus,
   MapPin, PackageSearch, PackageCheck, MoveHorizontal, Building, Sliders,
-  Plug, BookOpen, Scale, Radio, Wifi, Tag, Activity,
+  Plug, BookOpen, Scale, Radio, Wifi, Tag, Activity, Workflow, Handshake, Boxes, Layers,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -33,7 +33,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Receipt, BarChart3, Box, FolderTree, ArrowLeftRight, Calculator,
   Building2, FileSearch, ClipboardCheck, PackageMinus, Timer, PackagePlus,
   MapPin, PackageSearch, PackageCheck, MoveHorizontal, Building, Sliders,
-  Plug, BookOpen, Scale, Radio, Wifi, Tag, Activity,
+  Plug, BookOpen, Scale, Radio, Wifi, Tag, Activity, Workflow, Handshake, Boxes, Layers,
 };
 
 /** Ações orientadas à tarefa — o usuário novo não sabe o nome do módulo. */
@@ -44,6 +44,7 @@ const taskActions = [
   { title: 'Consultar estoque', href: '/estoque/saldos', icon: 'Calculator', keywords: 'estoque saldo quanto tenho disponivel reservado transito' },
   { title: 'Ver pendências', href: '/pendencias', icon: 'Activity', keywords: 'pendencia atencao problema resolver alerta' },
   { title: 'Ver lojas', href: '/operacional/loja/central', icon: 'Building', keywords: 'loja lojas unidade filial minha loja' },
+  { title: 'Torre do gestor de lojas', href: '/operacional/loja/gestor', icon: 'Workflow', keywords: 'torre gestor consolidado cobertura ruptura reposicao consignado remanejar giro' },
   { title: 'Novo pedido de compra', href: '/compras/pedidos', icon: 'ShoppingCart', keywords: 'comprar compra fornecedor pedido' },
   { title: 'Vender no PDV', href: '/comercial/pdv', icon: 'ShoppingBag', keywords: 'venda vender pdv caixa frente de loja' },
 ];

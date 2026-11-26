@@ -15,5 +15,14 @@ export const redeOperacionalSection: NavSection = {
         { title: 'Situação das lojas', href: '/operacional/rede/painel', icon: 'Layers' },
       ],
     },
+    {
+      title: 'Torre do Gestor de Lojas',
+      href: '/operacional/loja/gestor',
+      icon: 'Workflow',
+      children: [
+        { title: 'Consolidado, cobertura e reposições', href: '/operacional/loja/gestor', icon: 'LayoutGrid' },
+        { title: 'Consignado fábrica ↔ lojas', href: '/operacional/loja/gestor', icon: 'Handshake' },
+      ],
+    },
   ],
 };
